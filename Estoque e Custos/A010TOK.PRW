@@ -37,12 +37,13 @@ Local cUser     := SUPERGETMV("ES_USERSB1", .T., "000000") // SuperGetMv ( cPara
     EndCase
 
 // GRAVA a inclusão no cadastro de produto
-    DbSelectArea("ZZ1")
-        RecLock("ZZ1", .T.) // Bloqueia o registro 
+    DbSelectArea("ZZ1") // Define a área de trabalho especificada como ativa.
+        RecLock("ZZ1", .T.)         // Bloqueia o registro 
             ZZ1->ZZ1_FILIAL  := SB1->B1_FILIAL
             ZZ1->ZZ1_COD     := SB1->B1_COD
             ZZ1->ZZ1_DESC    := SB1->B1_DESC
-        MsUnLock() // Confirma e finaliza a operação
-    ZZ1->(dbCloseArea())
+            ZZ1->ZZ1_DATE    := Date()
+            ZZ1->(MsUnlock())       // Confirma e finaliza a operação
+            ZZ1->(dbCloseArea())    // Fecha a área de trabalho corrente.
 
 Return(lExecuta)
