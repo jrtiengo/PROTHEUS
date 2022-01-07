@@ -1,38 +1,27 @@
 #INCLUDE "protheus.ch"
-#INCLUDE "TopConn.ch"
 
 User Function BANCO004()
 
-    Local aArea     := SB1->(GETAREA())
-    Local cQuery    := ""
-    Local aDados    := {}
-    Local nCount    := 0
+    Local aArea := SB1->(GETAREA())
 
-    cQuery := " SELECT "
-    cQuery += " B1_COD AS CODIGO, "
-    cQuery += " B1_DESC AS DESCRICAO "
-    cQuery += " FROM "
-    cQUery += " "+ RetSQLName("SB1")+ " SB1 "
-    cQUery += " WHERE "
-    cQUery += " B1_MSBLQL != 1 AND D_E_L_E_T_ = '' "
+    DbSelectArea("SB1")
+    SB1->(DbSetOrder(1)) //Posiciona no indíce 1 
+    SB1->(dbGoTop())
 
-    //Executando a consulta acima
+    // Iniciar a Transasão 
 
-    TCQuery cQUery New Alias "TMP"
+    Begin Transaction 
 
-    while ! TMP->(EoF())
-        AADD(aDados, TMP->CODIGO)
-        AADD(aDados, TMP->DESCRICAO)
-        TMP->(DbSkip())
-    enddo
+        MsgInfo("A descrição do produto será alterada", "Atenção")
 
-        Alert(Len(aDados))
+    IF  SB1->(dbSeek(FWxFilial('SB1') + "000000000000001"))
+        RecLock('SB1', .F.) // .F. trava registro para alteração - .T. trava para inclusão
+        Replace B1_DESC With "PRODUTO 01 - REC"
+        SB1->(MsUnlock())
+    ENDIF
 
-        For nCount := 1 To Len(aDados)
-            MsgInfo(aDados[nCount])
-        Next nCount
+        MsgAlert("Alteração efetuada", "Atenção")
 
-        TMP-> (DbCloseArea())
-        RestArea(aArea)
-
+    End Transaction // Disarm Transaction(), cancela a operação
+    RestArea(aArea)
 Return
