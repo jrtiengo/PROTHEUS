@@ -1,0 +1,119 @@
+0001#STR0001#ALL#| MINISTRY OF ECONOMY | PROOF OF PAID INCOME |
+0002#STR0002#ALL#| SPECIAL SECRETARIAT FOR BRAZILIAN FEDERAL REVENUE | PAYMENTS AND TAX ON |
+0003#STR0003#ALL#| INDIVIDUAL INCOME TAX| WITHHELD INCOME TAX |
+0004#STR0004#ALL#| | (CALENDAR YEAR -
+0005#STR0005#ALL#  1. - Payer - Company or Natural Person
+0006#STR0006#ALL#| CNPJ/CPF                    | Business Name/Name                          |
+0007#STR0007#ALL#| Address:
+0008#STR0008#ALL#| City:
+0009#STR0009#ALL#ST:
+0010#STR0010#ALL#PHONE:
+0011#STR0011#ALL#  2. - Natural Person - Beneficiary of the Earnings 
+0012#STR0012#ALL#| CPF:
+0013#STR0013#ALL#Full Name 
+0014#STR0014#ALL#| Earnings Nature 
+0015#STR0015#ALL#  3. - Tax Income, Deductions and Income Tax withheld at source          R$    
+0016#STR0016#ALL#| 01. Taxes Total (Including Vacations)                    
+0017#STR0017#ALL#| 02. Official Social Security Contribution                
+0018#STR0018#ALL#| 03. Private Social Security Contribution                 
+0019#STR0019#ALL#| 04. Alimony (Enter Beneficiary in Frame 07)  
+0020#STR0021#ALL#| 05. Income Tax withheld at source                        
+0021#STR0022#ALL#  4. - Exempt Tax and Not Taxed                                          R$    
+0022#STR0023#ALL#| 06. Indemnity for Rescis. Inc. to Bill PDV and Work Accd. 
+0023#STR0024#ALL#| 01. Installment Free Revenues Pension, Repair and Daily  
+0024#STR0025#ALL#| 02. Pension and Cost of living allowance                 
+0025#STR0026#ALL#| 03. Pension, Pens. Reven. or Repair for Serious Disease  
+0026#STR0027#ALL#| 04. Profit and Dividend calculated from 1996 paid to PJ  
+0027#STR0028#ALL#| 05. Paid Val. Bill/Micro-Comp. Soc. except Pro-Labore    
+0028#STR0029#ALL#| 07. Others 
+0029#STR0030#ALL#  5. - Income Subject to Exclusive Taxation (net income)  R$
+0030#STR0031#ALL#| 01. Thirteenth Salary                                    
+0031#STR0032#ALL#| 03. Others
+0032#STR0033#ALL#  7. - Complementary Information                                        R$     
+0033#STR0034#ALL#  8. - Responsible For Information
+0034#STR0035#ALL#Approved by IN/SRF No. 120/2000, as amended by IN/SRF No. 288/2003
+0035#STR0036#ALL#MINISTRY OF ECONOMY
+0036#STR0037#ALL#SPECIAL SECRETARIAT FOR BRAZILIAN FEDERAL REVENUE
+0037#STR0038#ALL#PAID TAXES RECEIPT AND 
+0038#STR0039#ALL#INCOME TAX WITHHELD AT SOURCE
+0039#STR0040#ALL#( YEAR-CALENDAR   
+0040#STR0041#ALL#Copany Name/Name
+0041#STR0042#ALL#CNPJ/CPF
+0042#STR0043#ALL#CPF
+0043#STR0044#ALL#Tax Class
+0044#STR0045#ALL#01. Taxes Total (Including Vacations)       
+0045#STR0046#ALL#02. Official Social Security Contribution
+0046#STR0047#ALL#03. Contrib. to entity of complementary social security fund private publ aft.
+0047#STR0048#ALL#Alimony (Enter Beneficiary in Frame 07)
+0048#STR0049#ALL#05. Income Tax withheld at source 
+0049#STR0050#ALL#Values in Reais
+0050#STR0051#ALL#06. Indemnity for Working Cont. Rescis., including PDV and Work Accd.
+0051#STR0052#ALL#01. Installment Free Revenues Pension, Reserve, Repair and Daily (65 years or more)
+0052#STR0053#ALL#02. Pension and Cost of living allowance 
+0053#STR0054#ALL#03. Pension, Pens. Reven. or Repair for Serious Disease and pension or Repair for Working Accident
+0054#STR0055#ALL#04. Profit and Dividend calculated from 1996 paid to PJ (Real Profit, Presumptuous or Arbitrated)
+0055#STR0056#ALL#05. Paid Val. Bill/Micro-Comp. Soc. or Comp. with Small Charges except Pro-Labore, rents or Rend. Service
+0056#STR0057#ALL#07. Others 
+0057#STR0058#ALL#01. Thirteenth Salary
+0058#STR0059#ALL#03. Others
+0059#STR0060#ALL#Date
+0060#STR0061#ALL#Signature
+0061#STR0062#ALL#Specify
+0062#STR0063#ALL#Statement of Remuneration
+0063#STR0064#ALL#Revenues and incomes deposited judicially, if there is any, described herein were not  
+0064#STR0065#ALL#added to lines 01 and 05 of Board 3 and line 01 of Board 5, because their eligibility  
+0065#STR0066#ALL#is suspended  by judicial resolution.
+0066#STR0067#ALL#  6. RRA- Art. 12-The Law number 7.713, from 1988 (subjected to exclusive taxation) R$     
+0067#STR0068#ALL#  6. - Income Collected Accruedly- Art. 12-The Law number 7.713, from 1988 (subjected to exclusive taxation) R$
+0068#STR0069#ALL#| 6.1 Number of process: 
+0069#STR0070#ALL# Number of months 
+0070#STR0071#ALL#Income class: 
+0071#STR0072#ALL#| 01. Total taxed income. (incl. vacation e 13th salary)   
+0072#STR0073#ALL#| 02. Exclusion: Lawsuit expenses                 
+0073#STR0074#ALL#| 03. Deduction: Official Social Security Contribution         
+0074#STR0075#ALL#| 04. Deduction: Alimony (fill out also table 7) 
+0075#STR0076#ALL#| 05. Withheld Income Tax                
+0076#STR0077#ALL#| 06. Income exempt from dole, retirement gain. 
+0077#STR0078#ALL#|     or dismissal for serious disease or retirement or dismissal 
+0078#STR0079#ALL#|     for job-related accident                              
+0079#STR0080#ALL#| 6.1 Number of process: 
+0080#STR0081#ALL#Number of months: 
+0081#STR0082#ALL#Service class: 
+0082#STR0083#ALL#01. Total taxable income (including vacation and 13th salary)
+0083#STR0084#ALL#02. Exclusion: Lawsuit expenses
+0084#STR0085#ALL#03. Deduction: Official Social Security Contribution
+0085#STR0086#ALL#04. Deduction: Alimony (fill out also table 7) 
+0086#STR0087#ALL#05. Withheld Income Tax
+0087#STR0088#ALL#06. Income exempt from dole, retirement gains or dismissal for serious disease or retirement or dimissal for job-related accident
+0088#STR0089#ALL#06. Income exempt from dole, retirement gains or dismissal for serious disease or retirement
+0089#STR0090#ALL#or dismissal for job-related accident
+0090#STR0091#ALL#Approved by Normative Instruction RFB number 1.682 from December 28th, 2016.
+0091#STR0092#ALL#|         (FISCAL YEAR OF - 
+0092#STR0093#ALL#(CALENDAR YEAR -
+0093#STR0094#ALL#TAX ON NATURAL PERSON INCOME
+0094#STR0095#ALL# ( FISCAL YEAR 
+0095#STR0096#ALL# INCOME TAX OF N.P. 
+0096#STR0097#ALL#Process Number: 
+0097#STR0098#ALL#| 02.Tax on income on Year-end Bonus
+0098#STR0099#ALL#02. Tax on income on source Year end Bonus
+0099#STR0100#ALL#03. Others
+0100#STR0101#ALL#| 02.Withholding Income Tax on year-end bonus      
+0101#STR0102#ALL#| 03. Others                                               
+0102#STR0103#ALL#Social Name
+0103#STR0104#ALL#Approved by IN/RFB no. 2060, from December 13, 2021
+0104#STR0105#ALL#| 02. Bonus Sal. Exempt part (Retir./Dismis. or Pension)
+0105#STR0106#ALL#| 03. Daily Rates and Allowances
+0106#STR0107#ALL#| 04. Pension due to Retirement, Dismissal or Severe Disease
+0107#STR0108#ALL#| 05. Profit and dividend from 1996 paid by LE
+0108#STR0109#ALL#| 06. Val.Paid Tit./Micro-Comp. Part. except Director's
+0109#STR0110#ALL#| 07. Compensation by Termin. Inc. PDV and work-rel. accid.
+0110#STR0111#ALL#| 08. Delinquent interest received
+0111#STR0112#ALL#| 09. Others
+0112#STR0113#ALL#02. Bonus Sal. Exempt part (Retir./Dismis. or Pension)
+0113#STR0114#ALL#03. Daily Rates and Allowances
+0114#STR0115#ALL#04. Pension due to Retirement, Dismissal or Severe Disease
+0115#STR0116#ALL#05. Profit and dividend from 1996 paid by LE
+0116#STR0117#ALL#06. Val.Paid Tit./Micro-Comp. Part. except Director's
+0117#STR0118#ALL#07. Compensation by Termin. Inc. PDV and work-rel. accid.
+0118#STR0119#ALL#08. Delinquent interest received
+0119#STR0120#ALL#09. Others

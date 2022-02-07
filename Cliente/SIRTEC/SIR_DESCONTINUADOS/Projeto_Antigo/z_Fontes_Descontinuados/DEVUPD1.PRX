@@ -1,0 +1,68 @@
+#include "protheus.ch"
+#INCLUDE "rwmake.ch"
+#INCLUDE "tbiconn.ch"
+           
+/*/{Protheus.doc} DEVUPD1
+	
+	Atualiza dicionário e exibe andamento por meio do MsNewProcess
+	
+	@param	  aEmpresas
+	@author  Fernando Alencar
+	@version P11 e P10
+	@since   13/11/2011
+	@return  boolean status da execução
+	@obs     
+	
+/*/
+User Function DEVUPD1(aEmpresas, cUpdFunc)
+
+	Local lOk := .f.
+	Default cUpdFunc := "TSTUPD01"
+	Private oProcess 
+	
+	oProcess 	:= MsNewProcess():New( { | lEnd |  lOk := _Start(aEmpresas, cUpdFunc)}, 'Processando...', 'Aguarde, processando ...', .t. )
+	oProcess:Activate()
+	
+Return lOk
+
+/*/{Protheus.doc} Start
+
+	Atualiza dicionario 
+	@author  Fernando Alencar
+	@version P11 e P10
+	@since   13/11/2011
+	@obs     
+	
+/*/
+Static Function _Start(aEmpresas, cUpdFunc)
+	
+	Local _fi := 1
+	Private cEmpresa := "XX"
+	
+	oProcess:SetRegua1( Len(aEmpresas) )
+	
+	//valida se o compatibilizador existe
+	If !ExistBlock(cUpdFunc)
+		MsgAlert("Atenção! não foi possível executar o compatibilizador pois a rotina: "+ cUpdFunc + ",não foi encontrada no repositório de objetos!")
+		Return .t.
+	EndIf
+		
+	For _fi := 1 To Len(aEmpresas)
+		
+		cEmpresa := aEmpresas[_fi][1] 
+                
+      //If aEmpresas[_fi][1] <> cEmpAnt		
+         RpcClearEnv()        
+			RpcSetType( 2 )
+			RpcSetEnv( aEmpresas[_fi][1], aEmpresas[_fi][2] )
+		//EndIf
+		
+		oProcess:IncRegua1( 'Processando ['+cUpdFunc+'] para a empresa: '+cEmpresa )
+		
+		If ExistBlock(cUpdFunc)
+			ExecBlock(cUpdFunc,.F.,.F.,)
+		EndIf
+		
+	Next
+		
+Return .t.

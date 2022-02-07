@@ -1,0 +1,244 @@
+#INCLUDE 'Protheus.ch'
+#INCLUDE "rwmake.ch"
+#INCLUDE "tbiconn.ch"
+#INCLUDE "TopConn.ch"
+
+#define ENTER Chr(13)+Chr(10)
+
+/*/{Protheus.doc} M410PVNF
+Validações de campos personalizados.
+
+#29002 Se IPI for igual a zero, campo A1_SUSIPI deve ser 'S' e A1_VSUSIPI deve 
+ser maior ou igual a  data de emissão.
+
+@type function
+@author Mauro Silva
+@since 18/10/2021
+@version 1.0
+@return logical, Gera ou não NF Saída
+/*/
+User Function M410PVNF()
+
+	Local lRet		:= .T.
+	Local cAlerta  := "" //Variável de aviso mas NÃO bloqueia
+	Local cBloqueio:= "" //Variável de aviso E  bloqueia
+
+
+	//Local nN_		:= 0
+	
+	Local cQuery	:= ""
+	Local _aArea	:= GetArea()
+
+
+//Variáveis para Controle Suspensão de IPI
+	Local nCont		:= 0
+	//Local aVIPI_	:= 0
+	Local nTotIpi_	:= 0
+	Local cSUSIPI	:= ""
+	Local dVSUSIPI	:= ""
+	Local cCliFor		:= Iif(SC5->C5_TIPO $ "D;B", "F", "C")
+	//Local cCF_SUSIPI 	:= SuperGetMV("ES_SUSIPI",.F.,"122/151/911/922/949")
+
+	If cCliFor == 'C' .AND. cFilAnt == '0102'
+		cSUSIPI		:= Posicione("SA1",1,xFilial("SA1")+SC5->C5_CLIENTE+SC5->C5_LOJACLI,"SA1->A1_SUSIPI")
+		dVSUSIPI	:= Posicione("SA1",1,xFilial("SA1")+SC5->C5_CLIENTE+SC5->C5_LOJACLI,"SA1->A1_VSUSIPI")
+
+		// Valida se a data da validade está preenchida, quando o campo de contro for igual a S.
+		If cSUSIPI == "S" .And. Empty(dVSUSIPI)
+			lRet := .F.
+			MsgAlert("Cliente com Suspensão de IPI sem data de suspensão preenchida (A1_VSUSIPI). Verifique!", "Atenção!")
+			RestArea(_aArea)
+			Return(lRet)
+		EndIf
+
+
+		cQuery := " SELECT count(1) OVER (ORDER BY C6_NUM) AS NQTDREG , C6_ITEM,C6_PRODUTO ,  C6_QTDVEN, C6_PRCVEN, C6_VALOR, "
+		cQuery += " C6_VALDESC, C6_TES, C6_CF, C6_NFORI, C6_SERIORI "
+		cQuery += " FROM "+RetSqlName("SC6")+" "
+		cQuery += " WHERE C6_FILIAL = '"+ xFilial("SC6") +"' "
+		cQuery += " AND C6_NUM = '"+ SC5->C5_NUM +"' "
+		cquery += " AND D_E_L_E_T_ <> '*' "
+		cquery += " ORDER BY C6_ITEM "
+
+		If Select("TMP1") <>  0
+			TMP1->(DbCloseArea())
+		EndIf
+
+		TcQuery cQuery New Alias "TMP1"
+
+		DbSelectArea("TMP1")
+
+
+		// Mafisadd.
+		nCont := 0
+		Do While !EOF()
+			nCont++
+
+			If Posicione("SF4",1,xFilial("SF4") + TMP1->C6_TES,"SF4->F4_DUPLIC" ) == 'S'  //SUBSTRING(TMP1->C6_CF,2,3) $ cCF_SUSIPI // Verifica Classificações fiscais de Venda
+
+				// Inicia as chamadas para o Mafisret. No Primeiro Registro
+				If nCont == 1
+					// >>> Para pegar valor do IPI.
+
+					MaFisEnd()
+					MaFisIni(SC5->C5_CLIENTE,;               // 01 - Codigo Cliente/Fornecedor
+					SC5->C5_LOJACLI,;                        // 02 - Loja do Cliente/Fornecedor
+					Iif(SC5->C5_TIPO $ "D;B", "F", "C"),;    // 03 - C:Cliente , F:Fornecedor
+					SC5->C5_TIPO,;                           // 04 - Tipo da NF
+					SC5->C5_TIPOCLI,;                        // 05 - Tipo do Cliente/Fornecedor
+					MaFisRelImp("MT100", {"SF2", "SD2"}),;    // 06 - Relacao de Impostos que suportados no arquivo
+					,;                                        // 07 - Tipo de complemento
+					,;                                        // 08 - Permite Incluir Impostos no Rodape .T./.F.
+					"SB1",;                                   // 09 - Alias do Cadastro de Produtos - ("SBI" P/ Front Loja)
+					"MATA461")
+
+
+				Endif
+
+				SB1->(DbSeek(FWxFilial("SB1")+TMP1->C6_PRODUTO))
+				MaFisAdd(TMP1->C6_PRODUTO,;    	// 01 - Codigo do Produto                    ( Obrigatorio )
+				TMP1->C6_TES,;             		// 02 - Codigo do TES                        ( Opcional )
+				TMP1->C6_QTDVEN,;          		// 03 - Quantidade                           ( Obrigatorio )
+				TMP1->C6_PRCVEN,;          		// 04 - Preco Unitario                       ( Obrigatorio )
+				TMP1->C6_VALDESC,;         		// 05 - Desconto
+				TMP1->C6_NFORI,;           		// 06 - Numero da NF Original                ( Devolucao/Benef )
+				TMP1->C6_SERIORI,;         		// 07 - Serie da NF Original                 ( Devolucao/Benef )
+				0,;                     		// 08 - RecNo da NF Original no arq SD1/SD2
+				SC5->C5_FRETE/TMP1->NQTDREG,;   		// 09 - Valor do Frete do Item               ( Opcional )
+				SC5->C5_DESPESA/TMP1->NQTDREG,; 		// 10 - Valor da Despesa do item             ( Opcional )
+				SC5->C5_SEGURO/TMP1->NQTDREG,;  		// 11 - Valor do Seguro do item              ( Opcional )
+				0,;                     		// 12 - Valor do Frete Autonomo              ( Opcional )
+				TMP1->C6_VALOR,;           		// 13 - Valor da Mercadoria                  ( Obrigatorio )
+				0,;                     		// 14 - Valor da Embalagem                   ( Opcional )
+				SB1->(RecNo()),;        		// 15 - RecNo do SB1
+				SF4->(Recno()))         		// 16 - RecNo do SF4
+
+
+				// Mafisret.
+				nTotIpi_ := MaFisRet(nCont,'IT_IPI')[2]
+				// <<< Para pegar valor do IPI.
+
+				// Valida o valor do IPI conforme as regras solicitadas.
+
+				DO CASE
+					// Venda sem suspensão de IPI e não calculou
+				CASE  cSUSIPI == "N" .AND. nTotIpi_ == 0
+					cBloqueio += "Item '" + TMP1->C6_ITEM +  "' - "
+					cBloqueio += "CFOP de Venda ("+  TMP1->C6_CF + ") não calcula IPI. Cliente sem suspensão de IPI"  + ENTER
+					lRet := .F.
+				CASE lRet .AND. cSUSIPI == "S" .AND. nTotIpi_ == 0 .AND.  dVSUSIPI < SC5->C5_EMISSAO
+					cBloqueio += "Item '" + TMP1->C6_ITEM +  "' - "
+					cBloqueio += "Validade da Suspensão de IPI do cliente está expirada. Verifique Cadastro do Cliente"  + ENTER
+					lRet := .F.
+				ENDCASE
+			Endif
+			TMP1->(DbSKIP())
+
+		EndDo
+
+	Endif
+// >>> Fim da validação para suspensão do IPI. Mauro - Solutio. <<<
+
+	If !Empty(cBloqueio)
+		cBloqueio := "*** Encontrado Alertas que impendem a geração da Nota Fiscal ***" + ENTER + cBloqueio
+		GeraLog(cBloqueio)
+	Else
+		//Gera tela de LOG de Avisos // Não bloqueiam gravação do Pedido
+		If !Empty(cAlerta)
+			cAlerta := "*** Encontrado Alertas na geração da Nota Fiscal (PE_M410PVNF) ***" + ENTER + cAlerta
+			GeraLog(cAlerta)
+
+			If MSGYESNO("Deseja continuar a gravação da NF mesmo assim? SIM para Continuar, NÃO para editar pedido")
+				lRet := .T.
+			Endif
+
+		Endif
+	Endif
+
+
+	RestArea(_aArea)
+
+Return(lRet)
+
+
+
+
+
+
+//*************************************************************************************************************
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºPrograma  ³GeraLog   ºAutor  ³Márcio.Borges   º Data ³      05/06/10   º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDesc.     ³                                                            º±±
+±±º          ³                                                            º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºUso       ³ AP                                                         º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+*/
+Static Function GeraLog( cLogTxt )
+	*********************************************************************
+	__cFileLog := MemoWrite(Criatrab(,.F.)+".LOG",cLogTxt)
+
+	Define FONT oFont NAME "Tahoma" Size 6,12
+	Define MsDialog oDlgMemo Title "Consistência dos Dados" From 3,0 to 340,550 Pixel
+
+	@ 5,5 Get oMemo  Var cLogTxt MEMO Size 265,145 Of oDlgMemo Pixel
+	oMemo:bRClicked := {||AllwaysTrue()}
+	oMemo:oFont:=oFont
+//Define SButton  From 153,205 Type 13 Action (cFile := cGetFile(cMask,""), Iif(cFile="",.T.,MemoWrite(cFile,cLogTxt)) ) Enable Of oDlgMemo Pixel
+	//Define SButton  From 153,205 Type 13 Action ({oDlgMemo:End(),Mysend(cLogTxt)}) Enable Of oDlgMemo Pixel
+	Define SButton  From 153,235 Type 1 Action oDlgMemo:End() Enable Of oDlgMemo Pixel
+
+	Activate MsDialog oDlgMemo Center
+
+Return()
+	*********************************************************************
+Static Function Mysend(cTxt)
+	*********************************************************************
+	Static oDlg
+	Static oButton1
+	Static oButton2
+	Static oGet1
+	Static cGet1 := Space(200)
+	Static oSay
+
+	DEFINE MSDIALOG oDlg TITLE "Envio de Log" FROM 000, 000  TO 150, 300 COLORS 0, 12632256 PIXEL
+
+	@ 031, 015 MSGET oGet1 VAR cGet1 SIZE 114, 010 OF oDlg PICTURE "@!" VALID !Empty(Alltrim(cGet1)) COLORS 0, 16777215 PIXEL
+	@ 016, 015 SAY oSay PROMPT "Por favor, entre com seu email ABAIXO:" SIZE 100, 007 OF oDlg PICTURE "@!" COLORS 0, 12632256 PIXEL
+
+	@ 050, 025 BUTTON oButton1 PROMPT "Enviar" SIZE 040, 012 OF oDlg ACTION {||oDlg:End(),DISMAILX(cGet1,cTxt)} PIXEL
+	@ 050, 075 BUTTON oButton2 PROMPT "Sair" SIZE 040, 012 OF oDlg ACTION oDlg:End()  PIXEL
+
+	ACTIVATE MSDIALOG oDlg CENTERED
+
+Return
+	*********************************************************************
+Static Function DISMAILX(cMail,cTxt)
+	*********************************************************************
+
+	CONNECT SMTP SERVER GETMV("MV_RELSERV") ACCOUNT GETMV("MV_RELACNT") PASSWORD GETMV("MV_RELPSW") RESULT lResult
+
+	If !lResult
+		MsgBox('Erro no Envio')
+		Return()
+	EndIf
+
+	cAccount := GETMV("MV_RELACNT")
+
+	SEND MAIL FROM cAccount 	;
+		TO      cMail	        	;
+		SUBJECT FUNDESC()       	;//SUBJECT "Log Sx3 vs Banco" 	;
+		BODY cTxt + CRLF + CRLF + FUNNAME() + " - " + FUNDESC()
+
+	DISCONNECT SMTP SERVER
+
+	MsgInfo("Email Enviado com Sucesso!")
+
+Return()

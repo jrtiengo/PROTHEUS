@@ -1,0 +1,58 @@
+0005#STR0005#ALL#  1. - Fonte Pagadora Pessoa Juridica Ou Pessoa Fisica
+0006#STR0006#ALL#| No.Cont.                    | Nome Empresarial/Nome                          |
+0007#STR0007#ALL#| Morada:
+0009#STR0009#ALL#Uf:
+0010#STR0010#ALL#Telefone:
+0011#STR0011#ALL#  2. - pessoa fisica beneficiaria dos rendimentos 
+0012#STR0012#ALL#| Cpf:
+0013#STR0013#ALL#Nome completo 
+0014#STR0014#ALL#| natureza do rendimento 
+0015#STR0015#ALL#  3. - rendimentos tributaveis, deduções e imposto retido na fonte       r$    
+0016#STR0016#ALL#| 01. total dos rendimentos (inclusive férias)             
+0017#STR0017#ALL#| 02. contribuição previdenciaria oficial                  
+0018#STR0018#ALL#| 03. contribuição a previdencia privada                   
+0019#STR0019#ALL#| 04. Pensão Alimentícia (Informar Benefic. no Quadro 07)  
+0020#STR0021#ALL#| 05. imposto retido na fonte                              
+0021#STR0022#ALL#  4. - rendimentos isentos e não tributaveis                             r$    
+0022#STR0023#ALL#| 06. indemnização por rescisão inc.a tit.pdv e acid.trab.  
+0023#STR0024#ALL#| 01. parcela isenta proventos aposent.,reforma e pensão   
+0024#STR0025#ALL#| 02. diarias e ajudas de custo                            
+0025#STR0026#ALL#| 03. Pensão, Prov.de Aposent.ou Reforma Por Molestia Grave
+0026#STR0027#ALL#| 04. Lucro E Dividendo Apurado A Partir De 1996 Pago P/ Pj
+0027#STR0028#ALL#| 05. val.pagos tit./soc.micro-emp. exceto pro-labore      
+0028#STR0029#ALL#| 07. outros 
+0029#STR0030#ALL#  5. - Rendimentos sujeitos a tributação exclusiva (rendimento líquido)  R$
+0030#STR0031#ALL#| 01. decimo terceiro salário                              
+0033#STR0034#ALL#  8. - Responsável pelas informações
+0034#STR0035#ALL#Aprovado pela in/srf no. 120/2000, com as alterações da in/srf no. 288/2003
+0037#STR0038#ALL#Comprovante De Rendimentos Pagos E De
+0038#STR0039#ALL#Retenção De Imposto De Renda Na Fonte
+0039#STR0040#ALL#( ano-calendário  
+0040#STR0041#ALL#Nome Empresarial/nome
+0041#STR0042#ALL#Nr. contribuinte
+0042#STR0043#ALL#Cpf
+0043#STR0044#ALL#Natureza Do Rendimento
+0044#STR0045#ALL#01. Total Dos Rendimentos (inclusive Férias)
+0045#STR0046#ALL#02. Contribuição Previdenciaria Oficial
+0048#STR0049#ALL#05. imposto retido na fonte 
+0049#STR0050#ALL#Valores Em Reais
+0050#STR0051#ALL#06. Indenizações Por Rescisão De Contrato De Trabalho, Inclusive A Título De Pdv E Acid.trabalho
+0051#STR0052#ALL#01. parcela isenta dos proventos  de aposent., reserva, reforma e pensão(65 anos ou mais)
+0052#STR0053#ALL#02. diarias e ajudas de custo 
+0053#STR0054#ALL#03. Pensão, Prov.de Aposent.ou Reforma Por Molestia Grave E Aposent.ou Reforma Por Acid. Em Serviço  
+0054#STR0055#ALL#04. Lucro E Dividendo Apurado A Partir De 1996 Pago P/ Pj (lucro Real,presumido Ou Arbitrado)
+0055#STR0056#ALL#05. Val.pagos Tit./soc.micro-emp. Ou Empresa De Pequeno Porte, Exceto Pro-lab.,alugueis Ou Serv.prest.
+0056#STR0057#ALL#07. outros 
+0057#STR0058#ALL#01. Decimo Terceiro Salário
+0062#STR0063#ALL#Declaração De Rendimentos
+0063#STR0064#ALL#Os rendimentos e os impostos depositados judicialmente, se for o caso, a seguir descriminados não foram 
+0064#STR0065#ALL#adicionadas as linhas 01 e 05 do Quadro 3, e linha 01 do Quadro 5, em razão de estarem com exigibilidade 
+0065#STR0066#ALL#suspensa por determinação judicial.
+0069#STR0070#ALL# Qtd. de meses 
+0071#STR0072#ALL#| 01. Total dos rendimentos tribut. (incl. férias e Subs.natal)   
+0072#STR0073#ALL#| 02. Exclusão: Despesas com acção judicial                 
+0082#STR0083#ALL#01. Total dos rendimentos tributáveis (inclusive férias e subsídio de Natal)
+0083#STR0084#ALL#02. Exclusão: Despesas com acção judicial
+0091#STR0092#ALL#|         (EXERCÍCIO DE - 
+0093#STR0094#ALL#IMPOSTO SOBRE A RENDA DA PESSOA SINGULAR
+0095#STR0096#ALL# IMPOSTO DE RENDA DA P.S. 

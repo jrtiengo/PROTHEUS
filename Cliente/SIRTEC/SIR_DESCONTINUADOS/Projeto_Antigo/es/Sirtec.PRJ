@@ -1,0 +1,181 @@
+Group Sirtec
+   Version=7.0
+   VSSDB=
+   HasProperties=1
+   Properties
+      BeforeApply=
+      AfterApply=
+      Icon=
+      ID=
+      Version=
+      PalmName=
+      OutPut=
+   End
+   ProjectsCount=1
+   Project RdMakes
+      FoldersCount=1
+      Folder Fontes
+         VSSPath=Fontes
+         FilesCount=53
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSXB.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSXA.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSX7.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSX6.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSX5.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSX3.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSX2.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDSIX.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\UPDLOG.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\TSTDBGRID.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SPPRG01L.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRWORKFL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRRETL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRRETCO.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRREADTXT.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRPRG01L.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRPDEXE.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRMATER.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRFILTRO.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIREXERJ.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRESTP.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRCORT.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRCONF.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SIRARET.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\SFOLPGL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\RUNUPDPE.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\RUNUPD.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\PROG01L.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\MERA02AI.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\IMPBAIR.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\IMPAREA.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\FDESCON.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\FCONECT.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVUPD1.PRX
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVUPD0.PRX
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVUPD.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVTOOL3.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVTOOL2.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVTOOL1.prx
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVTOOL0.prx
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVTOOL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVHEL04.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVHEL03.PRW
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVHEL02.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVHEL01.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DEVFUNCOES.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DBGRID.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\DATASET.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\CADPRGL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\CADBAIL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\CADAREAL.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\AFPUPD01.prw
+             Type=T
+         End
+         File \erp\protheus11\Protheus_Data\fontes\es\fontes\AFPUPD.PRW
+             Type=T
+         End
+      End
+   End
+End

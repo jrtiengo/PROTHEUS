@@ -1,0 +1,119 @@
+0001#STR0001#ALL#|         MINISTÉRIO DA ECONOMIA        |   COMPROVANTE DE RENDIMENTOS PAGOS   |
+0002#STR0002#ALL#|SECRETARIA ESPECIAL DA RECEITA FEDERAL DO BRASIL|  PAGOS E DE IMPOSTO SOBRE   |
+0003#STR0003#ALL#|     IMPOSTO SOBRE A RENDA DA PESSOA FISICA     |    A RENDA RETIDO NA FONTE  |
+0004#STR0004#ALL#|                                                        |      (ANO CALENDÁRIO - 
+0005#STR0005#ALL#  1. - Fonte Pagadora Pessoa Jurídica ou Pessoa Física
+0006#STR0006#ALL#| CNPJ/CPF                    | Nome Empresarial/Nome                          |
+0007#STR0007#ALL#| Endereço:
+0008#STR0008#ALL#| Cidade:
+0009#STR0009#ALL#UF:
+0010#STR0010#ALL#FONE:
+0011#STR0011#ALL#  2. - Pessoa Física Beneficiária dos Rendimentos 
+0012#STR0012#ALL#| CPF:
+0013#STR0013#ALL#Nome Completo 
+0014#STR0014#ALL#| Natureza do Rendimento 
+0015#STR0015#ALL#  3. - Rendimentos Tributáveis, Deduções e Imposto Retido na Fonte       R$    
+0016#STR0016#ALL#| 01. Total dos Rendimentos (Inclusive Férias)             
+0017#STR0017#ALL#| 02. Contribuição Previdenciária Oficial                  
+0018#STR0018#ALL#| 03. Contribuição a Previdência Privada                   
+0019#STR0019#ALL#| 04. Pensao Alimenticia (Informar Benefic. no Quadro 07)  
+0020#STR0021#ALL#| 05. Imposto de Renda Retido                              
+0021#STR0022#ALL#  4. - Rendimentos Isentos e Não Tributáveis                             R$    
+0022#STR0023#ALL#| 06. Indenização por Rescisão Inc.a Tit.PDV e Acid.Trab.  
+0023#STR0024#ALL#| 01. Parcela Isenta Proventos Aposent.,Reforma e Pensão   
+0024#STR0025#ALL#| 02. Diárias e Ajudas de Custo                            
+0025#STR0026#ALL#| 03. Pensão, Prov.de Aposent.ou Reforma por Molestia Grave
+0026#STR0027#ALL#| 04. Lucro e Dividendo apurado a partir de 1996 pago p/ PJ
+0027#STR0028#ALL#| 05. Val.Pagos Tit./Soc.Micro-Emp. exceto Pró-Labore      
+0028#STR0029#ALL#| 07. Outros 
+0029#STR0030#ALL#  5. - Rendimentos Sujeitos a Tributação Exclusiva (rendimento líquido)  R$
+0030#STR0031#ALL#| 01. Décimo Terceiro Salário                              
+0031#STR0032#ALL#| 03. Outros                                               
+0032#STR0033#ALL#  7. - Informações Complementares                                        R$     
+0033#STR0034#ALL#  8. - Responsável Pelas Informações
+0034#STR0035#ALL#Aprovado pela IN/SRF No. 120/2000, com as alterações da IN/SRF No. 288/2003
+0035#STR0036#ALL#MINISTÉRIO DA ECONOMIA
+0036#STR0037#ALL#SECRETARIA ESPECIAL DA RECEITA FEDERAL DO BRASIL
+0037#STR0038#ALL#COMPROVANTE DE RENDIMENTOS PAGOS E DE
+0038#STR0039#ALL#RETENÇÃO DE IMPOSTO DE RENDA NA FONTE
+0039#STR0040#ALL#( ANO-CALENDÁRIO  
+0040#STR0041#ALL#Nome Empresarial/Nome
+0041#STR0042#ALL#CNPJ/CPF
+0042#STR0043#ALL#CPF
+0043#STR0044#ALL#Natureza do Rendimento
+0044#STR0045#ALL#01. Total dos Rendimentos (Inclusive Férias)
+0045#STR0046#ALL#02. Contribuição Previdenciária Oficial
+0046#STR0047#ALL#03. Contrib. a entidade de previdencia complementar publ. priv. fundos apos.
+0047#STR0048#ALL#04. Pensão Alimentícia (Informar o Beneficiário no Quadro 07)
+0048#STR0049#ALL#05. Imposto de Renda Retido 
+0049#STR0050#ALL#Valores em Reais
+0050#STR0051#ALL#06. Indenizações por Rescisão de Contrato de trabalho, inclusive a título de PDV e Acid.Trabalho
+0051#STR0052#ALL#01. Parcela Isenta dos Proventos  de Aposent., Reserva, Reforma e Pensão(65 anos ou mais)
+0052#STR0053#ALL#02. Diárias e Ajudas de Custo 
+0053#STR0054#ALL#03. Pensão, Prov.de Aposent.ou Reforma por Moléstia Grave e aposent.ou Reforma por Acid. em Serviço
+0054#STR0055#ALL#04. Lucro e Dividendo apurado a partir de 1996 pago p/ PJ (Lucro Real,Presumido ou Arbitrado)
+0055#STR0056#ALL#05. Val.Pagos Tit./Soc.Micro-Emp. ou Empresa de Pequeno Porte, exceto Pró-Lab.,alugueis ou Serv.Prest.
+0056#STR0057#ALL#07. Outros 
+0057#STR0058#ALL#01. Décimo Terceiro Salário
+0058#STR0059#ALL#03. Outros
+0059#STR0060#ALL#Data
+0060#STR0061#ALL#Assinatura
+0061#STR0062#ALL#Especificar
+0062#STR0063#ALL#Informe de Rendimentos
+0063#STR0064#ALL#Os rendimentos e os impostos depositados judicialmente, se for o caso, a seguir descriminados nao foram 
+0064#STR0065#ALL#adicionados as linhas 01 e 05 do Quadro 3, e linha 01 do Quadro 5, em razão de estarem com exigibilidade 
+0065#STR0066#ALL#suspensa por determinacao judicial.
+0066#STR0067#ALL#  6. RRA- Art. 12-A da Lei nº 7.713, de 1988 (sujeito a trib. exclusiva) R$     
+0067#STR0068#ALL#  6. - Rendimentos Recebidos Acumuladamente- Art. 12-A da Lei nº7.713, de 1988 (sujeitos à tributação exclusiva)
+0068#STR0069#ALL#| 6.1 Número do processo: 
+0069#STR0070#ALL# Qtde de meses 
+0070#STR0071#ALL#| Natureza do rendimento: 
+0071#STR0072#ALL#| 01. Total dos rendimentos tribut. (incl. férias e 13o)   
+0072#STR0073#ALL#| 02. Exclusão: Despesas com ação judicial                 
+0073#STR0074#ALL#| 03. Dedução: Contribuição previdenciária oficial         
+0074#STR0075#ALL#| 04. Dedução: Pensão aliment. (preencher também quadro 7) 
+0075#STR0076#ALL#| 05. Imposto sobre a renda retido na fonte                
+0076#STR0077#ALL#| 06. Rendimentos isentos de pensão, proventos de aposent. 
+0077#STR0078#ALL#|     ou reforma por moléstia grave ou aposent. ou reforma 
+0078#STR0079#ALL#|     por acidente em serviço                              
+0079#STR0080#ALL#6.1 Número do processo: 
+0080#STR0081#ALL#Quantidade de meses: 
+0081#STR0082#ALL#Natureza do atendimento: 
+0082#STR0083#ALL#01. Total dos rendimentos tributáveis (inclusive férias e décimo terceiro salário)
+0083#STR0084#ALL#02. Exclusão: Despesas com ação judicial
+0084#STR0085#ALL#03. Dedução: Contribuição previdenciária oficial
+0085#STR0086#ALL#04. Dedução: Pensão alimentícia (preencher também o quadro 7) 
+0086#STR0087#ALL#05. Imposto sobre a renda retido na fonte
+0087#STR0088#ALL#06. Rendimentos isentos de pensão, proventos de aposentadoria ou reforma por moléstia grave ou aposentadoria ou reforma por acidente em serviço
+0088#STR0089#ALL#06. Rendimentos isentos de pensão, proventos de aposentadoria ou reforma por moléstia grave ou aposentadoria
+0089#STR0090#ALL#ou reforma por acidente em serviço
+0090#STR0091#ALL#Aprovado pela Instrução Normativa RFB nº 1.682, de 28 de dezembro de 2016.
+0091#STR0092#ALL#|         (EXERCICIO DE - 
+0092#STR0093#ALL#     (ANO CALENDÁRIO - 
+0093#STR0094#ALL#IMPOSTO SOBRE A RENDA DA PESSOA FÍSICA
+0094#STR0095#ALL# ( EXERCÍCIO 
+0095#STR0096#ALL# IMPOSTO DE RENDA DA P.F. 
+0096#STR0097#ALL#Número do processo: 
+0097#STR0098#ALL#| 02.Imposto sobre a renda na fonte sobre 13º salário      
+0098#STR0099#ALL#02. Imposto sobre a renda na fonte sobre 13º salário
+0099#STR0100#ALL#03. Outros
+0100#STR0101#ALL#| 02.Imposto sobre a renda na fonte sobre 13º salário      
+0101#STR0102#ALL#| 03. Outros                                               
+0102#STR0103#ALL# Nome Social
+0103#STR0104#ALL#Aprovado pela IN RFB nº 2060 de 13 de dezembro de 2021
+0104#STR0105#ALL#| 02. Parte Isenta 13º (Apos./Reforma ou Pensão)           
+0105#STR0106#ALL#| 03. Diarias e Ajudas de Custo                            
+0106#STR0107#ALL#| 04. Pensao, Prov.de Aposent.ou Reforma por Molestia Grave
+0107#STR0108#ALL#| 05. Lucro e Dividendo a partir de 1996 pago por PJ       
+0108#STR0109#ALL#| 06. Val.Pagos Tit./Soc.Micro-Emp. exceto Pro-Labore      
+0109#STR0110#ALL#| 07. Indenizacao por Rescisao Inc.a Tit.PDV e Acid.Trab.  
+0110#STR0111#ALL#| 08. Juros de mora recebidos                              
+0111#STR0112#ALL#| 09. Outros 
+0112#STR0113#ALL#02. Parte Isenta 13º (Apos./Reforma ou Pensão)
+0113#STR0114#ALL#03. Diarias e Ajudas de Custo
+0114#STR0115#ALL#04. Pensao, Prov.de Aposent.ou Reforma por Molestia Grave
+0115#STR0116#ALL#05. Lucro e Dividendo a partir de 1996 pago por PJ
+0116#STR0117#ALL#06. Val.Pagos Tit./Soc.Micro-Emp. exceto Pro-Labore
+0117#STR0118#ALL#07. Indenizacao por Rescisao Inc.a Tit.PDV e Acid.Trab.
+0118#STR0119#ALL#08. Juros de mora recebidos
+0119#STR0120#ALL#09. Outros 

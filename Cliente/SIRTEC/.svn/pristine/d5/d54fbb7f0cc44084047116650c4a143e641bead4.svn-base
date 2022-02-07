@@ -1,0 +1,706 @@
+#INCLUDE "MDTR805.ch"
+#Include "Protheus.Ch"
+        
+/*/
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡…o    ³ MDTR805  ³ Autor ³ Thiago Machado        ³ Data ³ 20.09.00 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±Ã                                                                       ´±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³Recibo de entrega do epi.                                   ³±±
+±±³          ³Todo funcionario que recebe epi da empresa deve assinar o   ³±±
+±±³          ³recibo comprovando o seu recebimento. o programa inicia     ³±±
+±±³          ³lendo a tabela de epi's entregues (TNF). Conforme parametros³±±
+±±³          ³seleciona os funcionarios que receberam epi em um determina-³±±
+±±³          ³do periodo. O programa podera listar apenas os epi's ainda  ³±±
+±±³          ³lendo a tabela de epi's entregues (TNF). Conforme parametros³±±
+±±³          ³com data de emissao do recibo em branco ou todos se o usu  -³±±
+±±³          ³rio desejar.                                                ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe e ³ MDTR805 VOID                                               ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ Generico                                                   ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß/*/
+User Function EntregaEpi()
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis                                             ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+LOCAL wnrel   := "EntregaEpi"
+LOCAL limite  := 132
+LOCAL cDesc1  := STR0001 //"Relatorio de Comprovante de Entrega de EPI.                                     "
+LOCAL cDesc2  := STR0002 //"Conforme parametros o usuario pode selecionar os funcionarios, periodo desejado "
+LOCAL cDesc3  := STR0003 //"e indicar se deseja imprimir apenas epi's nao impressos ou para todos.          "
+LOCAL cString := "TNF"
+
+PRIVATE nomeprog := "EntregaEpi"
+PRIVATE tamanho  := "M"
+PRIVATE aReturn  := { STR0004, 1,STR0005, 2, 2, 1, "",1 } //"Zebrado"###"Administracao"
+PRIVATE titulo   := STR0006 //"Comprovante de Entrega de EPI"
+PRIVATE ntipo    := 0
+PRIVATE nLastKey := 0
+PRIVATE cPerg    := padr("MDT805", LEN(SX1->X1_GRUPO), " ") 
+PRIVATE cabec1	 := " "
+PRIVATE cabec2   := " "
+PRIVATE nSizeSI3, nSizeSRJ
+PRIVATE cFuncMat  := " "
+PRIVATE dDataEnt  := " "
+
+nSizeSI3 := If((TAMSX3("I3_CUSTO")[1]) < 1,9,(TAMSX3("I3_CUSTO")[1]))
+nSizeSRJ := If((TAMSX3("RJ_FUNCAO")[1]) < 1,4,(TAMSX3("RJ_FUNCAO")[1]))
+
+dbSelectArea("SX1")
+dbSetOrder(01)
+If Dbseek(cPerg+"08")
+	If AllTrim(SX1->X1_DEF01) != STR0052 .OR. AllTrim(SX1->X1_DEF02) != STR0054 .OR.; 
+	   AllTrim(SX1->X1_DEF03) != STR0055 .OR. AllTrim(SX1->X1_DEF04) != STR0056 .OR. AllTrim(SX1->X1_PERGUNT) != STR0051 
+		   RecLock("SX1",.F.)
+		   SX1->X1_PERGUNT := STR0051  //"Ordenar Recibos Por ?"
+		   SX1->X1_DEF01   := STR0052  //"Matricula"
+		   SX1->X1_DEF02   := STR0054  //"Nome Funcionar."
+		   SX1->X1_DEF03   := STR0055  //"Cod. C. Custo"
+		   SX1->X1_DEF04   := STR0056  //"Nome C. Custo"         
+		   MsUnLock("SX1")	
+	Endif
+Endif
+If !Dbseek(cPerg+"12")
+   RecLock("SX1",.T.)
+   SX1->X1_GRUPO   := cPerg
+   SX1->X1_ORDEM   := "12"
+   SX1->X1_PERGUNT := STR0057  //"Ordenar EPIs Por ?"
+   SX1->X1_VARIAVL := "mv_chc"
+   SX1->X1_TIPO    := "N"
+   SX1->X1_TAMANHO := 01
+   SX1->X1_GSC     := "C"
+   SX1->X1_VALID   := "naovazio()"
+   SX1->X1_DEF01   := STR0058  //"Cod. EPI"
+   SX1->X1_DEF02   := STR0059  //"Nome EPI"
+   SX1->X1_VAR01   := "mv_par12"
+   MsUnLock("SX1")
+Endif
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica as perguntas selecionadas                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+pergunte(cPerg,.F.)
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis utilizadas para parametros                                     ³
+//³ mv_par01             // De Funcionario                                   ³
+//³ mv_par02             // Ate Funcionario                                  ³
+//³ mv_par03             // De Data Entrega                                  ³
+//³ mv_par04             // Ate Data Entrega                                 ³
+//³ mv_par05             // So nao Impresos / Todos / Ultima retirada        ³
+//³ mv_par06             // Termo de Responsabilidade                        ³
+//³ mv_par07             // Duas vias                                        ³
+//³ mv_par08             // Ordenar por                                      ³
+//³ mv_par09             // De Centro de Custo                               ³
+//³ mv_par10             // Ate Centro de Custo                              ³
+//³ mv_par11             // Considerar funcionarios demitidos                ³
+//³                            1 - Sim                                       ³
+//³                            2 - Nao                                       ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Envia controle para a funcao SETPRINT                        ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+//wnrel:="MDTR805"
+wnrel:="Entrega"
+wnrel:=SetPrint(cString,wnrel,cPerg,titulo,cDesc1,cDesc2,cDesc3,.F.,"")
+
+If nLastKey == 27
+    Set Filter to
+    Return
+Endif
+
+SetDefault(aReturn,cString)
+
+If nLastKey == 27
+   Set Filter to
+   Return
+Endif
+
+RptStatus({|lEnd| R805Imp(@lEnd,wnRel,titulo,tamanho)},titulo)
+
+Return NIL
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡„o    ³ R805Imp  ³ Autor ³ Thiago Machado        ³ Data ³ 20/09/00 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡„o ³ Chamada do Relat¢rio                                       ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ MDTR805                                                    ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß/*/
+Static Function R805Imp(lEnd,wnRel,titulo,tamanho)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis                                             ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+LOCAL cRodaTxt := ""
+LOCAL nCntImpr := 0
+LOCAL cCC := ""
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis para controle do cursor de progressao do relatorio ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+LOCAL nTotRegs := 0 ,nMult := 1 ,nPosAnt := 4 ,nPosAtu := 4 ,nPosCnt := 0
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis locais exclusivas deste programa                   ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+LOCAL lContinua := .T.
+LOCAL nRegAtual := 0
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Contadores de linha e pagina                                 ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+PRIVATE li := 80 ,m_pag := 1
+PRIVATE lCPONumcap := .t.,lCPODtVenc := .t.
+If TNF->(FieldPos("TNF_NUMCAP")) <= 0
+	lCPONumcap := .f.
+Endif
+
+aDBF := {}               
+AADD(aDBF,{"FUNCI"  , "C", 06,0})           
+AADD(aDBF,{"NOME"   , "C", 40,0})           
+AADD(aDBF,{"RG"     , "C", 15,0})           
+AADD(aDBF,{"NASC"   , "D", 08,0})           
+AADD(aDBF,{"ADMIS"  , "D", 08,0})           
+AADD(aDBF,{"IDADE"  , "C", 03,0})           
+AADD(aDBF,{"CC"     , "C", nSizeSI3,0})
+AADD(aDBF,{"DESCC"  , "C", 60,0})  
+AADD(aDBF,{"FUNCAO" , "C", nSizeSRJ,0})
+AADD(aDBF,{"DESCFUN", "C", 20,0})   
+AADD(aDBF,{"CODEPI" , "C", 15,0}) 
+AADD(aDBF,{"DESEPI" , "C", 40,0}) 
+AADD(aDBF,{"DTENT"  , "D", 08,0}) 
+AADD(aDBF,{"SERIE"  , "C", 06,0}) 
+AADD(aDBF,{"QTDE"   , "N", 06,2}) 
+AADD(aDBF,{"DEV"    , "C", 01,0}) 
+AADD(aDBF,{"NUMCAP" , "C", 12,0}) 
+AADD(aDBF,{"NUMCRI" , "C", 12,0})
+AADD(aDBF,{"NUMCRF" , "C", 12,0})
+AADD(aDBF,{"DTDEVO" , "D", 08,0}) 
+AADD(aDBF,{"NUMSER" , "C", 20,0}) 
+	
+cArqTrab := CriaTrab(aDBF,.t.)
+cIDX1 := SUBSTR(cArqTrab,1,7)+"1"
+cIDX2 := SUBSTR(cArqTrab,1,7)+"2"
+cIDX3 := SUBSTR(cArqTrab,1,7)+"3"
+cIDX4 := SUBSTR(cArqTrab,1,7)+"4"
+Use (cArqTrab) NEW Exclusive Alias TRB
+
+If mv_par12 == 1  //Cod EPI
+	#IFDEF CDX
+	   INDEX ON FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX1) TO (cArqTrab)
+	   INDEX ON NOME+CODEPI+DTOS(DTENT) TAG (cIDX2) TO (cArqTrab)
+	   INDEX ON CC+FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX3) TO (cArqTrab)
+	   INDEX ON DESCC+FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX4) TO (cArqTrab)
+	#ELSE
+	   INDEX ON FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX1) TO (cArqTrab)
+	   INDEX ON NOME+CODEPI+DTOS(DTENT) TAG (cIDX2) TO (cArqTrab)
+	   INDEX ON CC+FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX3) TO (cArqTrab)
+	   INDEX ON DESCC+FUNCI+CODEPI+DTOS(DTENT) TAG (cIDX4) TO (cArqTrab)   
+	   SET INDEX TO (cIDX1),(cIDX2),(cIDX3),(cIDX4)
+	#ENDIF
+Else  //Nome EPI
+	#IFDEF CDX
+	   INDEX ON FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX1) TO (cArqTrab)
+	   INDEX ON NOME+DESEPI+DTOS(DTENT) TAG (cIDX2) TO (cArqTrab)
+	   INDEX ON CC+FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX3) TO (cArqTrab)
+	   INDEX ON DESCC+FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX4) TO (cArqTrab)
+	#ELSE
+	   INDEX ON FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX1) TO (cArqTrab)
+	   INDEX ON NOME+DESEPI+DTOS(DTENT) TAG (cIDX2) TO (cArqTrab)
+	   INDEX ON CC+FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX3) TO (cArqTrab)
+	   INDEX ON DESCC+FUNCI+DESEPI+DTOS(DTENT) TAG (cIDX4) TO (cArqTrab)   
+	   SET INDEX TO (cIDX1),(cIDX2),(cIDX3),(cIDX4)
+	#ENDIF
+Endif
+
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica se deve comprimir ou nao                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+nTipo  := IIF(aReturn[4]==1,15,18)
+
+dbSelectArea("TNF")
+If mv_par05 == 3
+	dbSetOrder(05) //TNF_MAT + DTOS(TNF_DTENTR) + TNF_HRENTR + TNF_CODEPI
+Else 
+	dbSetOrder(03) //TNF_MAT + TNF_CODEPI + DTOS(TNF_DTENTR) + TNF_HRENTR
+EndIf
+dbSeek(xFilial("TNF")+MV_PAR01,.T.)
+
+SetRegua(LastRec())
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Correr TNF para ler os  EPI's Entregues aos Funcionarios ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+While !Eof()                             	.AND.;
+      TNF->TNF_FILIAL == xFIlial('TNF')  	.AND.;
+      TNF->TNF_MAT <= MV_PAR02
+	
+	IncRegua()
+	
+	DbSelectArea("SRA")
+	DbSetOrder(01)
+	DbSeek(xFilial("SRA")+TNF->TNF_MAT)
+	
+	If mv_par11 == 2  //Nao considerar funcionarios demitidos
+		If ( SRA->RA_SITFOLH == "D" ) .OR. ( !Empty( SRA->RA_DEMISSA ) )
+			dbSelectArea("TNF")
+			dbSkip()
+			Loop
+		Endif
+	Endif
+
+	cCC := SRA->RA_CC
+	
+	If ValType(mv_par09) == "C" .AND. ValType(mv_par10) == "C"
+		If (cCC < mv_par09) .OR. (cCC > mv_par10)
+			dbselectarea("TNF")
+			DbSkip()
+			Loop
+		EndIf
+	EndIf
+
+	If TNF->TNF_DTENTR < MV_PAR03 .OR. TNF->TNF_DTENTR > MV_PAR04
+ 		dbSelectArea("TNF")
+   		dbSkip()
+     	loop
+ 	Endif
+ 	
+ 	If MV_PAR05 == 2 .AND. !EMPTY(TNF->TNF_DTRECI)
+ 		dbSelectArea("TNF")
+   		dbSkip()
+     	loop     
+ 	EndIf
+ 	
+ 	cFuncMat := TNF->TNF_MAT
+ 	
+ 	If mv_par05 == 3
+	 	DbSelectArea("TNF")
+ 		dDataEnt := TNF->TNF_DTENTR
+		nRegAtual := RecNo()
+		DbSkip()
+		If cFuncMat <> TNF->TNF_MAT
+			DbSkip(-1)	
+     		While !Bof()								.AND.;
+      			  TNF->TNF_FILIAL == xFIlial('TNF')  	.AND.;
+      			  TNF->TNF_MAT	== cFuncMat           	.AND.;
+      			  TNF->TNF_DTENTR == dDataEnt
+     			u_AddRec805()
+     			DbSelectArea ('TNF')
+     			Reclock("TNF",.f.)
+				TNF->TNF_DTRECI := Date()
+				MsUnlock("TNF")
+     			DbSkip(-1)
+     		EndDo
+     		DbGoTo(nRegAtual)
+     		DbSkip()	
+		EndIf
+		Loop		  		  			
+	Else   
+        u_AddRec805() 
+		dbSelectArea("TNF")       
+		Reclock("TNF",.f.)
+		TNF->TNF_DTRECI := Date()
+		MsUnlock("TNF")
+		dbSetOrder(03)
+		DbSkip()	
+	EndIf
+	
+EndDo
+
+u_NGIMP805TRB() 
+
+DBSELECTAREA("TRB")
+USE
+      
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Devolve a condicao original do arquivo principal             ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+RetIndex("TNF")
+
+Set Filter To
+
+Set device to Screen
+
+If aReturn[5] = 1
+	Set Printer To
+ 	dbCommitAll()
+  	OurSpool(wnrel)
+Endif
+MS_FLUSH()
+DBSELECTAREA("TNF")
+DBSETORDER(1)
+
+Return NIL
+
+/*/
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³ Fun‡…o   ³ SomaLinha³ Autor ³ Inacio Luiz Kolling   ³ Data ³   /06/97 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Descri‡…o³ Incrementa Linha e Controla Salto de Pagina                ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Sintaxe  ³ SomaLinha()                                                ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ MDTR805                                                    ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±/*/
+Static Function Somalinha()
+    Li++
+    If Li > 70   
+       Cabec(titulo,cabec1,cabec2,nomeprog,tamanho,nTipo)
+    EndIf
+Return
+/*
+          1         2         3         4         5         6         7         8         9         0         1         2         3
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³XXXXXXXXXXXXX                                      COMPROVANTE DE ENTREGA DE EPI'S                                                 ³
+³SIGA/MDTR805                                    xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                Emissao: 99/99/99   hh:mm    ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Funcionario.....: xxxxxx - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx                         RG.: xxx.xxx.xxx			        		³
+³Centro de Custo.: xxxxxxxxx - xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx						 		                                    ³
+³Funcao..........: xxxx  -  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx   					                                     		³
+³Nascimento......: xx/xx/xx                                                               Admissao.: xx/xx/xx     Idade.: xx  		³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄEPI'sÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³EPI              Nome do EPI                        Dt. Entr  Hora     Qtde  Dev. Dt. Devo  Num. CA 	                            ³
+³  Num. CRF      Num. CRI                           													                            ³
+³xxxxxxxxxxxxxxx  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  xx/xx/xx  xx:xx  xxx,xx  xxx  xx/xx/xx  xxxxxxxxxxxx  Ass.: _________________  ³
+³  xxxxxxxxxxxx  xxxxxxxxxxxx                                                                                                       ³
+³xxxxxxxxxxxxxxx  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  xx/xx/xx  xx:xx  xxx,xx  xxx  xx/xx/xx  xxxxxxxxxxxx  Ass.: _________________  ³
+³xxxxxxxxxxxxxxx  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx  xx/xx/xx  xx:xx  xxx,xx  xxx  xx/xx/xx  xxxxxxxxxxxx  Ass.: _________________  ³
+³                                                                               													³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³       Data : ___/___/___                                                           							              	    ³
+³                                                                               													³
+|       Assinatura: _______________________                                   Resp Empr: _______________________                    ³ 
+³                                                                               													³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+*/             
+
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡…o    ³NGIMP805TRB³ Autor ³                       ³ Data ³          ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³Impressao do relatorio                                       ³±± 
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ MDTR805                                                     ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß/*/
+User Function NGIMP805TRB()
+Local LinhaCorrente
+Local lPrimvez := .t.
+
+DBSELECTAREA("TRB")
+If mv_par08 == 1  //Matricula
+	dbSetOrder(1)
+Elseif mv_par08 == 2  //Nome Funcionario
+	dbSetOrder(2)
+Elseif mv_par08 == 3  //Cod. C. Custo
+	dbSetOrder(3)
+Elseif mv_par08 == 4  //Nome C. Custo
+	dbSetOrder(4)	
+Endif
+
+Dbgotop()
+DO WHILE !EOF()
+
+	CFUNC := TRB->FUNCI
+	nVolta := 0
+	SomaLinha()
+	@ Li,000 PSay " "+Replicate("_",131)
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,001 Psay STR0027+ Substr(SM0->M0_NOMECOM,1,60) //"Empresa...:"
+	@ Li,083 Psay "CGC..:"+ SM0->M0_CGC
+	@ Li,132 PSay "|"
+	SomaLinha()
+	
+	@ Li,000 PSay "|"
+	@ Li,001 Psay STR0028+ SM0->M0_ENDENT //"Endereco..:"
+	@ Li,083 Psay STR0029 + SM0->M0_CIDCOB //"Cidade..:"
+	@ Li,118 Psay STR0030 +":"+ SM0->M0_ESTCOB //"Estado.."
+	@ Li,132 PSay "|"
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,001 PSay Replicate("_",131)
+	@ Li,132 PSay "|"
+	
+	SomaLinha()
+	@ Li,000 PSay STR0010 //"|Funcionario.....:"
+	@ Li,019 PSay CFUNC PICTURE "@!"
+	@ Li,026 PSAY " - " + TRB->NOME
+	@ Li,090 PSay STR0011 //"RG.:"
+	@ Li,095 PSay TRB->RG PICTURE "@!"
+	@ Li,132 PSay "|"
+	
+	SomaLinha()
+	@ Li,000 PSay STR0012 //"|Centro de Custo.:"
+
+	@ Li,019 PSay Alltrim(TRB->CC) +" - "+ Alltrim(TRB->DESCC)
+	@ Li,132 PSay "|"
+	
+	SomaLinha()                                 
+	@ Li,000 PSay STR0013 //"|Funcao..........:"
+	@ Li,019 PSay Alltrim(TRB->FUNCAO) +" - "+ Alltrim(TRB->DESCFUN) PICTURE "@!"
+	@ Li,132 PSay "|"
+	
+	SomaLinha()
+	@ Li,000 PSay STR0014 //"|Nascimento......:"
+	@ Li,019 PSay TRB->NASC PICTURE '99/99/99'
+	@ Li,090 PSay STR0015 //"Admissao.:"
+	@ Li,101 PSay TRB->ADMIS PICTURE '99/99/99'
+	@ Li,114 PSay STR0016 //"Idade.:"
+	@ Li,121 PSay TRB->IDADE +" "+ STR0039 //"anos"
+	@ Li,132 PSay "|"
+	
+	lLinha := .f. 
+	lFirst := .t.
+	
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,001 PSay Replicate("_",131)
+	@ Li,132 PSay "|"
+	SOMALINHA()
+	@ Li,000 Psay "|"
+	@ Li,001 PSay STR0017     //"EPI"
+	@ Li,017 PSay STR0018     //"Nome do EPI"
+	@ Li,053 PSay STR0019     //"Dt. Entr"
+	@ Li,063 PSay "Serie"     //"Serie"
+	@ Li,072 PSay STR0025     //"Qtde"
+	@ Li,078 PSay STR0020     //"Dev."
+	If TNF->(FieldPos("TNF_DTDEVO")) > 0
+		@ Li,083 PSay STR0042 //"Dt. Devo"
+	EndIf	
+	@ Li,093 PSay STR0026	  //"Num C.A."
+	@ Li,132 Psay "|"    
+	Somalinha()
+	@ Li,000 Psay "|"
+	DbSelectArea("TN3")
+	/*If TN3->(FieldPos("TN3_NUMCRF")) > 0
+		@ Li,002 PSay STR0033  //"Num. CRF"
+		lLinha := .t.
+	EndIf
+	If TN3->(FieldPos("TN3_NUMCRI")) > 0
+		@ Li,016 PSay STR0034  //"Num. CRI"
+		lLinha := .t.
+	EndIf
+	@ Li,078 PSay "Num. Serie"*/
+	DBSELECTAREA('TRB')
+	While !Eof() .AND. TRB->FUNCI == CFUNC
+			If lLinha .and. lFirst
+				@ Li,132 Psay "|"
+				Somalinha()
+				@ Li,000 PSay "|"
+			EndIf
+			If !lFirst
+				Somalinha()
+				@ Li,000 PSay "|"
+			EndIf	
+			lFirst := .f.
+			@ Li,001 PSAY TRB->CODEPI
+			@ Li,017 PSay substr(alltrim(TRB->DESEPI),1,32) PICTURE "@!"
+			@ Li,053 PSay u_NG805DATE(TRB->DTENT) PICTURE "99/99/99"
+			@ Li,063 PSay TRB->SERIE PICTURE "@!"
+			@ Li,070 PSay TRB->QTDE  PICTURE "@E 999.99"
+			IF TRB->DEV = "1"
+				@ LI,078 PSAY STR0021 //"SIM"
+			ELSE
+				@ LI,078 PSAY STR0022  //"NAO"
+			ENDIF
+			If TNF->(FieldPos("TNF_DTDEVO")) > 0
+				@ Li,083 PSay u_NG805DATE(TRB->DTDEVO) PICTURE "99/99/99"
+			ENDIF			
+			If !Empty(TRB->NUMCAP)
+				@ Li,093 PSay Alltrim(SUBSTR(TRB->NUMCAP,1,12))    
+			EndIf
+			/*If lLinha        
+				@ Li,132 Psay "|"
+				Somalinha()
+				@ Li,000 Psay "|"
+			EndIf	
+			DbSelectArea("TN3")
+			IF TN3->(FieldPos("TN3_NUMCRF") > 0)
+				@ Li,002 PSay TRB->NUMCRF
+			ENDIF
+			IF TN3->(FieldPos("TN3_NUMCRI") > 0)
+				@ Li,016 PSay TRB->NUMCRI
+			ENDIF
+			@ Li,078 PSay TRB->NUMSER*/
+			@ Li,107 PSay "Ass.: _________________"
+			@ Li,132 PSay "|"
+			nVolta++
+			DBSELECTAREA("TRB")
+			DBSKIP()
+	ENDDO
+	DBSKIP(-1)
+	    	
+	//termo
+	dbSelectArea("TMZ")
+	dbSetOrder(01)
+	If dbSeek(xFilial("TMZ")+MV_PAR06)
+		SOMALINHA()
+		@ Li,000 PSay "|"
+		@ Li,001 PSay Replicate("_",131)
+		@ Li,132 PSay "|"
+		SomaLinha()
+		@ Li,000 PSay "|"
+		@ Li,048 PSay STR0041 //"TERMO DE RESPONSABILIDADE"
+		@ Li,132 PSay "|"
+		Somalinha()
+		@ Li,000 PSay "|"
+		lPrimeiro := .T.
+		
+		nLinhasMemo := MLCOUNT(TMZ->TMZ_DESCRI,130)
+		For LinhaCorrente := 1 to nLinhasMemo
+			If lPrimeiro
+				if !empty((MemoLine(TMZ->TMZ_DESCRI,56,LinhaCorrente)))
+					@ Li,001 PSAY (MemoLine(TMZ->TMZ_DESCRI,130,LinhaCorrente))
+					@ Li,132 PSay "|"
+					lPrimeiro := .f.
+				Else
+					Exit
+				Endif
+			Else
+				@ Li,000 PSay "|"
+				@ Li,001 PSAY (MemoLine(TMZ->TMZ_DESCRI,130,LinhaCorrente))
+				@ Li,132 PSay "|"
+			EndIf
+			Somalinha()
+		Next
+		If !lPrimeiro
+			@ Li,000 PSay "|"
+		Endif
+		@ Li,132 PSay "|"
+	EndIf
+	// fim do termo
+	
+	SOMALINHA()
+	@ Li,000 PSay "|"
+	@ Li,001 PSay Replicate("_",131)
+	@ Li,132 PSay "|"
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,132 PSay "|"
+	SomaLinha()
+	@ Li,000 PSay STR0036 //"|       Data : ____/____/____"
+	@ Li,132 PSay "|"
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,132 PSay "|"
+	SomaLinha()
+	@ Li,000 PSay STR0037 //"|       Assinatura: _______________________                                   Resp Empr: _______________________"
+	@ Li,132 Psay "|"
+	SomaLinha()
+	@ Li,000 Psay "|"
+	@ Li,132 Psay "|"
+	SomaLinha()
+	@ Li,000 PSay "|"
+	@ Li,001 PSay Replicate("_",131)
+	@ Li,132 PSay "|"        
+	LI := 80
+	If mv_par07 == 2 .and. lPrimvez
+		DbSelectArea("TRB")
+		DbSkip(-(nVolta-1))
+		lPrimvez := .f.
+	Else
+		DbSelectArea("TRB")     
+		DbSkip()
+		lPrimvez := .t.
+	EndIf
+	
+EndDo
+Return
+
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡…o    ³u_NG805DATE  ³ Autor ³                       ³ Data ³          ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³Faz tratamento das datas                                     ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ MDTR805                                                     ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß/*/
+User Function NG805DATE(dDtPPP)
+Local cRet,cDia,cMes,cAno
+
+If Empty(dDtPPP)
+	Return "  /  /  "
+Endif
+
+cDia := Strzero(Day(dDtPPP),2)
+cMes := Strzero(Month(dDtPPP),2)
+cAno := Substr(Str(Year(dDtPPP),4),3,2)
+
+cRet := cDia+"/"+cMes+"/"+cAno
+
+Return cRet
+
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡„o    ³u_AddRec805 ³ Autor ³Andre E. Perez Alvarez ³ Data ³ 17/01/06 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡„o ³Armazena informacoes de um recibo para impressao.           ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ MDTR805                                                    ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+/*/
+User Function AddRec805()
+
+DBSELECTAREA("TN3")
+DBSETORDER(1)
+DBSEEK(XFILIAL("TN3")+TNF->TNF_FORNEC+TNF->TNF_LOJA+TNF->TNF_CODEPI+TNF->TNF_NUMCAP)
+
+dbSelectArea("TRB")
+TRB->(DbAppend())
+TRB->FUNCI    := cFuncMat
+TRB->NOME     := SubStr(NgSeek('SRA',cFuncMat,1,'SRA->RA_NOME'),1,40)
+TRB->RG       := NgSeek('SRA',cFuncMat,1,'SRA->RA_RG')
+TRB->NASC     := NgSeek('SRA',cFuncMat,1,'SRA->RA_NASC')
+TRB->ADMIS    := NgSeek('SRA',cFuncMat,1,'SRA->RA_ADMISSA')
+TRB->IDADE    := Alltrim( Str( YEAR(DATE())-YEAR(TRB->NASC),3 ) )
+TRB->CC       := NgSeek('SRA',cFuncMat,1,'SRA->RA_CC')
+TRB->DESCC    := NgSeek('SI3',TRB->CC,1,'SI3->I3_DESC')
+TRB->FUNCAO   := TNF->TNF_CODFUN
+TRB->DESCFUN  := Alltrim(NgSeek('SRJ',TRB->FUNCAO,1,'SRJ->RJ_DESC'))       
+TRB->CODEPI   := TNF->TNF_CODEPI
+TRB->DESEPI   := NgSeek('SB1',TNF->TNF_CODEPI,1,'SB1->B1_DESC')
+TRB->DTENT    := TNF->TNF_DTENTR			 
+TRB->SERIE    := TNF->TNF_NSERIE
+TRB->QTDE     := TNF->TNF_QTDENT
+TRB->DEV      := TNF->TNF_INDDEV
+TRB->NUMSER   := TNF->TNF_NSERIE
+TRB->NUMCAP   := If(lCPONumcap,TNF->TNF_NUMCAP,TN3->TN3_NUMCAP)
+
+IF TN3->(FieldPos("TN3_NUMCRI")) > 0 
+	TRB->NUMCRI    := TN3->TN3_NUMCRI
+Endif
+IF TN3->(FieldPos("TN3_NUMCRF")) > 0 
+	TRB->NUMCRF    := TN3->TN3_NUMCRF
+Endif
+If TNF->(FieldPos("TNF_DTDEVO")) > 0
+	TRB->DTDEVO    := TNF->TNF_DTDEVO
+Endif
+		
+Return			

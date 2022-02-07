@@ -1,0 +1,22 @@
+User Function propppe (cPdRot)
+    cVerbaRot := If(ValType('cPdRot')<>'U',cPdRot,'')
+    
+    Begin Sequence
+        If ( AbortProc() )
+            Break
+        EndIf
+		
+    M_001 := NDIASAFAS
+      
+	M_002:= SALARIO * 0.30
+	
+	M_003 := M_002/30
+		
+	If ( RGE->RGE_COD = "01" )
+	
+        FGERAVERBA("393",M_003 * M_001,,,,"V","G",,,,.T.,,,,,,,,)
+        
+     EndIf   
+    
+    End Sequence
+Return

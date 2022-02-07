@@ -1,0 +1,33 @@
+0004#STR0004#ALL#|                                     |         Ano Calendario
+0005#STR0005#ALL#| 1. - fonte pagadora                                                          |
+0006#STR0006#ALL#| nome empresarial                               | cnpj                        |
+0007#STR0007#ALL#| Morada:
+0009#STR0009#ALL#Uf:
+0010#STR0010#ALL#Telefone:
+0011#STR0011#ALL#| 2. - Pessoa Colectiva Beneficiaria Dos Rendimentos
+0012#STR0012#ALL#| Cnpj:
+0013#STR0013#ALL#Nome Empr.:
+0014#STR0014#ALL#| 3. - rendimento bruto e imposto de renda retido na fonte                     |
+0015#STR0015#ALL#| mês cod. descrição do rendimento               rend. bruto       i.r. retido |
+0016#STR0016#ALL#|     darf                                           r$                r$      |
+0017#STR0017#ALL#|       t o t a l                        
+0018#STR0018#ALL#| 4. - informações complementares                                              |
+0019#STR0019#ALL#| 5. - responsavel pelas informações                                           |
+0022#STR0022#ALL#Cnpj
+0024#STR0024#ALL# Mês
+0025#STR0025#ALL#Código de 
+0026#STR0026#ALL# retenção 
+0027#STR0027#ALL#Descrição Do Rendimento
+0028#STR0028#ALL#Rendimento (r$)
+0029#STR0029#ALL#Imposto retido (r$) 
+0033#STR0033#ALL#Comprovante Anual De Rendimentos Pagos
+0035#STR0035#ALL#Ou Creditados E De Retenção De Imposto
+0036#STR0036#ALL#De Renda Na Fonte - Pessoa Colectiva
+0037#STR0037#ALL#( Ano-calendário
+0039#STR0039#ALL# 2. - Pessoa Colectiva Beneficiaria Dos Rendimentos
+0040#STR0040#ALL# 3. - Rendimento Bruto E Imposto De Renda Retido Na Fonte
+0042#STR0042#ALL# 5. - Responsável Pelas Informações
+0043#STR0043#ALL# aprovado pela in/srf nº 119/2000
+0048#STR0048#ALL#COFINS E PIS/PASEP - PESSOA COLECTIVA  
+0049#STR0049#ALL#Pessoa Colectiva Fornecedora de Serviço
+0051#STR0051#ALL#| 2. - PESSOA COLECTIVA FORNECEDORA DE SERVIÇO 
