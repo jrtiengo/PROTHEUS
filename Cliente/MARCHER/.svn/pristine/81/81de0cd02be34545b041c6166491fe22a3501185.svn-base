@@ -1,0 +1,9 @@
+Fontes referentes a impressão de etiquetas de Produto Marcher
+
+1) marcherEtq.prw, programa de seleção dos produtos, quantidade de cópias e impressora (porta)
+2) ImpArgox.prw, programa responável pela impressão própriamente dita.
+
+MOdelo da Impressora:
+Argox
+
+

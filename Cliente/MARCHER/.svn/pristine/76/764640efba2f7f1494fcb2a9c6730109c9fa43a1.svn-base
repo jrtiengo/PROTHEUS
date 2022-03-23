@@ -1,0 +1,214 @@
+Group Marcher
+   Version=7.0
+   VSSDB=
+   HasProperties=1
+   Properties
+      BeforeApply=
+      AfterApply=
+      Icon=
+      ID=
+      Version=
+      PalmName=
+      OutPut=
+   End
+   ProjectsCount=4
+   Project Compras
+      FoldersCount=3
+      Folder Fontes
+         VSSPath=Fontes
+         FilesCount=2
+         File \TOTVS\Fontes\Compras\MATR110.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\SXUF_001.PRW
+             Type=T
+         End
+      End
+      Folder Definições
+         VSSPath=Definições
+         FilesCount=0
+      End
+      Folder PE
+         VSSPath=Nova Pasta3
+         FilesCount=7
+         File \TOTVS\Fontes\Compras\PE_MT110APV.PRW
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\PE_MT110QRY.PRW
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\PE_MT120F.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\PE_MT121BRW.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\PE_MTA120G1.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\PE_MTA120G3.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Compras\xGPRODSC1.prw
+             Type=T
+         End
+      End
+   End
+   Project Financeiro
+      FoldersCount=6
+      Folder PE
+         VSSPath=Nova Pasta1
+         FilesCount=1
+         File \TOTVS\Fontes\Financeiro\PE_FINA200.PRW
+             Type=T
+         End
+      End
+      Folder Fontes
+         VSSPath=Nova Pasta2
+         FilesCount=2
+         File \TOTVS\Protheus12\Protheus_data\ATUALIZA\18-06-19-FIS_RDMAKE_NFE_P12.1.17\danfeii.prw
+             Type=T
+         End
+         File \TOTVS\Protheus12\Protheus_data\ATUALIZA\18-06-19-FIS_RDMAKE_NFE_P12.1.17\nfesefaz.prw
+             Type=T
+         End
+      End
+      Folder Comissoes
+         VSSPath=Nova Pasta3
+         FilesCount=5
+         File \TOTVS\Fontes\Financeiro\Comissoes\PE_F070BTOK.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Financeiro\Comissoes\PE_F440ABAS.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Financeiro\Comissoes\PE_FA070CAN.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Financeiro\Comissoes\PE_FA440VLD.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Financeiro\Comissoes\PE_M410PVNF.prw
+             Type=T
+         End
+      End
+      Folder comissoes_rev
+         VSSPath=Nova Pasta5
+         FilesCount=7
+         File \TOTVS\Fontes\Comissões Revenda\MARA010.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\MARA020.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\PE_M460FIM.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\PE_M521DNFS.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\PE_MT103FIM.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\PE_MT103NAT.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Comissões Revenda\PE_SF1100E.prw
+             Type=T
+         End
+      End
+      Folder Boleto
+         VSSPath=Nova Pasta5
+         FilesCount=1
+         File \TOTVS\Fontes\Financeiro\BOLETO.PRW
+             Type=T
+         End
+      End
+      Folder Agendamento
+         VSSPath=Nova Pasta6
+         FilesCount=1
+         File \TOTVS\Fontes\Financeiro\MARS010.prw
+             Type=T
+         End
+      End
+   End
+   Project Estoques
+      FoldersCount=3
+      Folder PE
+         VSSPath=Nova Pasta1
+         FilesCount=2
+         File \TOTVS\Fontes\Estoques\Cus020.Prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Estoques\MT100LOK.prw
+             Type=T
+         End
+      End
+      Folder Etiquetas
+         VSSPath=Nova Pasta2
+         FilesCount=3
+         File \TOTVS\Fontes\Estoques\etiquetas\ETIQPROD.PRW
+             Type=T
+         End
+         File \TOTVS\Fontes\Estoques\etiquetas\ImpArgox.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Estoques\etiquetas\marcherEtq.prw
+             Type=T
+         End
+      End
+      Folder Separacao
+         VSSPath=Nova Pasta3
+         FilesCount=1
+         File \TOTVS\Fontes\Estoques\separacao\PR_TRANSF.prw
+             Type=T
+         End
+      End
+   End
+   Project Faturamento
+      FoldersCount=4
+      Folder PE
+         VSSPath=Nova Pasta1
+         FilesCount=1
+         File \TOTVS\Fontes\Faturamento\NFe4.0\PE_PE01NFESEFAZ.PRW
+             Type=T
+         End
+      End
+      Folder NFESefaz
+         VSSPath=Nova Pasta2
+         FilesCount=2
+         File \TOTVS\Fontes\Faturamento\NFe\nfesefaz.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Faturamento\NFe\danfeii.prw
+             Type=T
+         End
+      End
+      Folder Fontes
+         VSSPath=Nova Pasta3
+         FilesCount=4
+         File \TOTVS\Fontes\Faturamento\GAT_CLIENTE.prw
+             Type=T
+         End
+         File \TOTVS\Protheus12\Protheus_data\Solutio\18-04-03-FIS_RDMAKE_NFE_P12.1.17\18-04-03-FIS_RDMAKE_NFE_P12.1.17\danfeii.prw
+             Type=T
+         End
+         File \TOTVS\Protheus12\Protheus_data\Solutio\18-04-03-FIS_RDMAKE_NFE_P12.1.17\18-04-03-FIS_RDMAKE_NFE_P12.1.17\nfesefaz.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Faturamento\ORCFAT.PRX
+             Type=T
+         End
+      End
+      Folder NFE4.0
+         VSSPath=Nova Pasta4
+         FilesCount=2
+         File \TOTVS\Fontes\Faturamento\NFe4.0\danfeii.prw
+             Type=T
+         End
+         File \TOTVS\Fontes\Faturamento\NFe4.0\nfesefaz.prw
+             Type=T
+         End
+      End
+   End
+End
