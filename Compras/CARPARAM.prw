@@ -14,7 +14,7 @@ Local cUser     := SUPERGETMV("ES_USERSB1", .T., "000000") // SuperGetMv ( <nome
 Local cDescri	:= "Preenchimento dos parametros do Fechamento fiscal on line."
 Local cCampo7a	:= "MV_DATAFIS - Ultima data de encerramento de operacoes fiscais"
 Local cGet7		:= Space(08)
-Local lOk		:= .F.
+Local lOk		:= .T.
 
 	If (!__cUserID $ cUser)
 	
