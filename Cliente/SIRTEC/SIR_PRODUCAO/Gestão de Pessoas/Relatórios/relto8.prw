@@ -30,16 +30,22 @@ Static Function ReportPrint(oReport,cAlias)
 	local oSecao1 := oReport:Section(1)
 
 	oSecao1:BeginQuery()
-
+	// #32076 Ajustes referente ao filtro das filiais. Acrescentada coluna para a filial e criado orderm por filial+data. Mauro - Solutio. 02/04/2022.
 	BeginSQL Alias cAlias
 
-		SELECT TO8_MAT, RA_NOME, TO8_CODOCO, TO8_DTOCOR, TO8_GRAVID, TO8_DESC
+		SELECT TO8_FILIAL, TO8_MAT, RA_NOME, TO8_CODOCO, TO8_DTOCOR, TO8_GRAVID, TO8_DESC
 
 		FROM %Table:TO8% AS TO8
 
-		INNER JOIN %Table:SRA% AS SRA ON ( TO8.TO8_MAT = SRA.RA_MAT AND SRA.RA_FILIAL BETWEEN %Exp:MV_PAR03% AND %Exp:MV_PAR04% AND SRA.D_E_L_E_T_<>'*' )
+		// INNER JOIN %Table:SRA% AS SRA ON ( TO8.TO8_FILIAL = SRA.RA_FILIAL AND TO8.TO8_MAT = SRA.RA_MAT AND SRA.RA_FILIAL BETWEEN %Exp:MV_PAR03% AND %Exp:MV_PAR04% AND SRA.D_E_L_E_T_<>'*' )
 
-		WHERE TO8_MAT BETWEEN %Exp:MV_PAR01% AND %Exp:MV_PAR02%
+		INNER JOIN %Table:SRA% AS SRA ON ( TO8.TO8_FILIAL = SRA.RA_FILIAL AND TO8.TO8_MAT = SRA.RA_MAT AND SRA.D_E_L_E_T_<>'*' )
+
+		WHERE TO8_FILIAL BETWEEN %Exp:MV_PAR03% AND %Exp:MV_PAR04%
+		
+		AND TO8_MAT BETWEEN %Exp:MV_PAR01% AND %Exp:MV_PAR02%
+
+		ORDER BY TO8_FILIAL, TO8_DTOCOR
 
 	EndSQL
 
@@ -64,6 +70,7 @@ Static Function ReportDef(cAlias,cPerg)
 	//Primeira seção
 	oSection1 := TRSection():New(oReport,"Ocorrencias Funcionario",{"T08"})
 
+	TRCell():New(oSection1,"TO8_FILIAL", "TO8", "Filial")
 	TRCell():New(oSection1,"TO8_MAT", "TO8", "Matricula")
 	TRCell():New(oSection1,"RA_NOME", "SRA", "Nome do Func")
 	TRCell():New(oSection1,"TO8_CODOCO", "TO8", "Codigo Ocorrencia")

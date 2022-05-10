@@ -1,0 +1,19 @@
+#Include 'rwmake.ch'
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+ฑฑบADAPTADO  ณCOP313   บAutor  ณMarcelo Tarasconi   บ Data ณ  29/11/2008  บฑฑ
+ฑฑบPrograma  ณPLFF313   บAutor  ณMarcelo Tarasconi   บ Data ณ  12/04/2007 บฑฑ
+ฑฑฬออออออออออุออออออออออสอออออออฯออออออออออออออออออออสออออออฯอออออออออออออนฑฑ
+ฑฑบDescricao ณFuncao para declarar variaveis contadoras para cnab a pagar บฑฑ
+ฑฑฬออออออออออุออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออนฑฑ
+ฑฑบUso       ณ MP 8                                                      บฑฑ
+฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿
+*/
+
+User Function COP313()
+
+__cLinhas := StrZERO((Val(__cLinhas)+1),6) //Contador de linhas do arquivo
+__cLinBor := StrZERO((Val(__cLinBor)+1),6)
+
+Return('3')
