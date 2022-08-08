@@ -1,6 +1,0 @@
-
-USER FUNCTION PosFor()
-
-// POSICIONE("SA2",1,XFILIAL("SA2")+POSICIONE("SC7",1,XFILIAL("SC7")+SCR->CR_NUM,'C7_FORNECE'),"A2_NOME")    
-
-Return Posicione("SA2",1,xFilial("SA2")+Posicione("SC7",1,xFilial("SC7")+SCR->CR_NUM,"C7_FORNECE+C7_LOJA"),"A2_NOME")
