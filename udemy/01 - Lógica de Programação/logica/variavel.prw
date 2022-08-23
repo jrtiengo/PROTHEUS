@@ -17,7 +17,7 @@ User Function  VARIAVEL()
     Local cCarac    := "String"
     Local dData     := DATE()
     Local aArray    := {"Joao", "Maria", "Jose"}
-    Local bBloco    := {|| nValor := 2, MsgAlert("O NÃºmero Ã©: "+ cValToChar(nValor))}
+    Local bBloco    := {|| nValor := 2, MsgAlert("O número é: "+ cValToChar(nValor))}
 
     Alert(nNum)
     Alert(lLogic)

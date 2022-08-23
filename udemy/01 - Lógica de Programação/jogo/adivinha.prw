@@ -7,11 +7,12 @@ User Function adivinha()
     Local nNumF  := RANDOMIZE(1,30)
     Local nNumM  := RANDOMIZE(1,50)
     Local nNumD  := RANDOMIZE(1,100)
+    Local nNumS  := RANDOMIZE(1,1000)
     Local nChute := 0
     Local nTent  := 0
     Local cDif   := ""
 
-    nDif := Val(FWInputBox("Escolha a Dificuldade: 1 - Fácil, 2 - Médio, 3 - Difícil ", ""))
+    nDif := Val(FWInputBox("Escolha a Dificuldade: 1 - Fácil, 2 - Médio, 3 - Difícil, 4 - Super Difícil ", ""))
 
     If nDif = 1
         nOpc := nNumF
@@ -22,6 +23,9 @@ User Function adivinha()
     ElseIf nDif = 3
         nOpc := nNumD
         cDif := "Dificuldade: Difícil - [ 1 - 100 ]"
+    ElseIF nDif = 4
+        nOpc := nNumS
+        cDif := "Dificuldade: Difícil - [ 1 - 1000]"
     EndIF
 
     While nOpc != nChute
