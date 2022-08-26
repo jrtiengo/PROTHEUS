@@ -21,7 +21,13 @@
 		},
 		{
 			"label": "U_adivinha"
+		},
+		{
+			"label": "U_reltxt"
+		},
+		{
+			"label": "sigamdi"
 		}
 	],
-	"lastProgramExecuted": "U_adivinha"
+	"lastProgramExecuted": "sigamdi"
 }
