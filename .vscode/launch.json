@@ -4,7 +4,7 @@
 		{
 			"type": "totvs_language_debug",
 			"request": "launch",
-			"name": "Depuração do idioma TOTVS",
+			"name": "Base Local33",
 			"program": "${command:AskForProgramName}",
 			"cwb": "${workspaceFolder}",
 			"smartclientBin": "C:/TOTVS/protheus12.1.33/protheus/bin/smartclient/smartclient.exe",
