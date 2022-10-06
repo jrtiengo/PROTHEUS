@@ -29,34 +29,33 @@ Return Self
 
 Method Regra() class RegraCredito
 
-	Local _lRet  
+	Local lRet  
 	Local dDtuc := DateDiffDay( Date(), SA1->A1_ULTCOM ) 
-
-	DO CASE
-
-		// Libera se a condição de pagamento for diferente de 510
-        CASE SC5->C5_CONDPAG <> '510'
-            _lRet := .t.
+	Local lCodPag := .T.
+	Local lPriCom := .T.
+	Local lUltCom := .T.
 		
 		// Bloqueia se a condição de pagamento for igual a 075
-		CASE SC5->C5_CONDPAG == '075'
-            _lRet := .f.
+		IF SC5->C5_CONDPAG == '075'
+            lCodPag := .F.
+		EndIF
 		
 		// Bloqueia se for primeira compra
-        CASE Empty(SA1->A1_PRICOM)
-            _lRet := .f.
+        If Empty(SA1->A1_PRICOM)
+            lPriCom := .F.
+		EndIf
 
 		// Bloqueia se a última compra for a 60 dias
-		CASE dDtUc > 60  
-			_lRet := .f.
+		If dDtUc > 60  
+			lUltCom := .F.
+		EndiF
 
-		// Se Saldo do pedido for maior que o limite de crédito bloqueia
-        CASE SA1->A1_SALPED > SA1->A1_LC
-            _lRet := .f.
+		// Caso alguma retornar falso, ele bloqueia o PV
+		If (lCodPag = .F. .or. lPriCom = .F. .or. lUltCom = .F.)
+			lRet := .F.
 
-	ENDCASE
-
-Return (_lRet)
+		EndiF
+Return (lRet)
 
 /*
 Method ClassificaRisco() class RegraCredito
