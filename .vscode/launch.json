@@ -1,33 +1,14 @@
 {
-	"version": "0.2.0",
-	"configurations": [
-		{
-			"type": "totvs_language_debug",
-			"request": "launch",
-			"name": "Base Local33",
-			"program": "${command:AskForProgramName}",
-			"cwb": "${workspaceFolder}",
-			"smartclientBin": "C:/TOTVS/protheus12.1.33/protheus/bin/smartclient/smartclient.exe",
-			"isMultiSession": true,
-			"enableTableSync": true
-		}
-	],
-	"lastPrograms": [
-		{
-			"label": "U_VARIAVEL"
-		},
-		{
-			"label": "U_while"
-		},
-		{
-			"label": "U_adivinha"
-		},
-		{
-			"label": "U_reltxt"
-		},
-		{
-			"label": "sigamdi"
-		}
-	],
-	"lastProgramExecuted": "sigamdi"
+    "configurations": [
+    {
+        "type": "totvs_language_debug",
+        "request": "launch",
+        "name": "Smart Client Debug",
+        "program": "${command:AskForProgramName}",
+        "smartclientBin": "C:/TOTVS/protheus12.1.33/protheus/bin/smartclient/smartclient.exe",
+        "cwb": "${workspaceFolder}",
+        "isMultiSession": true,
+        "enableTableSync": true
+    }
+    ]
 }

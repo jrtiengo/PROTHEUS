@@ -29,7 +29,7 @@ Return Self
 
 Method Regra() class RegraCredito
 
-	Local lRet  
+	Local lRet := .T.
 	Local dDtuc := DateDiffDay( Date(), SA1->A1_ULTCOM ) 
 	Local lCodPag := .T.
 	Local lPriCom := .T.
@@ -54,7 +54,15 @@ Method Regra() class RegraCredito
 		If (lCodPag = .F. .or. lPriCom = .F. .or. lUltCom = .F.)
 			lRet := .F.
 
+			IF lRet = .F.
+				dbSelectArea("SC5") 
+				RecLock('SC5', .F.) // .F. trava registro para alteração - .T. trava para inclusão
+				SC5->C5_BLQ := "6"
+				SC5->(MsUnlock())
+			EndIF
+
 		EndiF
+
 Return (lRet)
 
 /*
