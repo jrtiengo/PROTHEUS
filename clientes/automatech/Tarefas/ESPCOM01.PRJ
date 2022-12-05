@@ -1,0 +1,182 @@
+Group ESPCOM01 - Cadastro de Componentes
+   Version=7.0
+   VSSDB=
+   HasProperties=1
+   Properties
+      BeforeApply=
+      AfterApply=
+      Icon=
+      ID=
+      Version=
+      PalmName=
+      OutPut=
+   End
+   ProjectsCount=1
+   Project Novo Projeto
+      FoldersCount=2
+      Folder Fontes
+         VSSPath=Fontes
+         FilesCount=51
+         File \Automatech\Fontes\TAREFAS\ESPCOM01.PRW
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPPRI01.PRW
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPSTA01.PRW
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPTAR01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPTAR02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPCOM02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIACOP.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPPRI02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_PRI.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\XTCBrowse.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_TUS.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPSTA02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPORI01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPORI02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ORI.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPDES01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPDES02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_PRO.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_REF.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPHIS01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_HIS.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPHIS02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPSTA03.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPPRO01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPPRO02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_CES.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPSTA04.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPUSU01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ARI.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPTAR03.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPLIB01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPTAR04.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\cria_master.PRW
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPMAS01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPACO01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPBCO01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ZZK.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPDUC01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ZZL.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ZZM.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPEXT01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\espprj01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\CRIA_ZZY.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\espprj02.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\esptar15.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\esptar16.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPTAR17.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\cria_zzw.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\esptar18.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\ESPARV01.prw
+             Type=T
+         End
+         File \Automatech\Fontes\TAREFAS\MeuMenu.prw
+             Type=T
+         End
+      End
+      Folder Definições
+         VSSPath=Definições
+         FilesCount=1
+         File \Automatech\Fontes\TAREFAS\cria_param.PRW
+             Type=T
+         End
+      End
+   End
+End

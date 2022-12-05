@@ -1,0 +1,85 @@
+#INCLUDE "PROTHEUS.CH"
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UPAVALIACAO
+//Tela atualização de avaliação
+@author  Ana Carolina Martins
+@since   26/11/2018
+@version 0.1
+/*/
+//-------------------------------------------------------------------
+User Function upcatcurso()
+
+    Local aButtons   := {}
+    Local aSays      := {}
+    Local nOpcA      := 0
+    
+    Private aLog     := {}
+    Private aTitle   := {}
+    Private nRetorno := 0
+
+    aAdd(aSays,OemToAnsi( "Esta rotina atualiza a categoria de cursos cujo treinamento foi baixado." ))
+    aAdd(aSays,OemToAnsi( "Somente é atualizado quando o curso possui categoria cadatrada." ))
+    aAdd(aButtons, { 1,.T.,{|o| nOpcA := 1,FechaBatch() }} )
+    aAdd(aButtons, { 2,.T.,{|o| nOpca := 0,FechaBatch()}} )
+
+    //Abre a tela de processamento
+    FormBatch( "Atualização de Categoria ", aSays, aButtons )
+
+    //Efetua o processamento de geração
+    If nOpcA == 1
+        Aadd( aTitle, OemToAnsi( "Categoria de cursos:" ) )
+        Aadd( aLog, {} )
+        ProcGpe( {|lEnd| ProcAtuCat()},,,.T. )
+        fMakeLog(aLog,aTitle,,,"TelaUpAval",OemToAnsi("Log de Ocorrências"),"M","P",,.F.)   
+        
+        AVISO("Atualização", "Processamento concluído, "+ cValToChar(nRetorno) +" registros atualizados." , { "Fechar" }, 1)             
+    EndIf    
+Return 
+
+/*/{Protheus.doc} ProcAtuCat
+//Atualiza Percentual
+@author Ana Carolina Martins 
+@since 09/01/2019
+@version 1.0
+/*/
+Static Function ProcAtuCat()
+
+    Local cFilRA1RA4    := ""    
+    
+    cFilRA1RA4	:= "%" + FWJoinFilial("RA1", "RA4") + "%"
+       
+    Private cAliasRA4   := GetNextAlias()
+    
+      BeginSql Alias cAliasRA4  
+      
+	      SELECT DISTINCT RA4.RA4_MAT,  RA1.RA1_CURSO, RA1.RA1_CATEG, RA4.RA4_CATCUR , RA4.R_E_C_N_O_ as RECNO
+	      	FROM %table:RA1% RA1 INNER JOIN %table:RA4% RA4 
+	      	ON %exp:cFilRA1RA4% AND RA1.RA1_CURSO = RA4_CURSO AND  RA1.RA1_CATEG != '' AND RA4.RA4_CATCUR = '' 
+	      WHERE RA1.D_E_L_E_T_ <> '*'  AND RA4.D_E_L_E_T_ <> '*' 	
+	        
+	  EndSql
+   
+    DbSelectArea("RA4")
+    RA4->(dbSetOrder(1))
+    
+    dbSelectArea( cAliasRA4 )
+	count to ntotal
+	GpProcRegua(ntotal)
+	(cAliasRA4)->(DbGoTop())
+   
+    Begin Sequence    
+        While (cAliasRA4)->( !Eof() ) 
+        	RA4->( dbGoTo( (cAliasRA4)->RECNO ) )        
+            
+            nCodCateg := (cAliasRA4)->RA1_CATEG
+           
+			IF RecLock("RA4",.F.) 
+			  	RA4->RA4_CATCUR := nCodCateg //atualiza o campo
+			  	RA4->(MsUnlock()) // finaliza			
+			  	nRetorno +=1
+            ENDIF
+            (cAliasRA4)->(DbSkip())
+        EndDo
+        (cAliasRA4)->(DbCloseArea())
+    End Sequence        
+Return NIL

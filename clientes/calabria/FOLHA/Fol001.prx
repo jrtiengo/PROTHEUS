@@ -1,0 +1,416 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+User Function Fol001(_nSeq_)        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+/*.....
+       FOL001 - Programa para calculos genericos nos Roteiros da Folha
+       Responsavel - Ivam Maestri/Sigasul
+       Desenvolvimento - Carlos/Sigasul
+       ....*/
+
+Local aArea := GetArea()
+Local aAreaSZ4 := SZ4->(GetArea())
+Local aAreaSR8 := SR8->(GetArea())
+
+SetPrvt("NSULDATA,NSULDPGTO,CCONTAS,CVARIA,VVARIA,VVARIAE,DDATA_PGTO")
+SetPrvt("CCONTA1,CCONTA2,N1,VVARGER,CMESATUAL,CCONTAS1")
+SetPrvt("N2,CCONTAI,CCONTAF,NDIASPROP,NVALOR,VSULBASE")
+SetPrvt("NSULMESES,NSULAADI,NSULPADI,NSULMAIS,VSULADI,CBASES")
+SetPrvt("CCODBASE,WBASE,DINI,DFIM,HOJE,DATAINI")
+SetPrvt("DATAFIM,NFALTA")
+
+Private _cSeq_ := Strzero(_nSeq_,5)
+/*
+If c__Roteiro $ "FOL,FER,131,132"
+   nSulData  := dDataBase
+   nSulDPgto := dData_Pgto  
+Else
+   nSulData  := dDataDem1   
+   nSulDPgto :=  dDataDem1   
+End     
+
+//aRoteiro	:= aSort(aRoteiro,,,{|x,y| x[2] < y[2]}) //ADICIONADO TARASCONI 05/12/05 DEVIDO A NAO ORDENACAO DO ARRAY AROTEIRO
+*/
+
+IF c__Roteiro == "FOL" .OR. c__Roteiro == "132" .OR. c__Roteiro == "131"
+   nSulData  := dDataBase
+//   nSulDPgto := dData_Pgto
+ELSEIF c__Roteiro == "FER"
+   nSulData  := dDataBase
+//   nSulDPgto := dDataBase
+ELSEIF c__Roteiro == "RES"
+   nSulData  := dDataDem1
+//   nSulDPgto := dDataDem1
+ELSE
+   MSGBOX("ROTEIRO "+c__Roteiro+", NAO DEFINIDO PARA ESTA ROTINA")
+   return
+END              
+
+
+//FILIAL+CALCULO+SEQ
+//SZ4->( DbSeek( xFilial("SZ4") + c__Roteiro +  aRoteiro[nSeq,1] ) ) - na versao 7 funcionava assim (Tarasconi - 24/11/05)
+//SZ4->( DbSeek( xFilial("SZ4") + c__Roteiro +  aRoteiro[nSeq,2] ) ) //troquei devido ao formato do array aroteiro (Tarasconi - 24/11/05)
+//SZ4->( DbSeek( xFilial("SZ4") + c__Roteiro +  aRotei[nSeq,2] ) ) //troquei devido ao formato do array aroteiro (Tarasconi - 24/11/05)
+
+/*IF aRoteiro[nSeq,1] == "00211"
+   MSGBOX(aRoteiro[nSeq,1])
+ENDIF   */
+
+DBSELECTAREA("SZ4") 
+DBSETORDER(1)
+DbSeek(xFilial("SZ4")+c__Roteiro+_cSeq_)
+//      .and. Sz4->z4_Seq == aRoteiro[nSeq,1]- na versao 7 funcionava assim
+//While !Sz4->( Eof() ) .And. Sz4->Z4_Calculo == c__Roteiro; 
+//      .and. Sz4->z4_Seq == aRoteiro[nSeq,2] 
+While !Sz4->( Eof() ) .And. SZ4->Z4_Calculo == c__Roteiro .and. SZ4->Z4_Seq == _cSeq_
+    //..Testando a Filial da formula
+    If Sra->ra_Filial == Sz4->Z4_Filial
+
+      //.... Testando a Validacao dos Centros de Custos
+      cContas   := Trim(Sz4->Z4_CCusto)
+      cVaria    := "Sra->Ra_CC"
+      If Empty(cContas)
+         vVaria := .t.
+      Else
+         vVaria    := .f.
+         fValida()
+      End
+      If vVaria
+         //.... Testando a Validacao dos Turnos
+         cContas   := Trim(Sz4->Z4_Turnos)
+         cVaria    := "Sra->Ra_TnoTrab"
+         If Empty(cContas)
+            vVaria := .t.
+         Else
+            vVaria    := .f.
+            fValida()
+         End
+         If vVaria
+            cContas   := Trim(Sz4->Z4_Sindica)
+            cVaria    := "Sra->Ra_Sindica"
+            If Empty(cContas)
+               vVaria := .t.
+            Else
+               vVaria    := .f.
+               fValida()
+            End
+            If vVaria
+               //.... Testando a Validacao dos Cargos
+               cContas   := Trim(Sz4->Z4_Cargos)
+               cVaria    := "Sra->Ra_CodFunc"
+               vVaria    := .f.
+               If Empty(cContas)
+                  vVaria := .t.
+               Else
+                  fValida()
+               End
+               If vVaria .or. Empty(cContas)
+                  //.... Testando a Validacao das Matriculas
+                  cContas   := Trim(Sz4->Z4_Matrics)
+                  cVaria    := "Sra->Ra_Mat"
+                  If Empty(cContas)
+                     vVaria := .t.
+                  Else
+                     vVaria    := .f.
+                     fValida()
+                  End
+                  If vVaria
+                     //.... Testando a Validacao dos Campos
+                     vVariaE   := .t.
+                     cConta1   := Trim(Sz4->Z4_Campos)
+                     cConta2   := Trim(Sz4->Z4_CCampos)
+                     While Len(cConta1) > 0
+                         If ( n1 := At(":",cConta1) ) == 0
+                            cVaria  := cConta1
+                            cConta1 := ""
+                         Else
+                            cVaria  := Left(CConta1,N1-1)
+                            cConta1 := Substr(CConta1,N1+1)
+                         End
+
+                         vVarGer := .f.
+                         While Len(cConta2) > 0
+                               If ( n1 := At(":",cConta2) ) == 0
+                                  cContas := cConta2
+                                  cConta2 := ""
+                               Else
+                                  cContas := Left(CConta2,N1-1)
+                                  cConta2 := Substr(CConta2,N1+1)
+                               End
+
+                               vVaria    := .f.
+                               fValida()
+                               If vVaria
+                                  vVarGer := .t.
+                                  Exit
+                               End
+                         EndDo
+                         If !vVarGer
+                            vVariae := .f.
+                            Exit
+                         End
+                     EndDo
+
+
+                     If vVariaE
+                        //.. Validacao do Periodo - Informando 199701-199705,199801-199805
+                        cMesAtual := Dtos(nSulData) //...Mes do calculo
+                        cMesAtual := Substr(cMesAtual,1,6)
+                        cContas   := Trim(Sz4->Z4_Periodos)
+                        cVaria    := "cMesAtual"
+                        If Empty(cContas)
+                           vVaria := .t.
+                        Else
+                           vVaria    := .f.
+                           fValida()
+                        End
+                        If vVaria
+                           /*...
+                               Calculando a Verba informada e Gerando se o
+                               Valor for Maior que zero
+                               ....*/
+                           If Empty(Sz4->z4_Carenci)
+                              fCalVerba()
+                           Else
+                              fCalATS()
+                           End
+                        End
+                     End
+                  End
+               End
+            End
+         End
+      End
+    End
+    Sz4->( DbSkip() )
+EndDo
+
+
+RestArea(aAreaSR8)
+RestArea(aAreaSZ4)
+RestArea(aArea)
+
+
+Return
+
+
+
+*********************************************************************************************************
+/*...
+     Funcao de Validacao dos campos
+     ...*/
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function fValida
+Static Function fValida()    
+
+      While Len(cContas) > 0  // FVALIDA()
+      
+         If ( n1 := At(",",cContas) ) == 0
+            cContas1 := cContas
+            cContas  := ""
+         Else
+            cContas1 := Left(cContas,N1-1)
+            cContas  := Substr(cContas,N1+1)
+         End       
+         
+         If (N2 :=  At("..",cContas1) ) == 0
+            cContai := cContas1
+            cContaf := cContas1
+         Else
+            cContai := Left(cContas1,n2-1)
+            cContaf := Substr(cContas1,n2+2)
+         End  
+         
+         If &cVaria >= cContai .and. &cVaria <= cContaf
+            vVaria := .t.
+            Exit
+         End
+      EndDo
+
+Return
+
+/*...
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>      Function de calculo dos valores das Verbas
+Static Function de calculo dos valores das Verbas()
+     ...*/
+
+Return(nil)        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function fCalVerba
+Static Function fCalVerba()
+
+     nDiasProp := 30
+     If Sz4->Z4_ProPorc <> "N"
+        FCalProp()
+     End
+     If !Empty(Sz4->z4_Horas)
+        //... Verba em Horas
+        nValor := Sz4->Z4_Horas * SalHora
+        If c__Roteiro <> "131"
+//        fGeraVerba( Sz4->z4_Verba,nValor ,Sz4->z4_Horas,,Sra->Ra_CC,"H",,,,nSulDPgto,.t.)
+          fGeraVerba( Sz4->z4_Verba,nValor ,Sz4->z4_Horas,,Sra->Ra_CC,"H",,,,,.t.)
+        Else 
+           VAR_IXB := nValor
+        EndIf
+     ElseIf !Empty(Sz4->z4_Dias)
+        //... Verba em Dias
+        nValor := Sz4->Z4_Dias * Saldia
+        If c__Roteiro <> "131"
+           fGeraVerba( Sz4->z4_Verba,nValor ,Sz4->z4_Dias,,Sra->Ra_CC,"D",,,,,.t.)
+        Else 
+           VAR_IXB := nValor
+        EndIf   
+     ElseIf !Empty(Sz4->z4_Valor)
+        //... Verba em Valor
+        nValor := Sz4->Z4_Valor / 30 * nDiasProp
+        If c__Roteiro <> "131"
+           fGeraVerba( Sz4->z4_Verba,nValor ,,,Sra->Ra_CC,"V",,,,,.t.)
+        Else 
+           VAR_IXB := nValor
+        EndIf
+     Else
+        /*...
+             Calculo das Bases
+             ...*/
+        vSulBase  := 0
+        FCalBas()
+        nValor := Abs(vSulBase) * (Sz4->z4_Indice / 100)
+        nValor := nValor / 30 * nDiasProp
+        If c__Roteiro <> "131"
+           fGeraVerba( Sz4->z4_Verba , nValor ,,,Sra->Ra_CC,"V",,,,,.t.)
+        Else 
+           IX_VAR := nValor
+        EndIf
+     End
+Return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function FCalAts
+Static Function FCalAts()
+     vSulBase := 0
+     FCalBas()
+     IF SZ4->Z4_TipoAdi == Sra->Ra_Ats
+        If Year(nSulData) == Year( Sra->ra_Admissa)
+           nSulMeses := Month( nSulData ) - Month( Sra->Ra_Admissa)
+        ElseIf Year(nSulData) == Year( Sra->ra_Admissa) + 1
+           nSulMeses := 12 - Month( Sra->Ra_Admissa) +;
+                        Month(nSulData)
+        Else
+           nSulMeses := 12 - Month( Sra->Ra_Admissa) +;
+                        Month(nSulData) +;
+                        ( Year(nSulData) - Year( Sra->ra_Admissa) - 1  ) * 12
+        End
+        nSulMeses := nSulMeses + Sra->ra_AtsAnte
+        nSulAAdi  := Int(nSulMeses / 12)
+
+
+        //nSulAAdi := Year(nSulData) - Year( Sra->ra_Admissa)
+        //nSulAAdi :=  nSulAAdi + Iif(Month( nSulData ) < Month( Sra->Ra_Admissa),-1,0) +;
+        //            Sra->ra_AtsAnte
+
+        If nSulAAdi >= Sz4->z4_Carenci
+           nSulPAdi := Sz4->z4_PercCar
+           If !Empty( Sz4->z4_Adicion )
+              nSulMais :=  nSulAAdi - Sz4->z4_Carenci
+              If nSulMais >= Sz4->z4_Adicion
+                 nSulMais := Int(nSulMais / Sz4->z4_Adicion)
+                 If nSulMais > 0
+                    nSulPAdi := nSulPAdi + ( nSulMais * Sz4->z4_PercAdi )
+                 End
+              End
+           End
+           If !Empty(Sra->ra_AtsAcum)
+              nSulPAdi := nSulPAdi + Sra->ra_AtsAcum
+           End
+           vSulAdi := vSulBase * ( nSulPadi / 100 )
+           If c__Roteiro <> "131"
+              fGeraVerba( Sz4->z4_Verba , vSulAdi ,nSulPadi,,Sra->Ra_CC,"V",,,,,.t.)
+           Else 
+              VAR_IXB := vSulAdi
+           EndIf  
+        End
+     End
+Return
+     
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function fCalBas
+Static Function fCalBas()
+    /*... Calculo das Bases
+          ...*/
+    If !Empty( Sz4->z4_BaseInf)
+       vSulBase := Sz4->z4_BaseInf
+    Else
+       cBases := Trim( Sz4->z4_Bases)
+       While Len(cBases) > 0
+           If ( n1 := At(",",cBases) ) == 0
+              cCodBase := cBases
+              cBases   := ""
+           Else
+              cCodBase := Left(cBases,N1-1)
+              cBases   := Substr(cBases,N1+1)
+           End
+           If cCodBase >= "100" .and. cCodBase <= "999"
+              wBase := fBuscaPd(cCodBase,"V")
+              //.. Quando o codigo base for 400 a 699 o valor retornado sera
+              //.. automaticamente NEGATIVO
+              vSulBase := vSulBase + wBase
+           Else
+              //... e uma variavel de Memoria ou de cadastro
+              vSulBase := vSulBase + &cCodBase
+           End
+       EndDo
+    End
+Return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function fCalProp
+Static Function fCalProp()
+    If Month(nSulData)+Year(nSulData) == Month(SrA->RA_Admissa) + Year(SrA->RA_Admissa)
+       nDiasProp := nSulData - SrA->Ra_Admissa +1
+    Else
+       nDiasProp  := Day(nSulData)
+    End
+
+    Sr8->(DbSetOrder(1))
+    Sr8->( DbSeek(xFilial("SR8")+ SRA->RA_MAT) )
+    While !Sr8->(eof()) .and. Sr8->R8_MAT == SRA->RA_MAT
+      if Sr8->R8_DATAFIM >= ddataBase .and.;
+         Sr8->R8_DATAINI <= ddataBase .OR.;
+         Sr8->R8_DATAFIM <= ddatabase
+
+
+         dIni := Sr8->R8_DATAINI
+         dFim := Sr8->R8_DATAFIM
+         Hoje := ddatabase
+
+         if Month(dIni) < Month(Hoje)
+            DataIni := "01\"+strzero(Month(Hoje),2)+"\"+Substr(str(year(Hoje)),4,2)
+            DataIni := Ctod(DataIni)
+         else
+           DataIni := dIni
+         Endif
+
+         If dFim > Hoje
+            datafim := Strzero(day(Hoje),2)+"\"+strzero(month(Hoje),2)+"\"+ Substr(str(year(Hoje)),4,2)
+            DataFim := Ctod(DataFim)
+         Else
+            DataFim := dFim
+         End
+
+         If Month(dfim) < Month(Hoje)
+            DataFim := ctod("")
+            DataIni := ctod("")
+         End
+
+         nFalta := DataFim - DataIni +IIF(DAY(DATAINI) == 1,1,0)
+
+         if nFalta > 0 .and. SR8->R8_TIPO $ "F/Q"
+            nFalta := 0
+         Else
+            nDiasProp  := nDiasProp - nFalta
+         End
+      End
+
+      Sr8->( DbSkip() )
+   Enddo
+   If nDiasProp > 30
+      nDiasProp := 30
+   End
+Return
+ 

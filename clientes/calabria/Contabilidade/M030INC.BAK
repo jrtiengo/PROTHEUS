@@ -1,0 +1,72 @@
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+ฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑ
+ฑฑษออออออออออัออออออออออหอออออออัออออออออออออออออออออหออออออัอออออออออออออปฑฑ
+ฑฑบPrograma  ณM030INC   บAutor  ณSamuel Schneider    บ Data ณ  14/11/13   บฑฑ
+ฑฑฬออออออออออุออออออออออสอออออออฯออออออออออออออออออออสออออออฯอออออออออออออนฑฑ
+ฑฑบDesc.     ณ Grava conta contabil conforme cliente cadastrado           บฑฑ
+ฑฑบ          ณ                                                            บฑฑ
+ฑฑฬออออออออออุออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออนฑฑ
+ฑฑบUso       ณ Calabria                                                   บฑฑ
+ฑฑศออออออออออฯออออออออออออออออออออออออออออออออออออออออออออออออออออออออออออผฑฑ
+ฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑฑ
+฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿฿
+*/
+
+User Function M030INC()
+
+Local lRet := .F.
+
+	If (INCLUI .AND. PARAMIXB <> 3 .AND. PARAMIXB <> 1)
+	
+		DbSelectArea("CT1")
+		DbSetOrder(1)
+		
+		If !(DbSeek(xFilial("CT1")+ALLTRIM(M->A1_CONTA)))
+		
+			 CT1->(RecLock("CT1",.T.))
+			      CT1->CT1_FILIAL  := xFilial("CT1")
+			      CT1->CT1_CONTA   := M->A1_CONTA
+				  CT1->CT1_DESC01  := M->A1_NOME
+				  CT1->CT1_BLOQ    := "2"
+				  CT1->CT1_CLASSE  := "2"
+				  CT1->CT1_NORMAL  := "1"
+				  CT1->CT1_CTASUP  := SUBSTRING(M->A1_CONTA,1,6)+xFilial("SA1")
+				  CT1->CT1_RES     := "1"+M->A1_COD
+				  CT1->CT1_NTSPED  := "01"
+				  CT1->CT1_NATCTA  := "01"
+				  CT1->CT1_ITOBRG := "1"
+			CT1->(MsUnlock())
+			lRet := .T.
+		
+		EndIf
+				
+		CT1->(DbCloseArea())
+	    
+		If (lRet)
+	
+			DbSelectArea("CVD")
+			DbSetOrder(1)
+			
+			If !(DbSeek(xFilial("CVD")+AllTrim(M->A1_CONTA)))
+				 CVD->(RecLock("CVD",.T.))
+				    CVD->CVD_FILIAL := xFilial("CVD")
+				    CVD->CVD_CONTA  := M->A1_CONTA
+				    CVD->CVD_ENTREF := "10"
+				    CVD->CVD_CODPLA := "001"
+				    CVD->CVD_CTAREF := "1.01.02.02.05"
+				    CVD->CVD_TPUTIL := "A"
+				    CVD->CVD_CLASSE := "2"
+				    CVD->CVD_NATCTA := "01"
+					CVD->CVD_CTASUP := "1.01.02.02"   
+				CVD->(MsUnlock())
+			EndIf
+		
+			CVD->(DbCloseArea())
+	    
+	    EndIf
+	
+	EndIf      
+	
+Return(.T.)

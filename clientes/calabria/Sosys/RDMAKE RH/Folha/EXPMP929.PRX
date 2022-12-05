@@ -1,0 +1,1181 @@
+#INCLUDE "RWMAKE.CH"      
+#INCLUDE 'PROTHEUS.CH'
+
+#DEFINE TAB	CHR ( 13 ) + CHR ( 10 )
+
+#define STR0001 "Geracao Arquivo Programa B.E.M."
+#define STR0002 "Usuario nao possui acesso para filial: "
+#define STR0003 "Parametrizacao utilizada:"
+#define STR0004 "Filial de "
+#define STR0005 "Filial ate " 
+#define STR0006 "Matricula de "
+#define STR0007 "Matricula ate "
+#define STR0008 "Centro de Custo de "
+#define STR0009 "Centro de Custo ate "
+#define STR0010 "Categorias: "
+#define STR0011 "Tipo de Adesao; 0=Suspensao de Contrato,1=Reducao de Carga Horaria: "
+#define STR0012 "Data do Acordo: "
+#define STR0013 "Dias Duracao: "
+#define STR0014 "Nao foi possivel carregar as informacoes da empresa."
+#define STR0015 "Log de Geracao Arquivo - Programa B.E.M."
+#define STR0016 " nao possui Percentual de Reducao igual a zero, nao e permitido para Tipo de Adesao igual a 0 - verificar tabela S061. "
+#define STR0017 " possui Percentual de Reducao igual a zero, nao e permitido para Tipo de Adesao igual a 1 - verificar tabela S061."
+#define STR0018 " dados bancarios invalidos - verificar informacoes em cadastro de Bancos/Agencias e cadastro de Funcionarios"
+#define STR0019 "Exportacao realizada - busque o arquivo no diretorio escolhido."
+#define STR0020 "Exportacao nao pode ser realizada, verifique dados informados na mensagem de erro abaixo: "
+#define STR0021 "O Beneficio Extraordinario Mensal - B.E.M. - foi criado pelo Governo Federal atraves da"
+#define STR0022 " Medida Provisoria numero 1045/21, que instituiu o beneficio extraordinario mensal sob"
+#define STR0023 " situacoes de calamidade publica."
+#define STR0024 "Essa rotina e responsavel por gerar o arquivo que contem as declaracoes do B.E.M. "
+#define STR0025 " nao possui Percentual de Reducao permitidos (25,50 ou 70) - verificar tabela S061. "
+#define STR0026 "Ate o presente momento nao temos informacoes concretas sobre a sistematica do Governo caso seja informado "
+#define STR0027 "no arquivo Contas Salario, desta forma, orientamos que nao seja enviada ate que seja esclarecido. "
+#define STR0028 "Pode ser enviada os campos em branco (nesse caso sera gerada conta virtual), Conta-Corrente ou Conta Poupanca."
+#define STR0029 "Atencao!"
+#define STR0030 "Confirma a geracao?"
+#define STR0031 "Envia Dados Bancarios; 1=Nao,2=Somente Conta Poupanca,3=Todas as contas: "
+#define STR0032 "Sindicato de "
+#define STR0033 "Sindicato ate "
+#define STR0034 "Funcionario: "
+#define STR0035 " nao possui dados de Suspensao de Contrato compativeis com a tabela S061 no Lancamentos de Ausencias - Verificar."
+#define STR0036 "A(s) matricula(s) abaixo possui(em) a seguinte inconsistencia: "
+#define STR0037 " possui Data de Inicial de Vigencia em branco - verificar tabela S061."
+#define STR0038 "Clique em Visualizar para consultar a documentacao no TDN. "
+#define STR0039 "Foram encontradas inconsistencias durante o processo."
+#define STR0040 "Gerar arquivo do B.E.M com registros sem inconsistencias?"
+#define STR0041 "Para o Tipo de Adesao 0=Suspensao, o pergunte Dias Duracao deve estar vazio."
+#define STR0042 "Para o Tipo de Adesao 1=Reducao de Carga, o pergunte Dias Duracao deve estar preenchido."
+#define STR0043 "Dias de Duracao invalido - ate 120 dias."
+#define STR0044 "Numero de registro(s) processado(s) conforme parametrizao utilizada: "
+#define STR0045 "Numero de registro(s) NAO processado(s) conforme parametrizao utilizada: "
+#define STR0046 "Salario; 1=Salario,2=Salario + Verbas: "
+#define STR0047 "Verbas do Calculo: "
+#define STR0048 "Periodo de Vigencia De: "
+#define STR0049 "Periodo de Vigencia Ate: "
+#define STR0050 " nao possui dados de Historico de Contrato compativeis com o Periodo de Vigencia Informado - Verificar."
+#define STR0051 "Imprimir no Log; 1=Registros Enviados,2=Registros Inconsistentes,3=Ambos: "
+#define STR0052 "A(s) matricula(s) abaixo foi enviada(s) para o arquivo do BEm: "
+#define STR0053 "Exportacao nao pode ser realizada, verifique se o caminho ou permissoes de acesso do diretorio informado estao corretos."
+#define STR0054 " nao possui dados de adesao ao PPE para a parametrizao utilizada - Verificar rotinas Atualizao PPE e Hist. de Contratos."
+#define STR0055 "Exportacao nao pode ser realizada, verifique a parametrizao utilizada."
+#define STR0056 "A Data de Acordo nao pode ser posterior ao Periodo de Vigencia De/Ate."
+#define STR0057 "Tipo de Processamento; 1=Geracao,2=Cancelamento,3=Prorrogacao,4=Red. de Vigencia: "
+#define STR0058 " nao possui Dias de Prorrogacao compativeis com a tabela S061 no Lancamentos de Ausencias - Verificar."
+#define STR0059 " com Data de Cancelamento em branco  - Verificar dados da tabela S061 e rotina Hist. de Contratos."
+#define STR0060 " -  Verificar dados de Dias de Prorrogacao da tabela S061 e Data de Alteracao na rotina Hist. de Contratos."
+#define STR0061 " com Data de Reducao em branco  - Verificar dados da tabela S061 e rotina Hist. de Contratos."
+#define STR0062  "Geracao permitida apenas a partir do ano de 2021!"
+
+/*/{Protheus.doc} MP929
+// RDMAKE disponibilizado para geração do arquivo com declaraçoes do Programa B.E.M.
+@author raquel.andrade
+@since 20/05/2020
+@version 2.0
+/*/
+User Function EXPMP929()     
+Local aSays		   	:= {}
+Local aButtons	   	:= {}
+Local nOpcA		  	:= 0
+
+Private cCadastro	:= OemToAnsi(STR0001) // "Geração Arquivo Programa B.E.M."
+Private aInfo		:= {}
+Private aCodFol
+Private aArea		:= GetArea()
+Private aAreaSRA	:= SRA->( GetArea() )  
+Private lRgeCPO		:= RGE->(FieldPos("RGE_COD")) # 0 
+Private lRgeSTAT	:= RGE->(FieldPos("RGE_STATUS")) # 0 
+
+// Realiza execução do pergunte
+Pergunte("MP929",.F.)
+   
+// MV_PAR01        //  FiLial De
+// MV_PAR02        //  FiLial Ate
+// MV_PAR03        //  Matricula De
+// MV_PAR04        //  Matricula Ate
+// MV_PAR05        //  Centro De Custo De
+// MV_PAR06        //  Centro De Custo Ate
+// MV_PAR07        //  Categorias
+// MV_PAR08        //  Tipo de Adesão
+// MV_PAR09        //  Data de Acordo
+// MV_PAR10        //  Dias Duração
+// MV_PAR11        //  Pasta Arquivo Destino
+// MV_PAR12        //  Envia Dados Bancarios
+// MV_PAR13        //  Sindicato De
+// MV_PAR14        //  Sindicato Ate
+// MV_PAR15        //  Salario, 1=Salario;2=Salario + Verbas
+// MV_PAR16        //  Verbas do Cálculo
+// MV_PAR17        //  Periodo de Vigencia De
+// MV_PAR18        //  Periodo de Vigencia Ate
+// MV_PAR19        //  Imprimir no Log, 1=Registros Enviados,2=Registros Inconsistentes,3=Ambos
+// MV_PAR20        //  Imprimir no Log, 1=Registros Enviados,2=Registros Inconsistentes,3=Ambos
+
+aAdd(aSays,OemToAnsi(STR0021)) //"O Benefício Extraordinário Mensal – B.E.M. - foi criado pelo Governo Federal através da Medida"
+aAdd(aSays,OemToAnsi(STR0022)) //"Provisória nº 936/20, que instituiu o benefício extraordinário mensal sob situações de calamidade"
+aAdd(aSays,OemToAnsi(STR0023)) //"pública, conforme a Medida Provisória nº 936/20. "
+aAdd(aSays,OemToAnsi(STR0024)) //"Essa rotina e responsavel por gerar o arquivo que contem as declaracoes do B.E.M. "
+aAdd(aSays,"") 
+aAdd(aSays,OemToAnsi(STR0038)) //"Clique em Visualizar para consultar a documentacao no TDN. "
+aAdd(aSays,"") 
+
+aAdd(aButtons, { 15 ,.T.,{||  ShellExecute("open","https://tdn.totvs.com/pages/releaseview.action?pageId=619384542","","",1) } } )
+aAdd(aButtons, { 5 ,.T.,{||  Pergunte("MP929",.T. ) } } )
+aAdd(aButtons, { 1 ,.T.,{|o| nOpcA := 1,IF( u_fVExp929(),FechaBatch(),nOpcA:=0) }} )
+aAdd(aButtons, { 2 ,.T.,{|o| FechaBatch() }} )
+FormBatch( cCadastro, aSays, aButtons )
+
+
+If nOpcA == 1
+	Processa({|lEnd| u_fMp929(),cCadastro})  //"Geração Arquivo Programa B.E.M."
+EndIf
+
+//Restaura os Dados de Entrada						   	        
+RestArea( aAreaSRA ) 
+RestArea( aArea )
+
+Return
+
+/*/{Protheus.doc} fMp929
+// Função para leitura dos dados para envio do arquivo de declaração do Programa B.E.M.
+@author Equipe Protheus RH
+@since 08/04/2020
+@version 1.0
+/*/
+User Function fMp929()
+Local aItens		:= {}
+Local aLog			:= {}
+Local aCabec		:= {}
+Local aFunc			:= {}
+Local aDados		:= {}
+Local aPerRed		:= {}
+Local aDetail		:= {}
+Local aGer			:= {}
+Local cAcessaSRA	:= &( " { || " + ChkRH( "EXPMP929" , "SRA" , "2" ) + " } " )
+Local cFilDe    	:= If(Empty(MV_PAR01),"''"	, MV_PAR01)			//Filial De
+Local cFilAte   	:= If(Empty(MV_PAR02),"''"	, MV_PAR02)			//Filial Ate
+Local cCCDe     	:= If(Empty(MV_PAR03),"''"	, MV_PAR03)			//Centro de Custo De
+Local cCCAte    	:= If(Empty(MV_PAR04),"''"	, MV_PAR04)			//Centro de Custo Ate
+Local cMatDe    	:= If(Empty(MV_PAR05),"''"	, MV_PAR05)			//Matricula De
+Local cMatAte   	:= If(Empty(MV_PAR06),"''"	, MV_PAR06)			//Matricula Ate	
+Local cCat     		:= If(Empty(MV_PAR07),"''"	, MV_PAR07)			//Categorias
+Local nTpAdes  		:= If(Empty(MV_PAR08),0	, MV_PAR08)				//Tipo de Adesão
+Local dDtAcor  		:= If(Empty(MV_PAR09),CtoD("//"), MV_PAR09)		//Data de Acordo
+Local nDias  		:= If(Empty(MV_PAR10),"''"	, MV_PAR10)			//Dias Duracao
+Local cFile  		:= If(Empty(MV_PAR11),"''"	, MV_PAR11)			//Pasta Arquivo Destino
+Local nOpcBc  		:= If(Empty(MV_PAR12),0	, MV_PAR12)				//Envia Dados Bancarios, 1=Nao;2=Somente Conta Poupanca;3=Todas as contas
+Local cSindDe		:=  If(Empty(MV_PAR13),""	, MV_PAR13)			//Sindicato De
+Local cSindAt		:=  If(Empty(MV_PAR14),""	, MV_PAR14)			//Sindicato Ate
+Local nTpSal		:=  If(Empty(MV_PAR15),1	, MV_PAR15)			//Salario, 1=Salario;2=Salario + Verbas
+Local cVerbas		:=  If(Empty(MV_PAR16),""	, MV_PAR16)			//Verbas do Cálculo
+Local dPerVigDe		:= If(Empty(MV_PAR17),CtoD("//"), MV_PAR17)		//Periodo de Vigencia De
+Local dPerVigAt		:= If(Empty(MV_PAR18),CtoD("//"), MV_PAR18)		//Periodo de Vigencia Ate
+Local nTpImpr		:= If(Empty(MV_PAR19),2	, MV_PAR19)				//1=Registros Enviados,2=Registros Inconsistentes,3=Ambos
+Local nTpProc		:= If(Empty(MV_PAR20),1	, MV_PAR20)				//1=Geracao,2=Cancelamento,3=Prorrogacao,4=Red. de Vigencia
+Local cInicio		:= ""
+Local cFim			:= ""
+Local cExclui		:= ""
+Local cTipoCTT		:= ""
+Local cCNOFun		:= ""
+Local cDtAdmis		:= ""
+Local cDtNasc		:= ""
+Local cDtAcord		:= ""
+Local cDtAntecip	:= ""
+Local cMsgYesNo		:= ""
+Local cTitLog		:= ""
+Local cPD			:= ""
+Local cMsgDur		:= ""
+Local cMsgError		:= ""
+Local cFilAnterior	:= 	Replicate("!", FWGETTAMFILIAL)
+Local xTipo			:= ValType(nDias)
+Local dDtVig		:= StoD("//")
+Local dDtArq		:= StoD("//")	
+Local dDtCancel		:= StoD("//")
+Local dDtAntecip	:= StoD("//")
+Local lResult		:= .T.
+Local lGerEr		:= .T.
+Local nSvOrdem		:= 0
+Local nSvRecno		:= 0
+Local nUltSal		:= 0
+Local nPenSal		:= 0
+Local nAntPSal		:= 0
+Local nPerRed		:= 0
+Local nPosPer		:= 0
+Local nX			:= 0
+Local nDVig			:= 0
+Local nDiasArq		:= 0
+Local nProc			:= 0
+Local nNProc		:= 0
+
+	BEGIN TRANSACTION
+
+		BEGIN SEQUENCE
+
+			// Bloco que definira a Consistencia da Parametrizacao dos Intervalos
+			// selecionados nas Perguntas De? Ate?
+			cExclui := cExclui + "{ || "
+			cExclui += "(RA_FILIAL  < cFilDe     .or. RA_FILIAL  > cFilAte    ).or."
+			cExclui += "(RA_MAT     < cMatDe     .or. RA_MAT     > cMatAte    ).or."
+			cExclui += "(RA_CC      < cCcDe      .or. RA_CC      > cCCAte     ).or."
+			cExclui += "(RA_SINDICA < cSindDe    .or. RA_SINDICA > cSindAt     ).or."
+			cExclui += "!(RA_CATFUNC$cCat)"
+			cExclui += " } "
+			
+			nDias := If(xTipo == "C", 0, nDias)
+
+			// Transforma verbas
+			For nX := 1 to Len(cVerbas) step 3 
+				cPD += Subs(cVerbas,nX,3)
+				cPD += "/" 
+			Next nX
+
+			cVerbas:= cPD
+
+			// Parametrizacao utilizada
+			aAdd(aLog,OemToAnsi(STR0003) + CRLF) 								// "Parametrizacao utilizada:"
+			aAdd(aLog,OemToAnsi(STR0004) + "'"+cFilDe	+"'"		)			// Filial de
+			aAdd(aLog,OemToAnsi(STR0005) + "'"+cFilAte	+"'"		)			// Filial ate 
+			aAdd(aLog,OemToAnsi(STR0006) + "'"+cMatDe	+"'"		)			// Matricula de
+			aAdd(aLog,OemToAnsi(STR0007) + "'"+cMatAte	+"'"		)			// Matricula ate
+			aAdd(aLog,OemToAnsi(STR0008) + "'"+cCcDe	+"'"		)			// Centro de Custo de
+			aAdd(aLog,OemToAnsi(STR0009) + "'"+cCcAte	+"'"		)			// Centro de Custo ate
+			aAdd(aLog,OemToAnsi(STR0010) + "'"+cCat	+"'"		)				// Categorias
+			aAdd(aLog,OemToAnsi(STR0011) + "'"+If(nTpAdes == 1, "0","1" )+"'")	// Tipo de Adesão 0=Suspensao de Contrato,1=Reducao de Carga Horaria
+			aAdd(aLog,OemToAnsi(STR0012) + "'"+DtoS(dDtAcor)	+"'")			// Data do Acordo
+			aAdd(aLog,OemToAnsi(STR0013) + "'"+Str(nDias,2)+"'")				// Dias Duracao
+			aAdd(aLog,OemToAnsi(STR0031) + "'"+Str(nOpcBc,2)	+"'")			// Envia dados Bancarios? 1=Nao,2=Somente Conta Poupanca,3=Todas
+			aAdd(aLog,OemToAnsi(STR0032) + "'"+cSindDe	+"'")					// Sindicato De
+			aAdd(aLog,OemToAnsi(STR0033) + "'"+cSindAt	+"'")					// Sindicato De
+			aAdd(aLog,OemToAnsi(STR0046) + "'"+If(nTpSal == 1, "1","2" )+"'")	// Salario, 1=Salario;2=Salario + Verbas
+			aAdd(aLog,OemToAnsi(STR0047) + "'"+AllTrim(cVerbas)	+"'")			// Verbas do Cálculo
+			aAdd(aLog,OemToAnsi(STR0048) + "'"+DtoS(dPerVigDe)	+"'")			// Periodo de Vigencia De
+			aAdd(aLog,OemToAnsi(STR0049) + "'"+DtoS(dPerVigAt)	+"'")			// Periodo de Vigencia Ate
+			aAdd(aLog,OemToAnsi(STR0051) + "'"+Str(nTpImpr,1)+"'")				// Imprime Log, 1=Registros Enviados,2=Registros Inconsistentes,3=Ambos
+			aAdd(aLog,OemToAnsi(STR0057) + "'"+Str(nTpProc,1)+"'")				// Tipo de Processo, 1=Geracao,2=Cancelamento,3=Prorrogacao,4=Red. de Vigencia
+			aAdd(aLog,"	"		)
+
+			// Valores validos de Percentual de Reducao
+			aAdd(aPerRed, 25)
+			aAdd(aPerRed, 50)
+			aAdd(aPerRed, 70)
+
+			// Cria cabeçalho conforme Tipo de Processamento
+			aCabec	:= u_fCriaCabec(nTpProc)
+			
+			dbSelectArea('SRA')
+			dbSetOrder(1) // RA_FILIAL + RA_MAT
+			dbSeek( cFilDe + cMatDe , .T. )
+			nSvOrdem := 1
+			nSvRecno := Recno()
+			cInicio := '{ || RA_FILIAL + RA_MAT }'
+			cFim    := cFilAte + cMatAte
+
+			// Ira Executar Enquanto Estiver dentro do Escopo dos Parametros
+			While SRA->( !Eof() .and. Eval( &(cInicio) ) <= cFim )
+
+				// Reseta Variaveis
+				aDados		:= {}
+				dDtVig		:= StoD("//")
+				dDtCancel	:= StoD("//")
+				dDtAntecip	:= StoD("//")
+				nDVig		:= 0
+
+				// Consiste Parametrizacao do Intervalo de Geracao
+				If SRA->( Eval ( &(cExclui) ) )
+					nNProc++
+					SRA->( dbSkip() )
+					Loop
+				EndIf
+
+				// Consiste Filiais e Acessos
+				If !( SRA->RA_FILIAL $ fValidFil() .and. Eval( cAcessaSRA ) )
+					dbSelectArea("SRA")
+					aAdd(aDetail, OemToAnsi(STR0002) + SRA->RA_FILIAL + ".") // "Usuario nao possui acesso para filial: "
+					SRA->( dbSkip() )
+					Loop
+				EndIf
+
+				// Pula funcionário cujo registro está inativo
+				If lRgeSTAT
+					// 0 ou Branco - Ativo , 1 - Inativo , 2 - Cancelamento , 3 - Prorrogacao , 4 - Red. de Vigencia
+					cStatus	:= u_fCposRGE(2,@dPerVigDe,dPerVigAt,nTpProc)
+					If cStatus == "1"
+						SRA->( dbSkip() )
+						Loop
+					EndIf
+				EndIf
+
+				// Consiste Filial/Identificador
+				If cFilAnterior # SRA->RA_FILIAL
+
+					If !fInfo(@aInfo,SRA->RA_FILIAL) .Or. !(Fp_CodFol(@aCodFol,SRA->RA_FILIAL) )
+						// "Nao foi possivel carregar as informacoes da empresa."
+						cMsgError	:= OemToAnsi(STR0014) 
+						Exit
+					EndIf
+
+					cFilAnterior := SRA->RA_FILIAL
+
+				EndIF
+
+
+				// Consiste Dias de Duracao quando 1=Reducao Carga Horaria
+				If nTpProc == 1 .And. nTpAdes == 1 .And. nDias > 0
+					// "Para o Tipo de Adesao 0=Suspensao, o pergunte Dias Duracao deve estar vazio."
+					cMsgError	:= OemToAnsi(STR0041) 
+					Exit
+				EndIf				
+				
+				// Consiste Tipo de Adesao
+				If u_fTpAdesao(nTpAdes,@nPerRed,@dDtVig,@nDVig,dPerVigDe,dPerVigAt,nTpProc,@dDtCancel,@dDtAntecip)
+
+					If nTpProc == 1
+						// Valida Percentual de Reducao
+						nPosPer	:= aScan(aPerRed, {|x| x == nPerRed })
+						If  nPosPer == 0 .And. nPerRed > 0
+							// "Funcionário: "###" nao possui Percentual de Reducao permitidos (25,50 ou 70) - verificar tabela S061. "
+							aAdd(aDetail,	OemToAnsi(STR0034) +;
+											SRA->RA_FILIAL + " - " + SRA->RA_MAT  + " - " +;
+											OemToAnsi(STR0025))
+							SRA->( dbSkip() )
+							Loop
+						ElseIf nTpAdes == 1 .And. nPerRed > 0
+							// "Funcionário: "###" nao possui Percentual de Reducao igual a zero, nao e permitido para Tipo de Adesao igual a 0 - verificar tabela S061. "
+							aAdd(aDetail,	OemToAnsi(STR0034) +;
+												SRA->RA_FILIAL + " - " + SRA->RA_MAT  + " - " +;
+												OemToAnsi(STR0016))
+							SRA->( dbSkip() )
+							Loop
+						ElseIf nTpAdes == 2 .And. nPerRed == 0
+							// "Funcionário: "###" possui Percentual de Reducao igual a zero, nao e permitido para Tipo de Adesao igual a 1 - verificar tabela S061. "
+							aAdd(aDetail,	OemToAnsi(STR0034) +;
+												SRA->RA_FILIAL + " - " + SRA->RA_MAT + " - "  +;
+												OemToAnsi(STR0017))
+							SRA->( dbSkip() )
+							Loop
+						EndIf
+					EndIf
+
+					// Valida Data de Acordo x Data de Vigencia
+					If Empty(dDtAcor) .And. Empty(dDtVig)
+						// "Funcionário: "###" possui Data de Inicial de Vigencia em branco - verificar tabela S061."
+						aAdd(aDetail,	OemToAnsi(STR0034) +;
+										SRA->RA_FILIAL + " - " + SRA->RA_MAT + " - " +;
+										OemToAnsi(STR0037))
+						SRA->( dbSkip() )
+						Loop
+					EndIf
+
+					// Valida Dias de Duração/Prorrogacao
+					If  (nTpProc == 1 .Or. nTpProc == 3) 
+						If nDVig == 0
+							If nTpProc == 1
+								cMsgDur	:= If(nTpAdes == 1, OemToAnsi(STR0035), OemToAnsi(STR0050))
+							ElseIf nTpProc == 3
+								cMsgDur	:= OemToAnsi(STR0058)
+							EndIf
+							// "Funcionário: "###" nao possui dados de Suspensao de Contrato compativeis com a tabela S061 no Lancamentos de Ausencias - Verificar."
+							// "Funcionário: "###" nao possui dados de Historico de Contrato compativeis com o Periodo de Vigencia Informado - Verificar."
+							// "Funcionário: "###" nao possui Dias de Prorrogacao compativeis com a tabela S061 no Lancamentos de Ausencias - Verificar."
+							aAdd(aDetail,	OemToAnsi(STR0034) +;
+											SRA->RA_FILIAL + " - " + SRA->RA_MAT  + " - " +;
+											cMsgDur)
+							SRA->( dbSkip() )
+							Loop
+						Else
+							nDiasArq	:= nDVig
+						EndIf
+					EndIf
+					
+				Else			
+					If nTpProc == 1 // Geracao
+						cMsgDur	:= OemToAnsi(STR0054)
+					ElseIf nTpProc == 2 // Cancelamento
+						cMsgDur	:=  If(Empty(dDtCancel) .And. cStatus == "2", OemToAnsi(STR0059), OemToAnsi(STR0054))
+					ElseIf nTpProc == 3  // Prorrogacao
+						cMsgDur	:=  If(nDVig == 0 .And. cStatus == "3", OemToAnsi(STR0060), OemToAnsi(STR0054))
+					ElseIf nTpProc == 4  // Reducao
+						cMsgDur	:=  If(Empty(dDtAntecip) .And. cStatus == "4", OemToAnsi(STR0061), OemToAnsi(STR0054))
+					EndIf
+					// "Funcionário: "###" nao possui dados de adesao ao PPE para a parametrizao utilizada - Verificar rotina Atualizao PPE e Hist. de Contratos."
+					// "Funcionário: "###" com Data de Cancelamento em branco  - Verificar dados da tabela S061 e rotina Hist. de Contratos."
+					// "Funcionário: "###" -  Verificar dados de Dias de Prorrogacao da tabela S061 e Data de Alteracao na rotina Hist. de Contratos."
+					// "Funcionário: "###" com Data de Reducao em branco  - Verificar dados da tabela S061 e rotina Hist. de Contratos."
+					aAdd(aDetail,	OemToAnsi(STR0034) +;
+									SRA->RA_FILIAL + " - " + SRA->RA_MAT  +;
+									cMsgDur)
+					SRA->( dbSkip() )
+					Loop
+				EndIf
+
+				// Consiste dados Bancarios - Agencia + Digito
+				If nTpProc == 1 .And. !u_fVldBanco(AllTrim(SRA->RA_BCDEPSA),AllTrim(SRA->RA_CTDEPSA), @aDados,nOpcBc)
+					// "Funcionário: "###" dados bancarios invalidos - verificar informacoes em cadastro de Bancos/Agencias e cadastro de Funcionarios"
+					aAdd(aDetail,	OemToAnsi(STR0034) +;
+									SRA->RA_FILIAL + " - " + SRA->RA_MAT  +;
+									OemToAnsi(STR0018))
+					SRA->( dbSkip() )
+					Loop
+				EndIf
+
+				
+				// Formata Dias de Duracao/Prorrogacao, somente estara preenchido quando 0=Suspensao
+				nDiasArq	:= If (Empty(nDiasArq), nDias, nDiasArq)
+				
+				// Consiste Dias de Duração
+				If  nDiasArq > 120
+					// "Funcionário: "###"Dias de Duracao invalido - ate 120 dias."
+					aAdd(aDetail,	OemToAnsi(STR0034) +;
+									SRA->RA_FILIAL + " - " + SRA->RA_MAT + " - " +;
+									OemToAnsi(STR0043))
+					SRA->( dbSkip() )
+					Loop
+				EndIf	
+				
+
+				// Captura Salarios
+				nUltSal		:= 0.00
+				nPenSal		:= 0.00
+				nAntPSal	:= 0.00
+
+				dDtArq		:= If (Empty(dDtAcor), dDtVig, dDtAcor)
+
+				If nTpProc == 1
+					u_fSalarios(@nUltSal,@nPenSal,@nAntPSal,nTpSal,cVerbas, dDtArq)
+				EndIf
+				
+				// Captura CNO
+				cTipoCTT := Posicione("CTT",1,xFilial("CTT")+SRA->RA_CC ,"CTT->CTT_TIPO2")
+				cCNOFun := If (cTipoCTT == "4",  Posicione("CTT",1,xFilial("CTT")+SRA->RA_CC ,"CTT->CTT_CEI2"), "")
+				
+				
+				// Adiciona dados do Funcionario se possui dados bancarios
+				// ou tipo de processamento for diferente de geracao
+				If Len(aDados) > 0 .Or. (nTpProc <> 1)
+
+					aFunc		:= {}
+
+					// Formata Data de Admissao
+					cDtAdmis	:= DtoS(SRA->RA_ADMISSA)
+					cDtAdmis	:= Substr(cDtAdmis,7,2) + "/" + Substr(cDtAdmis,5,2) + "/" + Substr(cDtAdmis,1,4)
+					
+					// Formata Data de Nascimento
+					cDtNasc		:= DtoS(SRA->RA_NASC)
+					cDtNasc		:= Substr(cDtNasc,7,2) + "/" + Substr(cDtNasc,5,2) + "/" + Substr(cDtNasc,1,4)
+
+					// Formata Data de Acordo
+					cDtAcord	:= DtoS(dDtArq)
+					cDtAcord	:= Substr(cDtAcord,7,2) + "/" + Substr(cDtAcord,5,2) + "/" + Substr(cDtAcord,1,4)
+
+					If !Empty(dDtAntecip)
+						// Formata Data de Reducao de Vigencia
+						cDtAntecip	:= DtoS(dDtAntecip)
+						cDtAntecip	:= Substr(cDtAntecip,7,2) + "/" + Substr(cDtAntecip,5,2) + "/" + Substr(cDtAntecip,1,4)
+					EndIf
+
+					If nTpProc == 1
+						nUltSal		:= AllTrim(Transform(nUltSal*100,'@E 9999999999'))
+						nUltSal		:= PadL(nUltSal, 10, "0")
+						nPenSal		:= AllTrim(Transform(nPenSal*100,'@E 9999999999'))
+						nPenSal		:= PadL(nPenSal, 10, "0")
+						nAntPSal	:= AllTrim(Transform(nAntPSal*100,'@E 9999999999'))
+						nAntPSal	:= PadL(nAntPSal, 10, "0") 
+
+						// Formata Nome do Trabalho
+						cNome	:= If(!Empty(SRA->RA_NOMECMP), SRA->RA_NOMECMP, SRA->RA_NOME)
+					EndIf
+
+
+					aAdd(aFunc, { 	If(aInfo[15] == 2, "1" ,"2") ,;		// 1- Tipo de Inscrição, 1=CNPJ; 2= CEI
+									AllTrim(aInfo[08]) ,;				// 2- CNPJ/CEI 
+									AllTrim(cCNOFun),;							// 3- CNO
+									cDtAdmis,;							// 4- Data Admissao
+									SRA->RA_CIC;						// 5- CPF
+								})
+
+					If nTpProc == 1 // Geracao
+						aAdd(aFunc[1], 	AllTrim(SRA->RA_PIS))										// 6- PIS/PASEP Trabalhador
+						aAdd(aFunc[1],	AllTrim(cNome))												// 7- Nome Trabalhador
+						aAdd(aFunc[1],	AllTrim(SRA->RA_MAE))										// 8- Nome Mae Trabalhador
+						aAdd(aFunc[1],	cDtNasc)													// 9- Data Nascimento Trabalhador
+						aAdd(aFunc[1],	If(nTpAdes == 1, "0","1" ))	        						// 10- Tipo de Adesao, 0=Suspensao,1=Reducao
+						aAdd(aFunc[1],	cDtAcord)													// 11- Data do Acordo
+						aAdd(aFunc[1],	AllTrim(Str(nPerRed,2)))									// 12- Percentual de Reducao
+						aAdd(aFunc[1],	AllTrim(Str(nDiasArq,3)))	 								// 13- Dias Duracao	
+						aAdd(aFunc[1],	aDados[1])													// 14- Codigo Banco
+						aAdd(aFunc[1],	aDados[2])													// 15- Agencia Bancaria
+						aAdd(aFunc[1],	aDados[3])													// 16- DV Agencia Bancaria
+						aAdd(aFunc[1],	aDados[4])													// 17- Conta Bancaria
+						aAdd(aFunc[1],	aDados[5])													// 18- DV Conta Bancaria	
+						aAdd(aFunc[1],	If(Empty(aDados[6]),"", If(aDados[6] == "1", "0", "1")))	// 19- Tipo Conta, 0=Corrente;1=Poupanca
+						aAdd(aFunc[1],	nUltSal)													// 20- Ultimo Salario
+						aAdd(aFunc[1],	nPenSal)													// 21- Penultimo Salario
+						aAdd(aFunc[1],	nAntPSal)													// 22- Antepenultimo Salario
+
+					ElseIf nTpProc == 2 // Cancelamento
+						   aAdd(aFunc[1],  cDtAcord) 	// 6- Data do Acordo										  
+					ElseIf nTpProc == 3 // Prorrogacao
+						   aAdd(aFunc[1],  cDtAcord)							// 6- Data do Acordo
+						   aAdd(aFunc[1], 	AllTrim(Str(nDiasArq,2))) 			// 7- Dias de Prorrogacao
+					ElseIf nTpProc == 4 // Reducao de Vigencia
+							aAdd(aFunc[1], cDtAcord)		// 6- Data do Acordo
+						    aAdd(aFunc[1], cDtAntecip) 		// 7- Data de Reducao
+					EndIf
+
+					//"Funcionario: "###" 
+					aAdd(aGer,	OemToAnsi(STR0034) +;
+								SRA->RA_FILIAL + " - " + SRA->RA_MAT )
+					nProc++
+				EndIf
+
+				If Len(aFunc) > 0
+					aAdd(aItens,aFunc)
+				EndIf
+
+				dbSelectArea("SRA")
+				SRA->( dbSkip() )
+
+			Enddo
+
+		END SEQUENCE
+
+	END TRANSACTION
+
+	//aLog 		- Array que contem mensagem que impede continuacao do processo de geracao
+	//aDetail 	- Array que contem detalhes sobre registros inconsistentes
+	//aGer 		- Array que contem detalhes sobre os registros gerados
+
+	// Exporta arquivo para .csv
+	cMsgYesNo	:= OemToAnsi(;
+								OemToAnsi(STR0039) + ;	// "Foram encontradas inconsistencias durante o processo."
+								CRLF	+ ;
+								CRLF	+ ;
+								OemToAnsi(STR0040)  ;	// "Gerar arquivo do B.E.M com registros sem inconsistencias?"
+							)
+	cTitLog		:= OemToAnsi( STR0029 )	// Atencao!"
+	 
+
+	If Len(aDetail) > 0 
+		lGerEr	:= MsgYesNo( OemToAnsi( cMsgYesNo ) ,  OemToAnsi( cTitLog ) ) 
+	EndIf
+
+	aAdd(aLog,OemToAnsi(STR0044) + AllTrim(Str(nProc)))				// Numero de registros processados:
+	aAdd(aLog,OemToAnsi(STR0045) + AllTrim(Str(nNProc)))			// Numero de registros nao processados:
+	aAdd(aLog,"	"		)
+	
+	If !Empty(cMsgError)
+		aAdd(aLog,OemToAnsi(STR0020))	// "Exportacao nao pode ser realizada, verifique dados informados na mensagem de erro abaixo:"
+		aAdd(aLog,cMsgError)		
+		aAdd(aLog,"	"		)
+	ElseIf Len(aItens) > 0 .And. lGerEr
+			lResult	:= fExpArq(aCabec,aItens,cFile)
+			If lResult
+				aAdd(aLog,OemToAnsi(STR0019))// "Exportação realizada - busque o arquivo no diretorio escolhido."
+				aAdd(aLog,"	")
+			Else
+				aAdd(aLog,OemToAnsi(STR0053))// "Exportacao nao pode ser realizada, verifique se o caminho ou permissoes de acesso do diretorio informado estao corretos."
+				aAdd(aLog,"	")
+			EndIf
+	EndIf
+	
+	If Len(aDetail) > 0 .And. lResult .And. (nTpImpr == 1 .Or. nTpImpr == 3) 
+		aAdd(aLog,OemToAnsi(STR0052)) // "A(s) matricula(s) abaixo foi enviada(s) para o arquivo do BEm: "
+		For nX := 1 to Len(aGer)
+			aAdd(aLog,aGer[nX])
+		Next nX		
+		aAdd(aLog,"	"		)
+	EndIf
+
+	If  Len(aDetail) > 0 .And. lResult .And. (nTpImpr == 2 .Or. nTpImpr == 3) 
+		aAdd(aLog,OemToAnsi(STR0036)) // "A(s) matricula(s) abaixo possui(em) a seguinte inconsistencia: "
+		For nX := 1 to Len(aDetail)
+			aAdd(aLog,aDetail[nX])
+		Next nX		
+	EndIf
+
+	If Empty(cMsgError) .And. Len(aItens) == 0 .And. Len(aDetail) == 0 
+		aAdd(aLog,OemToAnsi(STR0055))// "Exportacao nao pode ser realizada, verifique a parametrizao utilizada."
+		aAdd(aLog,"	")
+	EndIf
+
+	// Restaurando dados de Entrada
+	dbSelectArea('SRA')
+	dbSetOrder( nSvOrdem )
+	dbGoTo( nSvRecno )
+
+	bMkLog := { || fMakeLog( { aLog } ,{ OemToAnsi(STR0015) } ,NIL , .T. , FunName() , NIL , "M" , "L" , NIL , .F. ) }//"Log de Geracao Arquivo - Programa B.E.M."
+	MsAguarde( bMkLog , OemToAnsi( STR0015 ) )//"Log de Geracao Arquivo - Programa B.E.M."
+
+Return( lResult )
+
+/*/{Protheus.doc} fTpAdesao
+// Função para validar Percentual Reducao Carga Horaria de Acordo com Tipo de Adesao
+@author Equipe Protheus RH
+@since 08/04/2020
+@param nTipo, numeric, representa Tipo de Adesao
+@param nPerRed, numeric, representa Percentual de Reducao
+@param dDtVig, data, representa Data de Vigencia de Suspensao (usado somente para nTipo == 1, Suspensão)
+@param nDVig, numeric, representa Dias de Duracao de Suspensao (usado somente para nTipo == 1, Suspensão)
+@param dPerVigD, data, representa Período de Vigência De para filtro de registros (ambos tipos de adesão)
+@param dPerVigA, data, representa Período de Vigência Até para filtro de registros (ambos tipos de adesão)
+@param dDtCancel, data, representa Data de Cancelamento (carregada somente quanto Tipo de Processamento for 2=Cancelamento)
+@param dDtAntecip, data, representa Data de Reducao (carregada somente quanto Tipo de Processamento for 4=Red. de Vigencia)
+@param nTpProc, numerico, representa Tipo de Processamento
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+User Function fTpAdesao(nTipo, nPerRed, dDtVig, nDVig, dPerVigD, dPerVigA, nTpProc,dDtCancel,dDtAntecip)
+Local aArea		:= GetArea()
+Local cCod061	:= ""
+Local lRet		:= .T.
+Local nPosTab	:= 0
+Local nDiasPro	:= 0
+Local dDtAnt61	:= Stod("//") 
+
+Default dDtVig		:= Stod("//")
+Default nTipo		:= ""
+Default nPerRed		:= 0
+Default nDVig		:= 0 
+Default dPerVigD	:= Stod("//")
+Default dPerVigA	:= Stod("//")
+Default nTpProc		:= 1
+Default dDtCancel 	:= Stod("//")
+Default dDtAntecip 	:= Stod("//")
+
+
+	If lRgeCPO
+		cCod061 := u_fCposRGE(1,@dPerVigD,dPerVigA,@nDVig,nTpProc,@dDtAntecip)
+	EndIf
+
+	If !Empty(cCod061)
+
+		nPosTab := fPosTab("S061", SRA->RA_SINDICA, "==", 5, cCod061 ,"==",4)
+
+		//Se não encontrou o sindicato, verifica se o sindicato está vazio na tabela
+		If nPosTab == 0
+			nPosTab := fPosTab("S061", Space(2), "==",5, cCod061,"==",4)
+		EndIf
+
+		If nPosTab > 0
+			nPerRed		:=  fTabela("S061", nPosTab, 8)		//Percentual de reducao
+			dDtVig		:=  fTabela("S061", nPosTab, 6)		//Data Inicial de Vigencia
+			dDtCancel	:=  fTabela("S061", nPosTab, 10)	//Data Cancelamento
+			dDtAnt61	:=  fTabela("S061", nPosTab, 11)	//Data Reducao de Vigencia
+			nDiasPro 	:=  fTabela("S061", nPosTab, 12)	//Dias de Prorrogacao
+
+			// Vadida Data Inicial de Vigência S061 com Historico de Contrato RGE  
+			// Valida preenchimento da Data de Cancelamento
+			// Valida preenchimento de Dias de Prorrogação versus quantidade de Dias
+			// Valida preenchimento da Data de Antecipação
+			If 	dDtVig <> dPerVigD .Or. ;
+				(nTpProc == 2 .And. Empty(dDtCancel)) .Or.;
+				(nTpProc == 3 .And. ( Empty(nDiasPro) .Or. nDVig > nDiasPro  )) .Or.;
+				(nTpProc == 4 .And. ( Empty(dDtAnt61) .Or. Empty(dDtAntecip) .Or. dDtAnt61 <> dDtAntecip ))
+				
+				// Se forem diferentes, mantenho Data de Vigencia encontrada
+				// invalido Dias de Duracao carregado conforme Historico de Contrato
+				dDtVig		:= dPerVigD				
+				nDVig		:= 0
+
+				// Caso nao for Geracao e possuir as consistencias acima, retorna falso
+				If nTpProc <> 1
+					dDtAntecip	:= dDtCancel :=  Stod("//")
+					lRet := .F.
+				EndIf
+			EndIf
+
+			// Geracao e 0=Suspensao de Contrato
+			If nTpProc == 1 .And. nTipo == 1 
+				If !Empty(dDtVig)				
+					// Carrega nDVig com Dias de Duracao do Lancamento de Ausencia
+					nDVig	:= 0
+					u_fCkAf936(@nDVig , dDtVig)
+				EndIf
+			EndIf
+
+		EndIf
+
+	Else
+		lRet := .F.
+	EndIf
+
+
+RestArea(aArea)
+
+Return( lRet )
+
+/*/{Protheus.doc} fVldBanco
+// Função para validar digitos verificadores da Agencia/Banco do Funcionario
+@author Equipe Protheus RH
+@since 08/04/2020
+@param cAgConta, character, representa Banco/Agencia Bancaria Funcionario
+@param cConta, character, representa Conta Bancaria Funcionario
+@param aDados, array, representa dados Bancarios do Funcionario
+@param nOpcBc, numeric, representa informacao sobre carga da Conta Bancaria do Funcionario
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+User Function fVldBanco(cBcAgen,cConta,aDados,nOpcBc)
+Local aArea		:= GetArea()
+Local cDigito	:= ""
+Local cContEn	:= ""
+Local cBanco	:= ""
+Local cAgencia	:= ""
+Local cAgenciaDV:= ""
+Local cTpConta	:= ""
+Local lRet		:= .T.
+Local nPos		:= 0
+
+Default cBcAgen		:= ""
+Default cConta		:= ""
+Default aDados		:= {}
+Default nOpcBc		:= 1
+ 
+	cTpConta	:= SRA->RA_TPCTSAL // Tipo de Conta, 1=Corrente;2=Poupanca
+
+	If nOpcBc == 1 .Or. (nOpcBc == 2 .And. cTpConta == "1") // Nao leva dados bancarios ou Leva Somente Poupanca e o funcionario tem Conta Corrente
+		aDados	:= {"","","","","",""}
+	ElseIf (nOpcBc == 2 .And. cTpConta == "2") .Or. nOpcBc == 3
+		If !Empty(cBcAgen) .And. !Empty(cConta)
+				cBanco		:= Subs(cBcAgen,1,3)
+				cAgencia	:= Subs(cBcAgen,4,5)
+				
+				dbSelectArea("SA6")
+				SA6->(dbSetOrder(RetOrdem("SA6","A6_FILIAL+A6_COD+A6_AGENCIA+A6_NUMCON")))
+				If  SA6->(dbSeek(xFilial("SA6",SRA->RA_FILIAL)+cBanco+cAgencia)) 
+					cAgenciaDV	:= SA6->A6_DVAGE
+				EndIf
+
+				nPos	:= AT("-",cConta) 
+				If nPos  > 0
+					cDigito		:= SubStr(cConta,nPos+1,Len(cConta)-nPos)
+					cContEn		:= SubStr(cConta,1,nPos-1)
+				Else
+					nPos	:= Len(cConta)
+					cDigito := SubStr(cConta,nPos,1)
+					cContEn	:= SubStr(cConta,1,nPos-1)
+				EndIf
+
+				aAdd(aDados,PadL(AllTrim(cBanco),3,"0"))									// Codigo Banco
+				aAdd(aDados,PadL(AllTrim(cAgencia),4,"0"))									// Agencia
+				aAdd(aDados,If(!Empty(cAgenciaDV),PadL(AllTrim(cAgenciaDV),1,"0"),""))		// Digito Agencia
+				aAdd(aDados,PadL(AllTrim(cContEn),12,"0"))									// Conta Bacaria Funcionario
+				aAdd(aDados,PadL(AllTrim(cDigito),1,"0"))									// Digito Conta Bancaria Funcionario
+				aAdd(aDados,AllTrim(cTpConta))												// Tipo de Conta, 1=Corrente;2=Poupanca
+		Else
+			aDados	:= {"","","","","",""}
+		EndIf
+	EndIf
+
+	If Len(aDados) == 0
+		lRet := .F.
+	EndIf
+
+RestArea(aArea)
+
+Return( lRet )
+
+/*/{Protheus.doc} fSalarios
+// Função para carregar ultimos salarios do funcionario.
+@author Equipe Protheus RH
+@since 08/04/2020
+@param nUltSal, character, representa Ultimo Salario do Funcionario
+@param nPenSal, character, representa Penultimo Salario do Funcionario
+@param nAntPSal, character, representa AntePenultimo Salario do Funcionario
+@param nTpSal, numerico, representa composição do salário 1=Salário,2=Salário + Verbas
+@param cVerbas, character, sequencia de verbas que serao buscadas no acumulado/movimento
+@param dDtAcordo, data, representa a Data de Acordo
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+User Function fSalarios(nUltSal,nPenSal,nAntPSal, nTpSal, cVerbas, dDtAcordo)
+Local aArea			:= GetArea()
+Local aPerAtual		:= {}
+Local cVbBusca		:= ""
+Local dDTUltSal		:= StoD("//")
+Local dDTPenSal		:= StoD("//")
+Local dDTAntSal		:= StoD("//")
+Local NValUltSal	:= 0.00
+Local nValPenSal	:= 0.00
+Local nValAntSal	:= 0.00
+
+Default nUltSal		:= 0.00
+Default nPenSal		:= 0.00
+Default nAntPSal	:= 0.00
+Default nTpSal		:= 1
+Default cVerbas		:= ""
+Default dDtAcordo	:= StoD("//")
+
+	Begin Sequence	
+		
+		// Configura verbas de busca
+		If nTpSal == 1 // Somente salário
+			cVbBusca	:= aCodFol[318,1]
+		Else // Salário + Verbas
+			cVbBusca	:= cVerbas + aCodFol[318,1]
+		EndIf
+		
+		// Data do Ultimo Salario 
+		dDTUltSal 	:= dDtAcordo
+
+		// Busca Ultimo Salario (+ verba incorporada)do Movto Acumulado 		
+		// Pesquisa no movimento mensal quando o mes corrente estiver aberto e nao encontrar salario nos acumulados anuais.
+		fGetPerAtual( @aPerAtual, xFilial('RCH', SRA->RA_FILIAL), SRA->RA_PROCES, fGetRotOrdinar() )
+		
+		If !(Empty(aPerAtual))
+			
+			cFolMes := aPerAtual[1,1]
+
+			If AnoMes(dDTUltSal) > cFolMes
+				dDTUltSal	:= MonthSub( dDTUltSal, 1 )
+			ElseIf AnoMes(dDTUltSal) < cFolMes
+				dDTUltSal	:= CtoD('01/' + SubStr(cFolmes,5,2) + '/' + SubStr(cFolmes,1,4) )
+			EndIf
+			
+			dbSelectArea("SRC")
+			dbSetOrder(4) // RC_FILIAL+RC_MAT+RC_PERIODO+RC_ROTEIR+RC_SEMANA+RC_PD
+			If SRC->(Dbseek(SRA->(RA_FILIAL+RA_MAT+AnoMes(dDTUltSal))))
+				While !SRC->(eof()) .And. SRA->(RA_FILIAL+RA_MAT) + AnoMes(dDTUltSal) == SRC->(RC_FILIAL+RC_MAT+RC_PERIODO)
+					If SRC->RC_PD $ cVbBusca
+						nValUltSal += SRC->RC_VALOR
+					Endif
+					SRC->(dbskip())
+				Enddo
+			EndIf
+
+			If nValUltSal == 0
+				dDTUltSal	:= MonthSub( dDTUltSal, 1 )
+				nValUltSal	:= fBuscaAcm( cVbBusca ,,dDTUltSal,dDTUltSal,"V")	
+			EndIf
+
+		EndIf
+		
+		// Data do Penultimo Salario    
+		dDTPenSal	:= MonthSub( dDTUltSal, 1 )
+
+		// Data do Antepenultimo Salario	
+		dDTAntSal	:= MonthSub( dDTPenSal, 1 )
+			
+		
+		// Penultimo 
+		If !Empty(dDTPenSal)              
+			nValPenSal := fBuscaAcm( cVbBusca ,,dDTPenSal,dDTPenSal,"V")	
+		EndIf
+		
+		// Antepenultimo
+		If !Empty(dDTAntSal)
+			nValAntSal := fBuscaAcm( cVbBusca ,, dDTAntSal,dDTAntSal, "V") 	
+		EndIf
+
+		nUltSal 	+= nValUltSal
+
+		nPenSal		+= nValPenSal
+		If Empty(nPenSal)
+			nPenSal		+= nValUltSal
+		EndIf
+
+		nAntPSal	+= nValAntSal
+		If Empty(nAntPSal)
+			nAntPSal	+= nValUltSal
+		EndIf
+
+	End Sequence
+
+
+RestArea(aArea)
+
+Return
+
+/*/{Protheus.doc} fExpArq
+// Função para gerar arquivo .csv no diretorio informado
+@author Equipe Protheus RH
+@since 08/04/2020
+@param cFile, character, representa caminho indicado pelo ususario
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+Static Function fExpArq( aCabec, aItens, cLocal )
+
+Local cArq     	:= cEmpAnt+"-"+"MP1045"+"-D"+Alltrim(DTOS(DATE()))+"-T"+Replace(Time(),':','')+".CSV"
+Local nHandle  	:= 0
+Local nX		:= 0
+Local nY		:= 0
+Local nZ		:= 0
+Local cCrLf     := ""
+Local cConteudo	:= ""
+Local lRet		:= .F.
+
+Default aCabec	:= {}
+Default aItens	:= {}
+Default cLocal	:= ""
+
+If !( Substr(AllTrim(cLocal),Len(AllTrim(cLocal)),1) == "\")
+	cLocal := AllTrim(cLocal) + "/"
+Else
+	cLocal := AllTrim(cLocal)
+EndIf
+
+nHandle := MsfCreate(cLocal+cArq,0)
+
+If nHandle > 0
+ 		
+	For nX := 1 to Len(aCabec)
+		For nY := 1 to Len(aCabec[nX])
+			If Len(aCabec[nX]) == nY
+				cCrLf	+= '"' + aCabec[nX][nY] + '"'
+			Else
+				cCrLf	+= '"' + aCabec[nX][nY] + '"' + ";"
+			EndIf
+		NExt nY
+	Next nX
+	
+	fWrite(nHandle, cCrLf )
+	
+	For nY := 1 To Len(aItens)
+		
+		cCrLf := ""
+		cCrLf += + TAB
+
+		For nZ := 1 to Len(aItens[nY][1])		
+			If nZ == Len(aItens[nY][1])	
+				cConteudo	:= AllTrim(aItens[nY][1][nZ])
+				If !Empty(cConteudo)
+					cCrLf += '"' + aItens[nY][1][nZ] + '"' 
+				Else
+					cCrLf +=  cConteudo  	
+				EndIf
+			Else
+				cConteudo	:= AllTrim(aItens[nY][1][nZ])
+				If !Empty(cConteudo)
+					cCrLf += '"' + aItens[nY][1][nZ] + '"' + ";" 
+				Else
+					cCrLf +=  cConteudo + ";"  	
+				EndIf
+				
+			EndIf
+		Next nZ		
+
+		fWrite(nHandle, cCrLf )
+	
+	Next nY
+	
+	lRet	:= .T.
+
+	fClose(nHandle)
+
+EndIf
+
+Return( lRet )
+
+
+/*/{Protheus.doc} fVExp929
+// Informa usuario sobre dados bancarios
+@author Equipe Protheus RH
+@since 14/04/2020
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+User Function fVExp929()
+Local lRet		:= .T.
+Local cMsgYesNo	:= ""
+Local cTitLog	:= ""
+
+	cMsgYesNo	:= OemToAnsi(;
+								STR0026 + ;	// "Ate o presente momento nao temos informacoes concretas sobre a sistematica do Governo caso seja informado "
+								STR0027 + ;	// "no arquivo Contas Salario, desta forma, orientamos que nao seja enviada ate que seja esclarecido. "
+								CRLF	+ ;
+								CRLF	+ ;
+								STR0028 + ;	// "Pode ser enviada os campos em branco (nesse caso sera gerada conta virtual), Conta-Corrente ou Conta Poupanca. "
+								CRLF	+ ;
+								CRLF	+ ;
+								STR0030	  ;	// "Confirma a geracao?"
+							)
+	cTitLog		:= OemToAnsi( STR0029 )	// Atencao!"
+	lRet :=  MsgYesNo( OemToAnsi( cMsgYesNo ) ,  OemToAnsi( cTitLog ) ) 
+	
+Return( lRet )
+
+
+/*/{Protheus.doc} fCkAf936
+// Verifica se funcionario possui ausencia Mot.Afast igual a 37 (Suspensao de COntrato MP936/2020)
+@author Equipe Protheus RH
+@since 17/04/2020
+@param nDVig, character, representa Dias de Duracao da Suspensao
+@param dDtVig, data, representa Data Inicial da Vigencia
+@return lRet, flag, variavel de controle
+@version 1.0
+/*/
+User Function fCkAf936(nDVig , dDtVig)
+
+DEFAULT nDVig	:= 0
+DEFAULT dDtVig	:= StoD("//")
+
+dbSelectArea("SR8")
+dbSetOrder(6) // R8_FILIAL+R8_MAT+DTOS(R8_DATAINI)+R8_TIPOAFA                                                                                                                       
+If SR8->(Dbseek(SRA->RA_FILIAL + SRA->RA_MAT + DtoS(dDtVig)))
+	If SR8->R8_TPEFD == "37"
+		nDVig	:= SR8->R8_DURACAO
+	EndIf
+EndIf
+
+Return
+
+
+/*/{Protheus.doc} fCposRGE
+// Função para validar Percentual Reducao Carga Horaria de Acordo com Tipo de Adesao
+@author Equipe Protheus RH
+@since 08/04/2020
+@param nTipo, numeric, representa Tipo de Dado solicitado 1 para Código PPE (RGE_COD) ou 2 para Status (RGE_STATUS)
+@param dPerVigD, data, representa Período de Vigência De para filtro de registros (ambos tipos de adesão)
+@param dPerVigA, data, representa Período de Vigência Até para filtro de registros (ambos tipos de adesão)
+@param nDVig, numeric, representa Dias de Duracao de Suspensao (usado somente para nTipo == 1, Suspensão)
+@param nTpProc, numerico, representa Tipo de Processamento
+@param dDtAntecip, data, representa Data de Reducao (carregada somente quanto Tipo de Processamento for 4=Red. de Vigencia)
+@return cDado, character, conteúdo do campo desejado
+@version 1.0
+/*/
+User Function fCposRGE(nTipo,dPerVigD,dPerVigA,nDVig,nTpProc,dDtAntecip)
+Local cDado		:= ""
+// Verifica se usuario preencheu ambas as datas ou pelo menos o Per. Vigencia Ate
+Local lCkDt			:= (!Empty(dPerVigD) .And. !Empty(dPerVigA)) .Or. (Empty(dPerVigD) .And. !Empty(dPerVigA))
+Local aSR9			:=	{}
+Local dDTAlt		:= Ctod("//")
+Local dDtPrg		:= CtoD("//")
+
+Default nTipo 		:= 1
+Default nDVig		:= 0 
+Default dPerVigD	:= Stod("//")
+Default dPerVigA	:= Stod("//")
+Default dDtAntecip	:= StoD("//")
+Default nTpProc		:= 1
+
+
+	dbSelectArea("RGE")
+	RGE->(DbSetOrder(2)) // RGE_FILIAL+RGE_MAT+DTOS(RGE_DATAIN)+RGE_TIPOCO
+	If dbSeek(SRA->RA_FILIAL + SRA->RA_MAT)
+		While !Eof() .And. RGE->RGE_FILIAL+RGE->RGE_MAT == SRA->RA_FILIAL + SRA->RA_MAT		
+			If RGE->RGE_PPE == "1" 
+				If lRgeCPO .And. nTipo == 1 .And. If(lCkDt, RGE->RGE_DATAIN >= dPerVigD .And. RGE->RGE_DATAFI <= dPerVigA, .T.)
+					If (nTpProc == 1 .And. (RGE->RGE_STATUS == "0" .Or. Empty(RGE->RGE_STATUS))) .Or. (nTpProc == 2 .And. RGE->RGE_STATUS == "2") .Or. ;
+					   (nTpProc == 3 .And. RGE->RGE_STATUS == "3") .Or. (nTpProc == 4 .And. RGE->RGE_STATUS == "4")
+						cDado 		:= RGE->RGE_COD
+						nDVig		:= If (nTpProc == 3, RGE->RGE_DTALT- RGE->RGE_DATAFI ,RGE->RGE_DATAFI - RGE->RGE_DATAIN + 1)
+						dPerVigD	:= RGE->RGE_DATAIN
+						dDTAlt	:= RGE->RGE_DTALT
+						If nTpProc == 4
+							dDtAntecip	:= dDTAlt
+						EndIf
+					EndIf
+				ElseIf lRgeSTAT .And. nTipo == 2 .And. If(lCkDt, RGE->RGE_DATAIN >= dPerVigD .And. RGE->RGE_DATAFI <= dPerVigA, .T.)
+					cDado := RGE->RGE_STATUS
+					Exit
+				EndIf
+			EndIf			
+			RGE->( dbSkip() )
+		EndDo
+
+		If nTipo == 1 .And. nDVig > 0
+			cCampo	:= "RGE_DTALT"
+			dbSelectArea("SR9")
+			dbSetOrder(1) // R9_FILIAL+R9_MAT+R9_CAMPO+DTOS(R9_DATA)
+			If dbSeek(SRA->RA_FILIAL+SRA->RA_MAT+cCampo)
+				
+				While !Eof() .And. AllTrim(SRA->RA_FILIAL+SRA->RA_MAT+cCampo) == AllTrim(SR9->R9_FILIAL+SR9->R9_MAT+SR9->R9_CAMPO)
+					cDia 		:= SubStr(AllTrim(SR9->R9_DESC),1,2)
+					cMes 		:= SubStr(AllTrim(SR9->R9_DESC),4,2)
+					cAno 		:= SubStr(AllTrim(SR9->R9_DESC),7,4)
+					dDtPrg		:= StoD(cAno+cMes+cDia)					
+					Aadd(aSR9,dDtPrg)
+					SR9->( dbSkip() )
+				EndDo
+
+				If Len(aSR9) > 0
+					aSort( aSR9, , , { |x,y| x < y } )		
+					nDVig	:=  dDTAlt - (aSR9[Len(aSR9)])				
+				EndIf
+
+			EndIf
+		EndIf
+
+	EndIf
+
+Return cDado
+
+
+/*/{Protheus.doc} fPerWhen()
+// Função para validar Data de Acordo com Periodo de Vigencia
+@author Equipe Protheus RH
+@since 14/05/2020
+@param dDtAcorP, data, Data de Acordo informada
+@param dDtVigD, data, Periodo de Vigencia De
+@return cDado, character, conteúdo do campo desejado
+@version 1.0
+/*/
+User Function fPerWhen(dDtAcorP,dDtVigD)
+Local lWhen	:= .T.
+
+Default dDtAcorP	:= StoD("//")
+Default dDtVigD		:= StoD("//")
+
+
+	If !Empty(dDtVigD) .And. Year(dDtVigD) < 2021
+		Help( , , 'HELP', , OemToAnsi(STR0062)  , 1, 0 ) // "Geracao permitida apenas a partir do ano de 2021!"
+		lWhen	:= .F.
+	EndIf
+
+	If lWhen .And. !Empty(dDtAcorP) .And. !Empty(dDtVigD) .And. dDtAcorP  > dDtVigD
+		Help( , , 'HELP', , OemToAnsi(STR0056)  , 1, 0 ) // "A Data de Acordo nao pode ser posterior ao Periodo de Vigencia De/Ate."
+		lWhen	:= .F.
+	EndIf
+
+Return lWhen
+
+
+
+/*/{Protheus.doc} fCriaCabec
+// Função para criar o cabeçalho conforme tipo de processamento
+@author Equipe Protheus RH
+@since 20/06/2020
+@param nTipProc, numerico, informa Tipo de Processamento 1=Geracao,2=Cancelamento,3=Prorrogacao,4=Red. de Vigencia
+@return aCabec, array, retorna cabecalho montado
+@version 1.0
+/*/
+User Function fCriaCabec(nTipProc)
+Local aCbcProc		:= {}
+
+Default nTipProc	:= 1
+
+	 aAdd(aCbcProc, {  "Tipo Inscricao" ,; 
+						 "CNPJ/CEI",;
+						 "CNO" ,; 
+					     "Data Admissao",; 
+						 "CPF Trabalhador" })
+
+	If nTipProc == 1 // Geracao
+	    aAdd(aCbcProc[1],"PIS/PASEP Trabalhador")
+		aAdd(aCbcProc[1],"Nome Trabalhador")
+		aAdd(aCbcProc[1],"Nome Mae Trabalhador")
+		aAdd(aCbcProc[1],"Data Nascimento Trabalhador")
+		aAdd(aCbcProc[1],"Tipo Adesao")
+		aAdd(aCbcProc[1], "Data Acordo")
+		aAdd(aCbcProc[1],"Percentual Reducao Carga Horaria")
+		aAdd(aCbcProc[1],"Dias Duracao")
+		aAdd(aCbcProc[1],"Codigo Banco")
+		aAdd(aCbcProc[1],"Agencia Bancaria")
+		aAdd(aCbcProc[1],"DV Agencia Bancaria")
+		aAdd(aCbcProc[1],"Conta Bancaria") 
+		aAdd(aCbcProc[1],"DV Conta Bancaria")
+		aAdd(aCbcProc[1],"Tipo Conta") 
+		aAdd(aCbcProc[1],"Ultimo Salario")
+		aAdd(aCbcProc[1],"Penultimo Salario")
+		aAdd(aCbcProc[1],"Antepenultimo Salario")
+	ElseIf nTipProc == 2 // Cancelamento
+		   aAdd(aCbcProc[1],"Data Acordo"  )
+	ElseIf nTipProc == 3 // Prorrogacao
+		   aAdd(aCbcProc[1],"Data Acordo")
+		   aAdd(aCbcProc[1],"Dias Prorrogacao")
+	ElseIf nTipProc == 4 // Reducao de Vigencia
+		   aAdd(aCbcProc[1],"Data Acordo")
+		   aAdd(aCbcProc[1],"Data Antecipacao")
+	EndIf
+
+
+Return aCbcProc

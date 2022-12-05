@@ -1,0 +1,98 @@
+#INCLUDE "PROTHEUS.CH"
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UPAVALIA
+//Tela atualização de avaliação
+@author  Ana Carolina Martins
+@since   26/11/2018
+@version 0.1
+/*/
+//-------------------------------------------------------------------
+User Function UPAVALIA()
+
+    Local aButtons   := {}
+    Local aSays      := {}
+    Local nOpcA      := 0
+    
+    Private aLog     := {}
+    Private aTitle   := {}
+    Private nRetorno := 0
+
+    aAdd(aSays,OemToAnsi( "Esta rotina atualiza o campo que armazena o percentual de uma alternativa." ))
+    aAdd(aSays,OemToAnsi( "Somente é executada quando o mesmo estiver zerado, ou seja quando o campo " ))
+    aAdd(aSays,OemToAnsi( "percentual da tabela de alternativas for diferente de zero e quando existir " ))
+    aAdd(aSays,OemToAnsi( "selecionada pelo usuário. Caso exista algum registro com características" ))
+    aAdd(aSays,OemToAnsi( "uma alternativa diferente das citadas, o sistema não fará alteração." ))
+
+    aAdd(aButtons, { 1,.T.,{|o| nOpcA := 1,FechaBatch() }} )
+    aAdd(aButtons, { 2,.T.,{|o| nOpca := 0,FechaBatch()}} )
+
+    //Abre a tela de processamento
+    FormBatch( "Atualização de Percentual ", aSays, aButtons )
+
+    //Efetua o processamento de geração
+    If nOpcA == 1
+        Aadd( aTitle, OemToAnsi( "Avaliações com percental zerado:" ) )
+        Aadd( aLog, {} )
+        ProcGpe( {|lEnd| ProcAtuPer()},,,.T. )
+        fMakeLog(aLog,aTitle,,,"TelaUpAval",OemToAnsi("Log de Ocorrências"),"M","P",,.F.)   
+        
+        AVISO("Atualização", "Processamento concluído, "+ cValToChar(nRetorno) +" registros atualizados." , { "Fechar" }, 1)             
+    EndIf    
+Return 
+
+/*/{Protheus.doc} ProcAtuPer
+//Atualiza Percentual
+@author Ana Carolina Martins 
+@since 26/11/2018
+@version 1.0
+/*/
+Static Function ProcAtuPer()
+
+    Local cFilRAISQP    := ""
+    Local cFilRAIRAJ    := ""    
+    
+    cFilRAISQP	:= "%" + FWJoinFilial("RAI", "SQP") + "%"
+    cFilRAIRAJ	:= "%" + FWJoinFilial("RAI", "RAJ") + "%"
+    
+       
+    Private cAliasRai   := GetNextAlias()
+    
+      BeginSql Alias cAliasRai        
+	
+		SELECT DISTINCT RAI_FILIAL, RAJ.RAJ_MAT, RAJ.RAJ_TESTE, RAI_RESULT, RAI_QUESTA, QP_ALTERNA, QP_PERCENT, recno FROM %table:RAJ% RAJ  INNER JOIN  
+
+			(SELECT DISTINCT RAI_RESULT, RAI_FILIAL, RAI_MAT, RAI_TESTE, RAI_ALTERN, SQP.QP_ALTERNA, SQP.QP_PERCENT, RAI.RAI_QUESTA,  RAI.R_E_C_N_O_ AS recno
+		        FROM %table:RAI% RAI    
+				INNER JOIN  %table:SQP% SQP ON %exp:cFilRAISQP% AND RAI.RAI_ALTERN = SQP.QP_ALTERNA AND RAI.RAI_QUESTA = SQP.QP_QUESTAO
+		        WHERE RAI.RAI_RESULT = 0 AND SQP.QP_PERCENT <> 0 AND RAI.D_E_L_E_T_ <> '*'
+			) RAI
+			
+		ON %exp:cFilRAIRAJ% AND RAI.RAI_TESTE = RAJ.RAJ_TESTE AND RAI.RAI_MAT = RAJ.RAJ_MAT
+		WHERE RAJ.D_E_L_E_T_ <> '*'  
+        
+    EndSql
+   
+    DbSelectArea("RAI")
+    RAI->(dbSetOrder(1))
+    
+    dbSelectArea( cAliasRai )
+	count to ntotal
+	GpProcRegua(ntotal)
+	(cAliasRai)->(DbGoTop())
+   
+    Begin Sequence    
+        While (cAliasRai)->( !Eof() ) 
+        	RAI->( dbGoTo( (cAliasRai)->RECNO ) )        
+            
+            nPercent := (cAliasRai)->QP_PERCENT
+           
+			IF RecLock("RAI",.F.) //Define a tabela e se o tipo da operação é inclusao de campo
+			  	RAI->RAI_RESULT := nPercent //atualiza o campo
+			  	RAI->(MsUnlock()) // finaliza			
+			  	nRetorno +=1
+            ENDIF
+            (cAliasRai)->(DbSkip())
+        EndDo
+        (cAliasRai)->(DbCloseArea())
+    End Sequence        
+Return NIL

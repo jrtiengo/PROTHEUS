@@ -1,0 +1,159 @@
+#INCLUDE "PROTHEUS.CH"
+#INCLUDE "JPEG.CH"
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Programa  ³ScrViaGaia³ Autor ³ Rogerio Oliveira      ³ Data ³11/11/2016³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Locacao   ³ Fabrica de SW JP ³Contato ³                                ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descricao ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Retorno   ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Aplicacao ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Uso       ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Analista Resp.³  Data  ³ Bops ³ Manutencao Efetuada                    ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³              ³  /  /  ³      ³                                        ³±±
+±±³              ³  /  /  ³      ³                                        ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+User Function ScrViaGaia()
+// Variaveis Locais da Funcao
+Local aComboBx1	 := {"Item01","Item02"}
+Local cComboBx1
+Local cGet1	 := Space(25)
+Local cGet2	 := Space(25)
+Local cGet3	 := Space(25)
+Local cMemo1	 := ""
+Local cMemo2	 := ""
+Local oGet1
+Local oGet2
+Local oGet3
+Local oMemo1
+Local oMemo2
+
+// Variaveis da Funcao de Controle e GertArea/RestArea
+Local _aArea   		:= {}
+Local _aAlias  		:= {}
+// Variaveis Private da Funcao
+Private oDlg				// Dialog Principal
+// Variaveis que definem a Acao do Formulario
+Private VISUAL := .F.                        
+Private INCLUI := .F.                        
+Private ALTERA := .F.                        
+Private DELETA := .F.                        
+
+DEFINE MSDIALOG oDlg TITLE "Agenda App Automatech AT" FROM C(178),C(181) TO C(436),C(518) PIXEL
+
+// Defina aqui a chamada dos Aliases para o GetArea
+CtrlArea(1,@_aArea,@_aAlias,{"SA1","SA2"}) // GetArea
+
+	// Cria Componentes Padroes do Sistema
+	@ C(002),C(002) Jpeg FILE "" Size C(118),C(026) PIXEL NOBORDER OF oDlg
+	@ C(032),C(002) GET oMemo1 Var cMemo1 MEMO Size C(161),C(001) PIXEL OF oDlg
+	@ C(038),C(005) Say "Técnico" Size C(021),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(047),C(005) MsGet oGet1 Var cGet1 Size C(160),C(009) COLOR CLR_BLACK Picture "@!" PIXEL OF oDlg
+	@ C(060),C(005) Say "Agendar OSs para o dia" Size C(060),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(060),C(109) Say "Qtd de OS's a Agendar" Size C(056),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(070),C(005) MsGet oGet2 Var cGet2 Size C(040),C(009) COLOR CLR_BLACK Picture "@!" PIXEL OF oDlg
+	@ C(070),C(109) MsGet oGet3 Var cGet3 Size C(025),C(009) COLOR CLR_BLACK Picture "@!" PIXEL OF oDlg
+	@ C(083),C(005) Say "Atendimento com o Veículo" Size C(069),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(092),C(005) ComboBox cComboBx1 Items aComboBx1 Size C(160),C(010) PIXEL OF oDlg
+	@ C(106),C(002) GET oMemo2 Var cMemo2 MEMO Size C(161),C(001) PIXEL OF oDlg
+	@ C(112),C(044) Button "Confirmar" Size C(037),C(012) PIXEL OF oDlg
+	@ C(112),C(083) Button "Voltar" Size C(037),C(012) PIXEL OF oDlg
+
+	// Cria ExecBlocks dos Componentes Padroes do Sistema
+
+CtrlArea(2,_aArea,_aAlias) // RestArea
+
+ACTIVATE MSDIALOG oDlg CENTERED 
+
+Return(.T.)
+
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Programa   ³   C()   ³ Autores ³ Norbert/Ernani/Mansano ³ Data ³10/05/2005³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descricao  ³ Funcao responsavel por manter o Layout independente da       ³±±
+±±³           ³ resolucao horizontal do Monitor do Usuario.                  ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+Static Function C(nTam)                                                         
+Local nHRes	:=	oMainWnd:nClientWidth	// Resolucao horizontal do monitor     
+	If nHRes == 640	// Resolucao 640x480 (soh o Ocean e o Classic aceitam 640)  
+		nTam *= 0.8                                                                
+	ElseIf (nHRes == 798).Or.(nHRes == 800)	// Resolucao 800x600                
+		nTam *= 1                                                                  
+	Else	// Resolucao 1024x768 e acima                                           
+		nTam *= 1.28                                                               
+	EndIf                                                                         
+                                                                                
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿                                               
+	//³Tratamento para tema "Flat"³                                               
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ                                               
+	If "MP8" $ oApp:cVersion                                                      
+		If (Alltrim(GetTheme()) == "FLAT") .Or. SetMdiChild()                      
+			nTam *= 0.90                                                            
+		EndIf                                                                      
+	EndIf                                                                         
+Return Int(nTam)                                                                
+
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºPrograma  ³ CtrlArea º Autor ³Ricardo Mansano     º Data ³ 18/05/2005  º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºLocacao   ³ Fab.Tradicional  ³Contato ³ mansano@microsiga.com.br       º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDescricao ³ Static Function auxiliar no GetArea e ResArea retornando   º±±
+±±º          ³ o ponteiro nos Aliases descritos na chamada da Funcao.     º±±
+±±º          ³ Exemplo:                                                   º±±
+±±º          ³ Local _aArea  := {} // Array que contera o GetArea         º±±
+±±º          ³ Local _aAlias := {} // Array que contera o                 º±±
+±±º          ³                     // Alias(), IndexOrd(), Recno()        º±±
+±±º          ³                                                            º±±
+±±º          ³ // Chama a Funcao como GetArea                             º±±
+±±º          ³ P_CtrlArea(1,@_aArea,@_aAlias,{"SL1","SL2","SL4"})         º±±
+±±º          ³                                                            º±±
+±±º          ³ // Chama a Funcao como RestArea                            º±±
+±±º          ³ P_CtrlArea(2,_aArea,_aAlias)                               º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºParametros³ nTipo   = 1=GetArea / 2=RestArea                           º±±
+±±º          ³ _aArea  = Array passado por referencia que contera GetArea º±±
+±±º          ³ _aAlias = Array passado por referencia que contera         º±±
+±±º          ³           {Alias(), IndexOrd(), Recno()}                   º±±
+±±º          ³ _aArqs  = Array com Aliases que se deseja Salvar o GetArea º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºAplicacao ³ Generica.                                                  º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+Static Function CtrlArea(_nTipo,_aArea,_aAlias,_aArqs)                       
+Local _nN                                                                    
+	// Tipo 1 = GetArea()                                                      
+	If _nTipo == 1                                                             
+		_aArea   := GetArea()                                                    
+		For _nN  := 1 To Len(_aArqs)                                             
+			DbSelectArea(_aArqs[_nN])                                              
+			AAdd(_aAlias,{ Alias(), IndexOrd(), Recno()})                          
+		Next                                                                     
+	// Tipo 2 = RestArea()                                                     
+	Else                                                                       
+		For _nN := 1 To Len(_aAlias)                                             
+			DbSelectArea(_aAlias[_nN,1])                                           
+			DbSetOrder(_aAlias[_nN,2])                                             
+			DbGoto(_aAlias[_nN,3])                                                 
+		Next                                                                     
+		RestArea(_aArea)                                                         
+	Endif                                                                      
+Return Nil                                                                   

@@ -1,0 +1,582 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+#DEFINE PSAY SAY
+
+User Function Sindica()        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de variaveis utilizadas no programa atraves da funcao    ³
+//³ SetPrvt, que criara somente as variaveis definidas pelo usuario,    ³
+//³ identificando as variaveis publicas do sistema utilizadas no codigo ³
+//³ Incluido pelo assistente de conversao do AP5 IDE                    ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+SetPrvt("VHEX,VPRGT,_IX1,_NORD,_ODBORDER,_APD")
+SetPrvt("_XFILIAL,_IPD,AINFO,CDESC1,CDESC2,CDESC3")
+SetPrvt("CSTRING,AORD,ARETURN,NOMEPROG,ALINHA,NLASTKEY")
+SetPrvt("CPERG,LEND,APOSICAO1,ATOTSIN,ATOTCC1,ATOTFIL1")
+SetPrvt("ATOTEMP1,APDV,NORMAL,DESCANSO,AT_PRG,WCABEC0")
+SetPrvt("WCABEC1,WCABEC2,CONTFL,LI,NTAMANHO,CTIT")
+SetPrvt("WNREL,NORDEM,CFILDE,CFILATE,CCCDE,CCCATE")
+SetPrvt("CMATDE,CMATATE,CNOMEDE,CNOMEATE,NSINDASSI,CSITUACAO")
+SetPrvt("CCATEGORIA,LSALTA,NTIPSAL,CSINDDE,CSINDATE,CBTXT")
+SetPrvt("CBCONT,QFIL,QCCST,QEMPR,QSIND,QPAG")
+SetPrvt("CINICIO,CFIM,CINDCOND,CFOR,CARQNTX,CFILIALANT")
+SetPrvt("CCCANT,CSINDANT,NVALOR,NSALMES,CDET,CNOMESIND")
+SetPrvt("TITULO,CDESCFIL,")
+
+//#IFDEF  WINDOWS
+//        #include "FiveWin.ch"
+//#ELSE
+//        #include "INKEY.CH"
+//#ENDIF
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡…o    ³ GPER170  ³ Autor ³ R.H. -                ³ Data ³ 04.01.96 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³ Relatorio Contribui‡„o Sindical/Assistencial/Confederativa ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe   ³ GPER170(void)                                              ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ Generico                                                   ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³         ATUALIZACOES SOFRIDAS DESDE A CONSTRU€AO INICIAL.             ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Programador ³ Data   ³ BOPS ³  Motivo da Alteracao                     ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Fernando J. ³28/03/96³XXXXXX³ Inclusao de Rotina que Consiste parame-  ³±±
+±±³            ³        ³      ³ trizacao do Intervalo de Impressao.      ³±±
+±±³ Stiefano   ³28/03/96³04295a³ Criado Acumula Periodo Adicional Tempo.  ³±±
+±±³Fernando J. ³02/08/96³XXXXXX³ Retornar ao Primeiro Indice de SRC.      ³±±
+±±³ Mauro      ³11/03/97³      ³ CompMes passou a ser generica.           ³±±
+±±³ Aldo       ³14/07/97³10109a³ Pegar Salario do Cadastro de Funcionario.³±±
+±±³ Aldo       ³28/10/97³10402a³ Pegar Salario Base ou Composto.          ³±±
+±±³ Aldo       ³05/01/98³13929a³ Cancel.Rel. qdo nao achar Adic.Temp.Serv.³±±
+±±³ Aldo       ³24/03/98³14602a³ Incluido pergunta Sindicato De/Ate.      ³±±
+±±³ S‚rgio S.  ³07/04/98³      ³ Incluido quebra e totalizacao p/Sind.    ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+
+// Movido para o inicio do arquivo pelo assistente de conversao do AP5 IDE em 28/03/00 ==> #DEFINE PSAY SAY
+
+dbSelectArea( "SX1" )
+
+If ! ( dbSeek( "GPR17013", .F. ) )
+
+    vHex  := { "1","2","3","4","5","6","7","8","9","a","b","c","d","e","f", "g" }
+    vPrgt := { "Sal rio        ?",;
+               "Sindicato De   ?",;
+               "Sindicato Ate  ?",;
+               "C¢digo da Verba?" ;
+             }
+
+   For _iX1 := 1 To 4
+
+       SX1->( dbAppend() )
+       SX1->( rLock() )
+
+       _nOrd      := 12 + _iX1
+       SX1->X1_GRUPO   := "GPR170"
+       SX1->X1_ORDEM   := StrZero( _nOrd, 2 )
+       SX1->X1_PERGUNT := vPrgt[ _iX1 ]
+       SX1->X1_VARIAVL := "mv_ch" + vHex[ _nOrd ]
+       SX1->X1_TIPO    := "C"
+       SX1->X1_TAMANHO := If( _iX1 > 3, 30, If( _IX1 != 1, 2, 1 ) )
+       SX1->X1_DECIMAL := 0
+       SX1->X1_GSC     := If( _iX1 != 1, "G", "C" )
+       SX1->X1_VAR01   := "mv_par" + StrZero( _nOrd, 2 )
+       SX1->X1_DEF01   := If( _iX1 == 1, "Base", " " )
+       SX1->X1_DEF02   := If( _iX1 == 1, "Composto", " " )
+       SX1->X1_CNT01   := If( _iX1 == 2, "01", If( _iX1 == 3, "99", "  " ) )
+
+       SX1->(  dbUnlock() )
+
+   Next
+
+End
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica a existencia de codigo base p/Contr. Sindicais      ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+dbSelectArea( "SRV" )
+_odbOrder := IndexOrd()
+dbSetOrder( 2 )
+
+_aPD     := { { "068", 0 },;
+	      { "069", 0 },;
+	      { "175", 0 },;
+	      { "416", 0 },;
+	      { "426", 0 } ;
+	    }
+
+_xFilial := xFilial()
+
+For _iPD := 1 To 3
+
+    If ! ( dbSeek( _xFilial + _aPD[ _iPD, 1 ], .F. ) )
+       _aPD[ _iPD, 1 ] := "   "
+    Else
+       _aPD[ _iPD, 1 ] := SRV->RV_COD
+       _aPD[ _iPD, 2 ] := SRV->RV_PERC
+    End
+
+Next
+
+dbSetOrder( _odbOrder )
+dbSelectArea( "SRC" )
+dbSetOrder( 2 )
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis Private(Basicas)                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+aInfo   := {}
+cDesc1  := "Rela‡„o da Contribui‡„o Sindical / Assistencial / Confederativa"
+cDesc2  := "Ser  impresso de acordo com os parametros solicitados pelo"
+cDesc3  := "usuario."
+cString := "SRA"  // alias do arquivo principal (Base)
+aOrd    := { "Matricula","Centro de Custo","Nome","Sindicato"}        //Ordem
+
+aReturn  := { "Zebrado",1,"Administra‡„o",2,2,1,"",4 }
+NomeProg := "GPER170"
+aLinha   := {}
+nLastKey := 0
+cPerg    := "GPR170"
+lEnd     := .F.
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis Private(Programa)                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+aPosicao1 := {} // Array das posicoes
+aTotSin   := {}
+aTotCc1   := {}
+aTotFil1  := {}
+aTotEmp1  := {}
+aInfo     := {}
+aPDV      := {} // Matriz Incidencia de Verbas Usado na Fvaloriza()
+Normal    := 0
+Descanso  := 0
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis Utilizadas na funcao IMPR                          ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+AT_PRG   := "GPER170"
+wCabec0  := 2
+wCabec1  := "MATR.   NOME DO FUNCIONARIO             CARTEIRA PROFIS.   DATA  DE          SALARIO    VALOR DA       F U N C A O"
+wCabec2  := "                                         NUMERO   SERIE    ADMISSAO          B A S E  CONTRIBUICAO"    
+Contfl   := 1
+Li       := 0
+nTamanho := "M"
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica as perguntas selecionadas                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+pergunte("GPR170",.F.)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis utilizadas para parametros                         ³
+//³ mv_par01        //  Filial De                                ³
+//³ mv_par02        //  Filial Ate                               ³
+//³ mv_par03        //  Centro de Custo De                       ³
+//³ mv_par04        //  Centro de Custo Ate                      ³
+//³ mv_par05        //  Matricula De                             ³
+//³ mv_par06        //  Matricula Ate                            ³
+//³ mv_par07        //  Nome De                                  ³
+//³ mv_par08        //  Nome Ate                                 ³
+//³ mv_par09        //  1-Sindical 2-Assistencial 3-Confederativa³
+//³ mv_par10        //  Situacoes                                ³
+//³ mv_par11        //  Categorias                               ³
+//³ mv_par12        //  Imprime C.C em Outra Pagina              ³
+//³ mv_par13        //  Imprime Salario Base,Composto            ³
+//³ mv_par14        //  Sindicato De                             ³
+//³ mv_par15        //  Sindicato Ate                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+cTit   := "RELA€ŽO DA CONTRIBUI€ŽO "
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Envia controle para a funcao SETPRINT                        ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Carregando variaveis mv_par?? para Variaveis do Sistema.     ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+wnrel:="GPER170"            //Nome Default do relatorio em Disco
+wnrel:=SetPrint(cString,wnrel,cPerg,cTit,cDesc1,cDesc2,cDesc3,.F.,aOrd)
+
+nOrdem     := aReturn[8]
+cFilDe     := mv_par01
+cFilAte    := mv_par02
+cCcDe      := mv_par03
+cCcAte     := mv_par04
+cMatDe     := mv_par05
+cMatAte    := mv_par06
+cNomeDe    := mv_par07
+cNomeAte   := mv_par08
+nSindAssi  := mv_par09
+cSituacao  := mv_par10
+cCategoria := mv_par11
+lSalta     := If( mv_par12 == 1 , .T. , .F. )
+nTipSal    := mv_par13
+cSindDe    := mv_par14
+cSindAte   := mv_par15
+
+If	nLastKey == 27
+	Return
+Endif
+
+SetDefault(aReturn,cString)
+
+If	nLastKey == 27
+	Return
+Endif
+
+#IFDEF WINDOWS
+        RptStatus({|| GR170ImpRD()},cTit)// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>         RptStatus({|| Execute(GR170ImpRD)},cTit)
+        Return
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>         FUNCTION GR170ImpRD
+Static FUNCTION GR170ImpRD()
+#ENDIF
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡…o    ³ GPER170  ³ Autor ³ R.H. -                ³ Data ³ 04.01.96 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³ Relatorio Contribui‡„o Sindical/Assistencial/Confederativa ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe e ³ GPR170Imp(lEnd,wnRel,cString)                              ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³ lEnd        - A‡Æo do Codelock                             ³±±
+±±³          ³ wnRel       - T¡tulo do relat¢rio                          ³±±
+±±³Parametros³ cString     - Mensagem			                  ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ Generico                                                   ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis Locais (Programa)                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+CbTxt     := "" // Ambiente
+CbCont    := ""
+
+qFil   := 0
+qCCst  := 0
+qEmpr  := 0
+qSind  := 0
+qPag   := 0
+
+dbSelectArea( "SRA" )
+If nOrdem == 1
+	dbSetOrder( 1 )
+ElseIf nOrdem == 2
+	dbSetOrder( 2 )
+ElseIf nOrdem == 3
+	dbSetOrder( 3 )
+Endif
+
+If nOrdem == 1
+	dbSeek(cFilDe + cMatDe,.T.)
+	cInicio := "SRA->RA_FILIAL + SRA->RA_MAT"
+	cFim    := cFilAte + cMatAte
+ElseIf nOrdem == 2
+	dbSeek(cFilDe + cCcDe + cMatDe,.T.)
+	cInicio := "SRA->RA_FILIAL + SRA->RA_CC + SRA->RA_MAT"
+	cFim    := cFilAte + cCcAte + cMatAte
+ElseIf nOrdem == 3
+	dbSeek(cFilDe + cNomeDe + cMatDe,.T.)
+	cInicio  := "SRA->RA_FILIAL + SRA->RA_NOME + SRA->RA_MAT"
+	cFim     := cFilAte + cNomeAte + cMatAte
+ElseIf nOrdem == 4
+
+   cIndCond := "RA_FILIAL + RA_SINDICA + RA_NOME"
+
+   cFor := 'RA_FILIAL  >= "'        +;
+	   cFIlDe                   +;
+	   '" .And. RA_SINDICA >= "'+;
+	   cSindDe                  +;
+	   '".And.'                 +;
+	   'RA_NOME >= "'           +;
+	   cNomeDe                  +;
+	   '" .And. RA_FILIAL <= "' +;
+	   cFIlAte                  +;
+	   '".and.'                 +;
+	   'RA_SINDICA <= "'        +;
+	   cSindAte                 +;
+	   '".And. RA_NOME <= "'    +;
+	   cNomeAte                 +;
+	   '"' 
+
+   cArqNtx  := CriaTrab(Nil,.F.)
+
+   IndRegua("SRA",cArqNtx,cIndCond,,cFor,"Selecionando Registros...")
+   dbSeek(cFilDe + cSindDe + cNomeDe,.T.)
+   cInicio  := "SRA->RA_FILIAL + SRA->RA_SINDICA + SRA->RA_NOME "
+   cFim     := cFilAte + cSindAte + cNomeAte
+
+Endif
+
+cFilialAnt := SRA->RA_FILIAL
+cCcAnt     := SRA->RA_CC
+cSindAnt   := SRA->RA_SINDICA
+fInfo(@aInfo,SRA->RA_FILIAL)
+
+dbSelectArea( "SRA" )
+SetRegua( SRA->( RecCount() ) )
+PesqSind()
+
+While .T.
+
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Movimenta Regua Processamento                                ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+   IncRegua()
+
+   #IFNDEF WINDOWS
+
+      Inkey()
+      If Lastkey() == K_ALT_A .Or. LastKey() == K_ESC
+         lEnd := .T.
+      EndIf
+
+   #ENDIF
+
+   If lEnd
+      @ Prow()+1,0 PSAY cCancel
+      Exit
+   Endif
+
+   QuebraRel()
+
+   If SRA->( Eof() ) .Or. &cInicio > cFim
+      Exit
+   End
+
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Verifica Situacao e Categoria do Funcionario                 ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+   If ( Sra->Ra_Nome    < cNomeDe  )   .Or.;
+      ( Sra->Ra_Nome    > cNomeAte )   .Or.;
+      ( Sra->Ra_Mat     < cMatDe   )   .Or.;
+      ( Sra->Ra_Mat     > cMatAte  )   .Or.;
+      ( Sra->Ra_CC      < cCcDe    )   .Or.;
+      ( Sra->Ra_CC      > cCCAte   )   .Or.;
+      ( Sra->RA_Sindica < cSindDe  )   .Or.;
+      ( Sra->RA_Sindica > cSindAte )   .Or.;
+    ! ( SRA->RA_SITFOLH $ cSituacao  ) .Or.;
+    ! ( SRA->RA_CATFUNC $ cCategoria )
+
+      SRA->( dbSkip() )
+      Loop
+
+   EndIf
+
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Verifica Valor Zerado                                        ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	
+   If ! ( SRC->( dbSeek( SRA->RA_FILIAL + SRA->RA_CC + SRA->RA_MAT + _aPD[ nSindAssi, 1 ] ) ) )
+
+      SRA->( dbSkip() )
+      Loop
+
+   Else
+
+      nValor := SRC->RC_VALOR
+
+      If     nSindAssi == 1
+  	  nSalMes := SRC->RC_VALOR * 30
+      ElseIf nSindAssi == 4
+	  nSalMes := nValor / 0.01
+      Else
+	  nSalMes := SRA->RA_SALARIO
+      End
+
+   Endif
+
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Atualiza o Bloco para os Totalizadores                       ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+   qFil   := qFil  + nValor
+   qCCst  := qCCst + nValor
+   qEmpr  := qEmpr + nValor
+   qSind  := qSind + nValor
+   qPag   := qPag  + nValor
+
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Impressao do Funcionario                                     ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+   cDet := SRA->RA_MAT                           + Space( 2 )+;
+	   Left( SRA->RA_NOME, 30 )              + Space( 2 )+;
+	   SRA->RA_NUMCP                         + " - "     +;
+	   SRA->RA_SERCP                         + Space( 4 )+;
+	   DtoC(SRA->RA_ADMISSA)                 + Space( 4 )+;
+	   Transform(nSalMes,"@E 99,999,999.99") + Space( 2 )+;
+	   Transform(nValor ,"@E 9,999,999.99" ) + Space( 5 )+;
+	   DescFun(SRA->RA_CODFUNC,SRA->RA_FILIAL)
+
+   Impr(cDet,"C")
+   SRA->( dbSkip() )
+
+EndDo
+
+cDet := "Filial/Sindicato: "    +;
+	 cFilialAnt+"/"+cSindAnt +;
+	 Space( 44 )             +;
+         " TOTAL GERAL     "     +;
+	 Transform( qEmpr, "@EZ  99,999,999.99" )+;
+	 Space( 33 )             +;
+	 "*"
+Impr( cDet, "C" )
+Impr( Replicate( "*", 132 ), "C" )
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Termino do Relatorio                                         ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+dbSelectArea( "SRC" )
+dbSetOrder( 1 )
+dbSelectArea( "SRA" )
+Set Filter To
+
+If nOrdem == 4
+   RetIndex( "SRA" )
+   fErase( cArqNtx + OrdBagExt() )
+Endif
+
+dbSetOrder( 1 )
+
+__Eject()
+
+Set Device To Screen
+Set Printer To
+
+If aReturn[ 5 ] == 1
+   Commit
+   ourspool(wnrel)
+Endif
+
+MS_FLUSH()
+
+RETURN
+
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Pesquisa Sindicato                                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> FUNCTION PesqSind
+Static FUNCTION PesqSind()
+
+If ! FPHIST82(SRA->RA_FILIAL,"04","00"+SRA->RA_SINDICAT)
+
+   cNomeSind  := "**** Nao Cadastrado ****"
+
+Else
+
+   cNomeSind := rTrim( SubStr( SRX->RX_TXT, 1, 40) )
+
+Endif
+
+Titulo := cNomeSind + " - RELACAO DA CONTRIBUICAO "
+
+If mv_par09 == 1
+   Titulo := Titulo + "SINDICAL"
+ElseIf mv_par09 == 2 
+   Titulo := Titulo + "ASSISTENCIAL"
+ElseIf mv_par09 == 3 
+   Titulo := Titulo + "CONFEDERATIVA"
+Else
+   Titulo := cNomeSind + " - RELACAO DA MENSALIDADE SINDICAL"
+End
+
+If nOrdem < 4
+
+   cDet := "FILIAL: "                +;
+	   cFilialAnt                +;
+	   " CCTO: "                 +;
+	   cCcAnt                    +;
+	   " - "                     +;
+	   DescCc(cCcAnt,cFilialAnt) +;
+	   Space(40)                 +;
+	   " TOTAL CENTRO CUSTO "    +;
+	   Transform( qCCst, "@EZ  99,999,999.99" )
+
+   cDet := "Sindicato: "      +;
+	   cSindAnt           +;
+	   Space( 82 )        +;
+	   " TOTAL SINDICATO "+;
+	   Transform( qSind, "@EZ  99,999,999.99" )
+
+   cDet := "FILIAL: "         +;
+	   cFilialAnt         +;
+	   Space( 82 )        +;
+	   " TOTAL FILIAL "   +;
+	   Transform( qSind, "@EZ  99,999,999.99" )
+
+End	   
+
+RETURN
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica quebra do relatorio                                 ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> FUNCTION QuebraRel
+Static FUNCTION QuebraRel()
+
+If SRA->RA_FILIAL != cFilialAnt .Or.;
+   cSindAnt != SRA->RA_SINDICA  .Or.;
+   Li == 58
+
+   Impr( Replicate( "*", 132 ), "C" )
+   cDet := "Filial/Sindicato: "    +;
+	    cFilialAnt+"/"+cSindAnt +;
+	    Space( 44 )             +;
+            " TOTAL DA PAGINA "     +;
+	    Transform( qPag, "@EZ  99,999,999.99" )+;
+	    Space( 33 )             +;
+	    "*"
+   Impr( cDet, "C" )
+
+   If SRA->RA_FILIAL  != cFilialAnt .Or.;
+      SRA->RA_SINDICA != cSindAnt
+
+      Impr( Replicate( "*", 132 ), "C" )
+      cDet := "Filial/Sindicato: "    +;
+               cFilialAnt+"/"+cSindAnt +;
+               Space( 44 )             +;
+               " TOTAL SINDICATO "     +;
+               Transform( qSind, "@EZ  99,999,999.99" )+;
+               Space( 33 )             +;
+               "*"
+      qSind := 0
+      ImpR(cDet, "C" )
+      cDescFil := aInfo[1]
+      PesqSind()
+      fInfo(@aInfo,SRA->RA_FILIAL)
+      ImpR("", "P" )
+      cFilialAnt := SRA->RA_FILIAL
+      cSindAnt   := SRA->RA_SINDICA 
+   End
+
+   qPag       := 0
+
+End
+
+RETURN

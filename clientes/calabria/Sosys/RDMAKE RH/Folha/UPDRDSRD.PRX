@@ -1,0 +1,167 @@
+#INCLUDE "PROTHEUS.CH"
+//-------------------------------------------------------------------
+/*/{Protheus.doc} UPDRDSRD
+Esta rotina realiza envio de dados da SRD para empresa destino quando os mesmos, no momento da transferencia de um funcionário, não foram enviados pela rotina 
+GPEA180. Cenário de correção: Funcionário possuí histórico de tranferencia cuja empresa destino já foi empresa origem para o mesmo funcionário, 
+mudança de matricula e mudança empresa.
+ 
+Ex da Transferência e geração do GPER080 - Demonstrativo de Médias
+Empresa atual: T1 D MG 01 --> Empresa destino:  T2 L SP 01 (201804) Houve troca de matrícula (Transferência OK)
+Empresa atual: T2 L SP 01 --> Empresa destino:  T1 D MG 01 (201806) Houve troca de matrícula (Transferência OK referente a empresa origem, porém dados incompletos referente ao histórico)
+
+@author  martins.ana
+@since   28/08/2019
+@version 0.1
+/*/
+//-------------------------------------------------------------------
+User Function UPDRDSRD()
+
+	Local oDlg			:= NIL
+	Local oBtTDN		:= NIL
+	Local oGroup		:= NIL
+	Local lProcSRD		:= .F.
+	Local bOk			:= { || lProcSRD := .T., oDlg:End() }
+	Local bFecha		:= { || oDlg:End() }
+	Local aAdvSize		:= MsAdvSize()
+	Local aInfo			:= {}
+	Local aPosObj		:= {}
+	Local aObjects		:= {}
+	Private nRetorno := 0
+	
+	aAdvSize[5] := 600
+	aAdvSize[6] := 200
+	aInfo := { aAdvSize[1], aAdvSize[2], aAdvSize[3], aAdvSize[4], 20, 0 }
+	AAdd( aObjects, { 0, 1, .T., .T. } )
+	aPosObj := MsObjSize( aInfo, aObjects, .T. )
+	
+	DEFINE FONT oFont  NAME "Arial" SIZE 0,-11 BOLD
+	DEFINE FONT oFont1 NAME "Arial" SIZE 0,-11
+	
+	DEFINE MSDIALOG oDlg TITLE OemToAnsi("Atualização") FROM  aAdvSize[7],0 TO aAdvSize[6],aAdvSize[5] OF oMainWnd PIXEL
+		
+	@ 020,015	GROUP oGroup TO 70,285 LABEL OemToAnsi("Histórico de Movimentos")  OF oDlg PIXEL 
+	oGroup:oFont:=oFont
+
+	@ 040 , 030 SAY OemToAnsi( "Esta rotina atualiza dados referente ao Histórico de Movimentos - SRD " )								SIZE 300,15 OF oDlg PIXEL FONT oFont1 
+	@ 050 , 030 SAY OemToAnsi( "para transferências entre grupo de empresas, realizadas antes da correção da issue DRHGCH-13657." )		SIZE 300,15 OF oDlg PIXEL FONT oFont1 
+
+	@ aPosObj[1, 1] + 50 , 015 SAY oBtTDN PROMPT "<u>" + OemToAnsi( "Link para documentação no TDN" ) + "</u>" 							SIZE 090,008 OF oDlg HTML PIXEL FONT oFont  
+		
+	TButton():New(aPosObj[1, 1] + 50, aPosObj[1, 2] + 210,	"Cancelar", oDlg, bFecha,26,11,,,.F.,.T.,.F.,,.F.,,,.F. ) //"Cancelar"
+	TButton():New(aPosObj[1, 1] + 50, aPosObj[1, 2] + 240,	"OK", oDlg, bOk,26,11,,,.F.,.T.,.F.,,.F.,,,.F. )		 //"Ok"
+	
+	oBtTDN:bLClicked := {|| ShellExecute("open","https://tdn.totvs.com/x/we_2Hg","","",1) }
+	
+	ACTIVATE DIALOG oDlg CENTERED
+
+	//Efetua o processamento 
+	If lProcSRD
+		ProcGpe( {|lEnd| ProcGrvSRD()},,,.T. )		
+		AVISO("Atualização", "Processamento concluído, "+ cValToChar(nRetorno) +" registros adicionados." , { "Fechar" }, 1)		
+	EndIf    
+Return 
+
+/*/{Protheus.doc} ProcGrvSRD
+//Grava registros na empresa destino quando os mesmos não foram encontrados na mesma.
+@author  martins.ana
+@since   28/08/2019
+@version 1.0
+/*/
+Static Function ProcGrvSRD()
+
+	Local nPosCpo 		:= 0  
+	Local aAllGrp := FWAllGrpCompany()
+	Local nY
+	Local cQuerySRD := ""
+	Local cQuerySRE := ""
+	Local cRE_MATD  	:= "" 
+	Local cRE_MATP 		:= "" 
+	Local cRE_EMPP 		:= "" 
+	Local cRE_EMPD 		:= "" 
+	Local cRE_FILIALP 	:= "" 
+	Local cAliasSRD 
+	Local aStruct
+	Local cModo := "C"
+
+	For nY = 1 To Len(aAllGrp)
+		//Tudo que existia na SRD da matricula origem no momento da transferencia referente a histórico de outras transferencias		
+		IF EmpOpenFile("SRD","SRD",1,.T.,aAllGrp[nY],@cModo) 
+			IF EmpOpenFile("SRE","SRE",1,.T.,aAllGrp[nY],@cModo) 			
+				If(nY == 1)	
+					cQuerySRD := " SELECT * FROM SRD"+ aAllGrp[nY] + "0 WHERE RD_MAT in (" + ;
+					"SELECT RE_MATD FROM " + RetSqlName("SRE") +" WHERE RE_MATD IN( "+ ;
+					"SELECT RE_MATP FROM " + RetSqlName("SRE") +" WHERE RE_EMPD != RE_EMPP AND RE_MATD != RE_MATP )" + ;
+					") AND RD_EMPRESA != ''"						
+				Else
+					cQuerySRD += " UNION SELECT * FROM SRD"+aAllGrp[nY] + "0 WHERE RD_MAT in (" + ;
+					"SELECT RE_MATD FROM " + RetSqlName("SRE") +" WHERE RE_MATD IN( " +;
+					"SELECT RE_MATP FROM " + RetSqlName("SRE") +" WHERE RE_EMPD != RE_EMPP AND RE_MATD != RE_MATP )" +;
+					") AND RD_EMPRESA != ''"		
+				EndIf				
+				SRE->( dbCloseArea() )
+			EndIF		
+			SRD->( dbCloseArea() )			
+		EndIF		
+	Next
+	CHKFILE("SRD") 
+	CHKFILE("SRE")
+	
+	cAliasSRD := GetNextAlias()
+	dbUseArea(.T., "TOPCONN", TcGenQry(,,cQuerySRD), cAliasSRD)
+
+	//Todas as transferencias
+	cQuerySRE +="SELECT * FROM " + RetSqlName("SRE") +" WHERE RE_MATD IN( SELECT RE_MATP FROM " + RetSqlName("SRE") +" WHERE RE_EMPD != RE_EMPP AND RE_MATD != RE_MATP )"
+	cAliasSRE := GetNextAlias()
+	dbUseArea(.T., "TOPCONN", TcGenQry(,,cQuerySRE), cAliasSRE)	
+
+
+	DbSelectArea("SRD")
+	aStruct	:= SRD->( dbStruct() )  
+	Begin Sequence 	
+		dbSelectArea( cAliasSRE )
+		(cAliasSRE)->(DbGoTop())
+		While (cAliasSRE)->( !Eof() ) 
+
+			cRE_MATD := (cAliasSRE)->RE_MATD
+			cRE_MATP := (cAliasSRE)->RE_MATP
+			cRE_EMPP := (cAliasSRE)->RE_EMPP
+			cRE_EMPD := (cAliasSRE)->RE_EMPD
+			cRE_FILIALP := (cAliasSRE)->RE_FILIALP	
+	
+			dbSelectArea( cAliasSRD )			
+			(cAliasSRD)->(DbGoTop())
+			
+			dbSelectArea("SRD")
+			dbSetOrder(1)	
+			SRD->(dbSetOrder(1))
+			If !SRD->(dbSeek(xFilial("SRD")+cRE_MATP+(cAliasSRD)->RD_PERIODO+(cAliasSRD)->RD_PD+(cAliasSRD)->RD_SEMANA+(cAliasSRD)->RD_SEQ+(cAliasSRD)->RD_CC,.T.))			
+				While (cAliasSRD)->( !Eof() )            
+					RecLock("SRD",.T.) //Define a tabela e se o tipo da operação é inclusao de campo					
+					For nPosCpo := 1 To Len( aStruct )
+						dbSelectArea( cAliasSRD)
+						xObtemCpo :=  FieldGet( FieldPos ( aStruct[ nPosCpo , 1 ] ) )
+						dbSelectArea( "SRD" )
+						If FieldPos ( aStruct[ nPosCpo , 1 ] ) > 0
+							IF Upper( AllTrim( aStruct[ nPosCpo , 1 ] ) ) == "RD_FILIAL"
+								FieldPut( FieldPos ( aStruct[ nPosCpo , 1 ] ) , cRE_FILIALP )
+							ElseIF Upper( AllTrim( aStruct[ nPosCpo , 1 ] ) ) == "RD_MAT"
+								FieldPut( FieldPos ( aStruct[ nPosCpo , 1 ] ) , cRE_MATP )
+							ElseIF Upper( AllTrim( aStruct[ nPosCpo , 1 ] ) ) == "RD_EMPRESA"
+								FieldPut( FieldPos ( aStruct[ nPosCpo , 1 ] ) , IF( Empty(xObtemCpo),cRE_EMPD,xObtemCpo ) )
+							Else
+								FieldPut( FieldPos ( aStruct[ nPosCpo , 1 ] ) , xObtemCpo )
+							EndIF
+						EndIF
+					Next nPosCpo
+					SRD->(MsUnlock()) // finaliza			
+					nRetorno +=1		
+					(cAliasSRD)->(DbSkip())
+				EndDo
+				(cAliasSRD)->(DbCloseArea())	
+			EndIf
+			(cAliasSRE)->(DbSkip())
+		EndDo
+		(cAliasSRE)->(DbCloseArea())		
+	End Sequence 
+	
+Return nil

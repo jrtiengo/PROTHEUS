@@ -1,0 +1,90 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+User Function Fol007()        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de variaveis utilizadas no programa atraves da funcao    ³
+//³ SetPrvt, que criara somente as variaveis definidas pelo usuario,    ³
+//³ identificando as variaveis publicas do sistema utilizadas no codigo ³
+//³ Incluido pelo assistente de conversao do AP5 IDE                    ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+SetPrvt("ACOLS,AHEADER,NN,")
+
+/*....
+      Manutencao da tabela de Dias uteis e repouso por Filial
+      Responsavel: Ivan Maestri
+      Desenvolvido: Roberto Mazzarolo
+      ...*/
+
+aCols := {}
+DbSelectArea("SRX")
+DbSeek( xFilial("SRX") + "Z1")
+
+While !eof() .and. RX_TIP == "Z1" //CARREGA DADOS NA TELA
+    //....................Filial...........Ano......................Mes........................Dias Uteis..........Dias Repouso..............
+    aAdd( aCols , { Left(Rx_Cod,2) ,Substr(Rx_Cod,3,4),Substr(Rx_Cod,7,2), Val(Substr(Rx_Txt,1,3)), Val(Substr(Rx_Txt,4,3)),RecNo(),.f. } )
+    DbSkip()
+End
+
+aHeader := {}                       //PICTURE          //TAM   DEC   ?    VALID   TIPO    ALIAS
+aAdd(aHeader,{ "Filial",     "XXX",   "99",                2,  0,  "",     ".T.",  "C",  "XXX" } )
+aAdd(aHeader,{ "Ano",        "XXX",   "9999",              4,  0,  "",     " ",  "C",  "XXX" } )
+aAdd(aHeader,{ "Mes",        "XXX",   "99",                2,  0,  "",     "If(&ReadVar() $ '01,02,03,04,05,06,07,08,09,10,11,12',.t.,.f.)",  "C",  "XXX" } )
+aAdd(aHeader,{ "Hrs Uteis",  "XXX",   "999",               3,  0,  "",     " ",  "N",  "XXX" } )
+aAdd(aHeader,{ "Hrs Repouso","XXX",   "999",               3,  0,  "",     " ",  "N",  "XXX" } )
+aAdd(aHeader,{ "Registro",   "XXX",   "999999",            6,  0,  "",     ".f.","N",  "XXX" } )
+
+//TARASCONI - 30/03/05 - USUARIOS RECLAMAM QUE O CAMPO FILIAL ESTA FECHADO E ANTES PODIA-SE
+//INCLUIR A FILIAL MANUALMENTE...VAMOS DEIXAR O SISTEMA ABASTECER ESTE CAMPO DE ACORDO
+//COM A VARIAVEL CFILANT
+//aAdd(aHeader,{ "Filial",     "XXX",   "",                  2,  0,  "",     " ",  "C",  "XXX" } )
+
+If Len(aCols) ==  0
+   aAdd( aCols , { "  ","  ","  ",0 , 0, 0 ,.F.})
+End
+   
+@ 100,100 TO 310,710 DIALOG DIA0043 TITLE "Cadastramento dos Dias Uteis x Repouso"
+@ 10,30 TO 90,300 MULTILINE Modify Delete Valid FVal43() FREEZE 1// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> @ 10,30 TO 90,300 MULTILINE Modify Delete Valid Execute(FVal43) FREEZE 1
+@ 91,030 BUTTON "_Salva" Size 50,10 ACTION FUN0031()// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> @ 91,030 BUTTON "_Salva" Size 50,10 ACTION Execute(FUN0031)
+@ 91,130 BUTTON "_Abandona" Size 50,10 ACTION Close(DIA0043)
+ACTIVATE DIALOG DIA0043 CENTERED
+
+return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function FVal43
+Static Function FVal43()
+    DlgRefresh(DIA0043)
+Return .t.
+  
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function FUN0031
+Static Function FUN0031()
+   
+   For nn := 1 to Len(aCols)
+       
+       IF ACOLS[NN,1] = "  "
+       ACOLS[NN,1] := CFILANT
+       ENDIF
+                //FILIAL             //LOGICA                //ANO                 //MES                   //HRS UTEIS
+       If !Empty(aCols[nn,1]) .and. !aCols[nn,7] .and. !Empty(aCols[nn,2]) .and. !Empty(aCols[nn,3]) .and. !Empty(aCols[nn,4])
+          If Empty( aCols[nn,6])
+             RecLock("SRX",.t.)
+             Srx->Rx_Filial := xFilial("SR5")
+             Srx->Rx_Tip    := "Z1"
+          Else
+             DbGoto( aCols[nn,6] )
+             RecLock("SRx",.f.)
+          End
+          Srx->Rx_Cod := aCols[nn,1] + aCols[nn,2] + aCols[nn,3]
+          Srx->Rx_TXT := Str(aCols[nn,4],3) + Str(aCols[nn,5],3)
+          MsUnLock()
+       ElseIf aCols[nn,6] > 0  //HRS REPOUSO ?!
+          DbGoto( aCols[nn,6] )
+          RecLock("SRx",.f.)
+          DbDelete()
+          MsUnLock()
+       End
+   Next
+   Close (DIA0043)
+return
+

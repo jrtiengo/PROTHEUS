@@ -1,0 +1,385 @@
+#INCLUDE "PROTHEUS.CH"
+#INCLUDE "TBICONN.CH"
+#INCLUDE "RWMAKE.CH"
+#INCLUDE "PONWORK.CH"
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Programa  ³PonWork   ³ Autor ³ Marinaldo de Jesus    ³ Data ³21/11/2001³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡„o ³Exemplo de Programa Para Agendamento de Rotinas em WorkFlow ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Sintaxe   ³ Void                                                       ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ Uso      ³Modelo Desenvolvido para Agendamento do PONM010 -   Processo³
+³          ³de Leitura e Apontamento de Marcacoes					    ³
+ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³          ATUALIZACOES SOFRIDAS DESDE A CONSTRU€AO INICIAL.		    ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Programador ³ Data   ³ BOPS ³  Motivo da Alteracao                     ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³            ³        ³      ³                                 		  	³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³Programador  ³ Data     ³ FNC            ³  Motivo da Alteracao                      ³
+ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ³
+³Rogerio R.   ³29/07/2009³00000018267/2009³Compatibilizacao dos fontes para aumento do³
+³             ³          ³                ³campo filial e gestão corporativa.         ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ As Instrucoes Abaixo deverao ser Incluidas no INI do Server			³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+[ONSTART]
+JOBS=LEITURA_CLASSIFICACAO	//Define o Nome do Job
+
+[LEITURA_CLASSIFICACAO]		//Configuracoes do Job
+Main=u_StartJobPon			//ou Main=wfStart() se tiver apenas uma empresa
+Environment=Environment		//Nome do Environment que devera ser utilizado
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ A chamada abaixo devera ser Incluida no Agendamento do WorkFlow		³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+u_PonScheduler(		"01"	,;	//01 -> Codigo da Empresa no SIGAMAT
+				 	"01"	,;	//02 -> Codigo da Filial no SIGAMAT
+				 	.F.		,;	//03 -> Utilizar os Parametros do SX1 para o Processo de Leitura / Apontamento
+				 	.T.		,;	//04 -> Limitar a Data Final do Apontamento aa DataBase do Sistema
+				 	.T.		,;	//05 -> Efetuar o Apontamento Por Filial
+				 	.F.		,;	//06 -> Efetua Apontamento para Relogios nao Lidos
+				 	.F.		,;	//07 -> Forcar o Reapontamento das Marcacoes   
+				 	.F.		,;  //08 -> Processa apenas a filial passada como parametro 
+				 	"3"		,;  //09 -> Se processa leitura, apontamento ou ambos ('1'->Leitura , '2'->Apontamento , '3'->Ambos)
+				 	"2"		,;  //10 -> Se efetua a leitura a partir do cadastro de funcionarios ou relogios('1'->Funcionario , '2'->Relogio)
+			   )
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Fun‡…o    ³PonScheduler ³ Autor ³ Marinaldo de Jesus ³ Data ³21/11/2001³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Prepara o Ambiente da Empresa e Executa a  Leitura/Apontamen³
+³          ³to														    ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Sintaxe   ³u_PonScheduler( aUserDefParam )								³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Parametros³aUserDefParam -> Array contendo os Parametros do Usuario	³
+³          ³       														³
+³Conteudo  ³aUserDefParam[01]Codigo da Empresa no SIGAMAT				³
+³          ³       														³
+³          ³aUserDefParam[02]Codigo da Filial no SIGAMAT  				³
+³          ³       														³
+³          ³aUserDefParam[03]Se .T. caracterizara que o Programa  devera³
+³          ³                 utilizar os Parametros do Programa de Leitu³
+³          ³                 ra/Apontamento, confome Definidos pelo Usua³
+³          ³                 rio. Caso Contrario Ira considerar os Para ³
+³          ³                 metros De/Ate de Forma Generica. 			³
+³          ³       														³
+³          ³aUserDefParam[04]Se a Data Fim dos Parametros deve ser limi-³
+³          ³                 tada a Menor Data entra a DataBase e o Fim ³
+³          ³                 do Periodo de Apontamento					³
+³          ³aUserDefParam[05]Se Deve Processar Por Filial               ³
+³          ³aUserDefParam[06]Se Deve Efetuar Apontamento Quando nao Con-³
+³          ³                 seguiu Ler o Arquivo do Relogio            ³
+³          ³aUserDefParam[07]Se Deve Forcar o Reapontamento 			³
+³          ³aUserDefParam[08]Se Utiliza a Filial passada como a que de- ³
+³          ³                 vera ser processada como parametro.		³
+³          ³aUserDefParam[09]Se efetua o processo de leitura,apontamento³
+³          ³                 ou realiza ambos.							³
+³          ³aUserDefParam[10]Se efetua a leitura a partir do cadastro de³
+³          ³                 funcionarios ou do cadastro de relogios.	³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Uso       ³PonWork                                                    	³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Observacao³Essa Funcao devera ser Cadastrada no Agendamento           	³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+User Function PonScheduler( aUserDefParam )
+
+Local aFiliais			:= {}
+Local cEmp				:= ""
+Local cFil				:= ""
+Local lUserDefParam		:= .F.
+Local lLimitaDataFim	:= .T.
+Local lProcFilial		:= .F.
+Local lApontaNaoLidas	:= .F.
+Local lForceReaponta	:= .F.  
+Local lSomentecFil		:= .F.
+Local nUserParam		:= 0.00
+Local nLenParam			:= 0.00
+Local nFilial			:= 0.00
+Local cProcessa			:= "3"
+Local cTipoRel			:= "2"
+Local cDtIni			:= ""
+Local cDtFim			:= ""
+Local dDtIni			:= Ctod("//")
+Local dDtFim			:= Ctod("//")
+Local lAtuPonWork		:= ( Len(aUserDefParam) == 14 )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Enviando Mensagens para o Console do Server                 			³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+ConOut("")
+ConOut( STR0001 )	//"Iniciando U_PonScheduler()..."
+ConOut("")
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Verifica os Parametros passados          								³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+IF ( !Empty( aUserDefParam ) .and. ValType( aUserDefParam ) == "A" )
+	nLenParam := Len( aUserDefParam )
+	For nUserParam := 1 To nLenParam
+		Do Case
+			Case ( nUserParam == 1 ) ; cEmp          	:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , ""	 )
+			Case ( nUserParam == 2 ) ; cFil				:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , ""	 )
+			Case ( nUserParam == 3 ) ; lUserDefParam	:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .F. )
+			Case ( nUserParam == 4 ) ; lLimitaDataFim	:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .T. )
+			Case ( nUserParam == 5 ) ; lProcFilial		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .F. )
+			Case ( nUserParam == 6 ) ; lApontaNaoLidas	:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .F. )
+			Case ( nUserParam == 7 ) ; lForceReaponta	:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .F. )
+			Case ( nUserParam == 8 ) ; lSomentecFil		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "L" ) , aUserDefParam[ nUserParam ] , .F. )
+			Case ( nUserParam == 9 .And. lAtuPonWork ) ; cProcessa		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , "3" )
+			Case ( nUserParam == 10 .And. lAtuPonWork ); cTipoRel		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , "2" )
+			Case ( nUserParam == 11 .And. !lUserDefParam ); cDtIni		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , "" )
+			Case ( nUserParam == 12 .And. !lUserDefParam ); cDtFim		:= IF( ( ValType( aUserDefParam[ nUserParam ] ) == "C" ) , aUserDefParam[ nUserParam ] , "" )
+		End Case
+	Next nUserParam
+EndIF
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Verifica se Empresa/Filial foram Passados								³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+IF !Empty( cEmp ) .and. !Empty( cFil )
+
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³ Enviando Mensagens para o Console do Server                 			³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	ConOut("")
+	ConOut( STR0002 ) //"Preparando Ambiente da Empresa. Aguarde... "
+	ConOut("")
+	
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³ Prepara Ambiente da Empresa											³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	PREPARE ENVIRONMENT EMPRESA ( cEmp ) FILIAL ( cFil )
+	
+		/*
+		ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+		³ Redefine nModulo de forma a Garantir que o Modulo seja o SIGAPON		³
+		ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+		SetModulo( "SIGAPON" , "PON" )
+
+		If LockByName( "PONWORK" + cEmp, .T., .T., .T. )  
+
+			If Len(cDtIni) == 6 .And. Len(cDtFim) == 6 .And. !Empty(cDtIni) .And. Val(SubStr(cDtIni,1,2)) <= 31 .And. Val(SubStr(cDtIni,3,2)) <= 12
+			
+				dDtIni := sToD( If( Val(Right(cDtIni,2)) > 80, "19", "20" ) + SubStr(cDtIni,5,2) + SubStr(cDtIni,3,2) + SubStr(cDtIni,1,2) )
+				dDtFim := dDataBase
+			
+				If !Empty( cDtFim ) .And. Val(SubStr(cDtFim,1,2)) <= 31 .And. Val(SubStr(cDtFim,3,2)) <= 12
+					dDtFim := sToD( If( Val(Right(cDtFim,2)) > 80, "19", "20" ) + SubStr(cDtFim,5,2) + SubStr(cDtFim,3,2) + SubStr(cDtFim,1,2) )		
+				EndIf
+				
+			EndIf
+
+			/*
+			ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+			³ Processando a Leitura/Apontamento                           			³
+			ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+			IF ( lProcFilial )
+			
+				If lSomentecFil 
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Processa somente a Filial passada como parametro            			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					aFiliais := GetFilRecnos(cEmpAnt, cFil, cFil)
+				Else 
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Processa todas as Filiais da Empresa passada como parametro  			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					aFiliais := GetFilRecnos(cEmpAnt , Space(FWGETTAMFILIAL), Replicate("Z", FWGETTAMFILIAL))
+				Endif
+			
+				For nFilial := 1 To Len( aFiliais )
+				
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Posiciona o SM0 na Filial a ser Processada                  			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					SM0->( dbGoto( aFiliais[ nFilial , 02 ] ) )
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Enviando Mensagens para o Console do Server                 			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					ConOut("")
+					//"Inicio da Leitura e/ou Apontamento em: "###" as "
+					If cProcessa == "1"
+						ConOut( STR0010  + Dtoc( MsDate() ) + STR0004 + Time() )//"Inicio da Leitura em: "###" as "
+					ElseIf cProcessa == "2"
+						ConOut( STR0012  + Dtoc( MsDate() ) + STR0004 + Time() )//"Inicio do Apontamento em: "###" as "
+					Else
+						ConOut( STR0003  + Dtoc( MsDate() ) + STR0004 + Time() )//"Inicio da Leitura/Apontamento em: "###" as "					
+					EndIf
+					ConOut("")
+					//"Empresa: "
+					ConOut( STR0005 + SM0->( M0_CODIGO + " - " + AllTrim( M0_NOMECOM ) ) )
+					ConOut("")
+					//"Filial:  "
+					ConOut( STR0006 + SM0->( FWGETCODFILIAL + " - " + AllTrim( M0_FILIAL ) + "/" + AllTrim( M0_NOME ) ) )
+					ConOut("")
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Chamada a Funcao de Leitura e Apontamento das Marcacoes     			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					Ponm010(	.T.							,;	//Define Que a Chamada Esta Sendo Efetuada Atraves do WorkFlow
+								lUserDefParam				,;	//Verifica Se Devera Considerar os Parametros Pre-Definidos Pelo Usuario
+								lLimitaDataFim				,;	//Verifica Se Devera Limitar a Data Fim a Menor Data entre a DataBase e o Periodo Final de Apontamento
+								aFiliais[ nFilial , 01 ]	,;	//Filial a ser processada
+								lProcFilial					,;	//Processo por Filial
+								lApontaNaoLidas				,;	//Se Aponta as Marcacoes para as Filiais nao Lidas
+								lForceReaponta				,;	
+								NIL							,;	
+								NIL							,;	
+								NIL							,;	
+								cProcessa			 		,;	//Se processa leitura, apontamento ou ambos ('1'->Leitura , '2'->Apontamento , '3'->Ambos)
+								cTipoRel			 		,;	//Se efetua a leitura a partir do cadastro de funcionarios ou relogios('1'->Funcionario , '2'->Relogio)
+								dDtIni						,;	//Data inicio para leitura dos apontamentos
+								dDtFim						;	//Data fim para leitura dos apontamentos
+							)
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Garante o Posicionamento no SIGAMAT                         			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					SM0->( MsGoto( aFiliais[ nFilial , 02 ] ) )
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³ Enviando Mensagens para o Console do Server                 			³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					ConOut("")
+					// "Final da Leitura e/ou Apontamento em: "###" as "
+					If cProcessa == "1"
+						ConOut(STR0011 + Dtoc( MsDate() ) + STR0004 + Time() )// "Final da Leitura em: "###" as "
+					ElseIf cProcessa == "2"
+						ConOut(STR0013 + Dtoc( MsDate() ) + STR0004 + Time() )// "Final do Apontamento em: "###" as "
+					Else
+						ConOut(STR0007 + Dtoc( MsDate() ) + STR0004 + Time() )// "Final da Leitura/Apontamento em: "###" as "
+					EndIf
+					ConOut("")
+					//"Empresa: "
+					ConOut(STR0005 + SM0->( M0_CODIGO + " - " + AllTrim( M0_NOMECOM ) ) )
+					ConOut("")
+					//"Filial:  "
+					ConOut(STR0006 + FWGETCODFILIAL + " - " +  SM0->(AllTrim(M0_FILIAL) + "/" + AllTrim(M0_NOME) ) )
+					ConOut("")
+
+				Next nFilial
+			Else
+
+				/*
+				ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+				³ Enviando Mensagens para o Console do Server                 			³
+				ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+				ConOut("")
+				//"Inicio da Leitura/Apontamento em: "###" as "
+				ConOut( STR0003  + Dtoc( MsDate() ) + STR0004 + Time() )
+				ConOut("")
+
+				/*
+				ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+				³ Chamada a Funcao de Leitura e Apontamento das Marcacoes     			³
+				ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+				Ponm010(	.T.							,;	//Define Que a Chamada Esta Sendo Efetuada Atraves do WorkFlow
+							lUserDefParam				,;	//Verifica Se Devera Considerar os Parametros Pre-Definidos Pelo Usuario
+							lLimitaDataFim				,;	//Verifica Se Devera Limitar a Data Fim a Menor Data entre a DataBase e o Periodo Final de Apontamento
+							cFil						,;	//Filial a ser processada
+							lProcFilial					,;	//Processo por Filial
+							lApontaNaoLidas				,;	//Se Aponta as Marcacoes para as Filiais nao Lidas
+							lForceReaponta				,;	
+							NIL							,;	
+							NIL							,;	
+							NIL							,;	
+							cProcessa			 		,;	//Se processa leitura, apontamento ou ambos ('1'->Leitura , '2'->Apontamento , '3'->Ambos)
+							cTipoRel			 		,;	//Se efetua a leitura a partir do cadastro de funcionarios ou relogios('1'->Funcionario , '2'->Relogio)
+							dDtIni						,;	//Data inicio para leitura dos apontamentos
+							dDtFim						;	//Data fim para leitura dos apontamentos
+						)
+
+				/*
+				ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+				³ Enviando Mensagens para o Console do Server                 			³
+				ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+				ConOut("")
+				// "Final da Leitura/Apontamento em: "###" as "
+				ConOut( STR0007 + Dtoc( MsDate() ) + STR0004 + Time() )
+				ConOut("")
+
+			EndIF		
+			
+			/*
+			ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+			³ Enviando Mensagens para o Console do Server                 			³
+			ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+			ConOut("")
+			ConOut( STR0008 )	//"Encerrando Ambiente da Empresa. Aguarde... "
+			ConOut("")
+			UnLockByName("PONWORK" + cEmpAnt , .T., .T., .T.) 
+		Else
+			ConOut("")
+			ConOut("U_PonScheduler() em execução por outro processo..")
+			ConOut("")	
+		EndIf
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³ Finaliza o Ambiente da Empresa										³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	RESET ENVIRONMENT
+
+Else
+
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³ Enviando Mensagens para o Console do Server                 			³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	ConOut("")
+	ConOut( STR0009 )	//"Nao foi possivel concluir o processo. Empresa ou Filial Invalidas."
+	ConOut("")
+
+EndIF
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Enviando Mensagens para o Console do Server                 			³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+ConOut("")
+ConOut("Finalizando U_PonScheduler()...")
+ConOut("")
+	
+Return( NIL )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Fun‡…o    ³StartJobPon  ³ Autor ³ Marinaldo de Jesus ³ Data ³21/11/2001³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Start do Processo de WorkFlow                               ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Sintaxe   ³u_StartJobPon												³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Parametros³															³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Uso       ³PonWork                                                    	³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Observacao³Essa Funcao devera ser Incluida no .INI do Server          	³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+User Function StartJobPon()
+
+Local aEmpFil := Array( 02 )
+
+aEmpFil[ 01 ] := "01"	//Codigo da Empresa confome SIGAMAT
+aEmpFil[ 02 ] := "01"	//Codigo da Filial  confome SIGAMAT
+
+Return( wfStart( aEmpFil ) )

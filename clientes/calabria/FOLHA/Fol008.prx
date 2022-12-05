@@ -1,0 +1,101 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+User Function Fol008()        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de variaveis utilizadas no programa atraves da funcao    ³
+//³ SetPrvt, que criara somente as variaveis definidas pelo usuario,    ³
+//³ identificando as variaveis publicas do sistema utilizadas no codigo ³
+//³ Incluido pelo assistente de conversao do AP5 IDE                    ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+SetPrvt("ACOLS,ACRA,TELL,NESCOLHA,ATURNOS,CFILIAL")
+SetPrvt("NN,CDATA,CANOMES,")
+
+/*....
+      Fol008 - Calculo dos horas Normais e Horas de Repouso
+      Responsavel: Ivan Maestri
+      Desenvolvido: Roberto Mazzarolo
+      ...*/
+
+aCols := {}
+DbSelectArea("SRX")
+DbSeek( xFilial("SRX") + "Z1")
+
+While !eof() .and. RX_TIP == "Z1"
+    //....................Filial...........Ano......................Mes........................Dias Uteis..........Dias Repouso..............
+    aAdd( aCols , { Left(Rx_Cod,2) ,Substr(Rx_Cod,3,4),Substr(Rx_Cod,7,2), Val(Substr(Rx_Txt,1,3)), Val(Substr(Rx_Txt,4,3)),RecNo(),.f. } )
+    DbSkip()
+End
+
+#IFNDEF WINDOWS
+  SETCOLOR("N/BG,W/N,N/N,N/N,N/BG")
+  DrawAdvWindow("Calculo das Horas Normais e Horas de repouso ",07,01,15,78)
+  @08 , 10 say "Objetivo: Efetuar o calculo das Horas Normais e "
+  @09 , 10 say "          Horas de Repouso para todos os sindicatos   "
+  @10 , 10 Say "          Conforme o cadastro do dias uteis por Filial "
+
+  aCRA        :={"Confirma","Abandona"}
+  tell := savescreen(15,01,15,69)
+  nEscolha:=MenuH(aCRA,15,03,"b/w,w+/n,r/w","CA","Quanto ao Calculo..? ",1)
+  restscreen(15,01,15,69,tell)
+
+  If nEscolha == 1
+     FCalcula()
+  Endif
+#ELSE
+  @ 100,100 TO 310,710 DIALOG DIA0043 TITLE "Calculo das Horas Normais e Horas de repouso "
+  @ 020,010 Say " - Este Processo efetua o calculo das Horas Normais e"
+  @ 030,010 Say "   Horas de Repouso para todos os sindicatos"
+  @ 040,010 Say "   Conforme o cadastro do dias uteis por"
+  @ 050,010 Say "   Filial."
+
+  @ 091,030 BUTTON "_Confirma" Size 50,10 ACTION FUN0031()// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>   @ 091,030 BUTTON "_Confirma" Size 50,10 ACTION Execute(FUN0031)
+  @ 091,130 BUTTON "_Abandona" Size 50,10 ACTION Close(DIA0043)
+  ACTIVATE DIALOG DIA0043 CENTERED
+#ENDIF
+return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function FUN0031
+Static Function FUN0031()
+    Processa( {|| Fcalcula() },"Calculando ","Aguarde.." )// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>     Processa( {|| Execute(Fcalcula) },"Calculando ","Aguarde.." )
+    Close( Dia0043 )
+Return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> Function FCalcula
+Static Function FCalcula()
+    DbSelectArea("SRA")
+    DbSetOrder(1)
+    Procregua( RecCount() )
+    aTurnos := {}
+    cFilial := xFilial("SRA")
+    DbSeek( cFilial )
+    While !Eof()  .and. Ra_Filial == cFilial
+          IncProc()
+          If Sra->ra_Catfunc <> "H"
+             If ( nn:= Ascan( aTurnos , Sra->Ra_TnoTrab ) ) == 0
+                aAdd( aTurnos , Sra->Ra_TnoTrab )
+             End
+          End
+          DbSkip()
+    EndDo
+
+    cData := Dtos(DDataBase)
+    cAnoMes :=  cFilial + Substr(cData,1,6)
+    DbSelectArea("SRX")
+    DbSetOrder(1)
+    If DbSeek( xFilial("SRX") + "Z1"  + cAnoMes)
+
+       DbSelectArea("SR6")
+       DbSetOrder(1)
+       For nn:= 1 to Len( aTurnos )
+           If DbSeek( xFilial("SR6") + aTurnos[nn] )
+              RecLock("SR6",.f.)
+              Sr6->r6_HrNorma := Val( Substr( Srx->Rx_txt,1,3)) * R6_HrDias
+              Sr6->r6_HrDesc := Val( Substr( Srx->Rx_txt,4,3)) * R6_HrDias
+              MsUnLock()
+           End
+       Next
+    End
+Return
+

@@ -1,0 +1,394 @@
+#INCLUDE "RWMAKE.CH"        // incluido pelo assistente de conversao do AP5 IDE em 17/04/00
+#INCLUDE "REAEST.CH"
+#INCLUDE "PROTHEUS.CH"
+
+User Function REAEST()        // incluido pelo assistente de conversao do AP5 IDE em 17/04/00
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de variaveis utilizadas no programa atraves da funcao    ³
+//³ SetPrvt, que criara somente as variaveis definidas pelo usuario,    ³
+//³ identificando as variaveis publicas do sistema utilizadas no codigo ³
+//³ Incluido pelo assistente de conversao do AP5 IDE                    ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Local aOfusca		:= IIf(FindFunction('ChkOfusca'), ChkOfusca(), {.T.,.F.}) //[1] Acesso; [2]Ofusca
+Local aFldRel		:= {"RA_NOME"}
+Local lBlqAcesso	:= aOfusca[2] .And. !Empty( FwProtectedDataUtil():UsrNoAccessFieldsInList( aFldRel ) )
+
+If lBlqAcesso
+	//"Dados Protegidos- Acesso Restrito: Este usuário não possui permissão de acesso aos dados dessa rotina. Saiba mais em {link documentação centralizadora}"
+	Help(" ",1,aOfusca[3,1],,aOfusca[3,2],1,0)
+	Return
+EndIf
+
+SetPrvt("CDESC1,CDESC2,CDESC3,CSTRING,AORD,ARETURN")
+SetPrvt("NOMEPROG,ALINHA,NLASTKEY,CPERG,NTAMANHO,LI")
+SetPrvt("NVEZES,AINFO,ADEPEND,LEND,CFILANTE,CTIT")
+SetPrvt("WNREL,NORDEM,CFILDE,CFILATE,CMATDE,CMATATE")
+SetPrvt("CCCDE,CCCATE,NVIAS,TITULO,CINICIO,CFIM")
+SetPrvt("CHAVE,CLCNASC,CCARTO,CNREGCAR,CNUMLIV")
+SetPrvt("CE_IE,CE_BAIRRO,CF_NOME,CF_ENDERECO,CF_BAIRRO,CF_CIDADE")
+SetPrvt("CF_UF,CF_CEP,CF_CTPS,CF_UFCTPS,CF_SERIE,CF_CIC")
+SetPrvt("CF_RG,CF_MAT,CF_FIL,CF_CC,CF_ADMISSA,CF_CGHOR")
+
+/*                                                                 
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Programa  ³ REAEST   ³ Autor ³ R.H. - Luciana Silveira         ³ Data ³ 24.03.11 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³ Termo de Realizacao de Estagio                                       ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe   ³ REAEST                                                               ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ RdMake                                                               ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³         ATUALIZACOES SOFRIDAS DESDE A CONSTRU€AO INICIAL.                       ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Programador ³ Data   ³ FNC            ³  Motivo da Alteracao                     ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Leandro Dr.³19/10/13³M12RH01-RQ0318  ³ Unificao da Folha.                       ³±± 
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+
+cDesc1  := STR0001							//'TERMO DE REALIZAÇÃO DE ESTÁGIO'
+cString := "SRA" 							//-- alias do arquivo principal (Base)
+aOrd    := {'Matricula','Centro de Custo'} 	//'Matricula'###'Centro de Custo'
+   
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Define Variaveis Private(Basicas)                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+aReturn  := { 'Zebrado',1,'Administracao',2,2,1,'',1 }	//'Zebrado'###'Administra‡„o'
+NomeProg := 'REAEST'
+aLinha   := {}
+nLastKey := 0
+cPerg    := 'REAEST'
+nTamanho := "M"
+   
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis Utilizadas na funcao Principal do Programa         ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+Li       := 0
+nVezes   := 0   
+aInfo    := {}
+lEnd     := .F.
+cFilAnte := Replicate("ú", FWGETTAMFILIAL)
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Variaveis de Acesso do Usuario                               ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+cAcessaSRA	:= &( " { || " + ChkRH( "REAEST" , "SRA" , "2" ) + " } " )
+
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Verifica as perguntas selecionadas                           ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+Pergunte(cPerg,.F.)
+   
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Variaveis Utilizadas para parametros                         ³
+//³ MV_PAR01        //  FiLial De                                ³
+//³ MV_PAR02        //  FiLial Ate                               ³
+//³ MV_PAR03        //  Matricula De                             ³
+//³ MV_PAR04        //  Matricula Ate                            ³
+//³ MV_PAR05        //  Centro De Custo De                       ³
+//³ MV_PAR06        //  Centro De Custo Ate                      ³
+//³ MV_PAR07        //  N§ de Vias                               ³
+//³ MV_PAR08        //  Situacoes                                ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+cTit := STR0001		//' TERMO DE REALIZAÇÃO DE ESTÁGIO '
+   
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Envia controle para a funcao SETPRINT                        ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+WnRel :='REAEST' 	//-- Nome Default do relatorio em Disco.
+WnRel :=SetPrint(cString,WnRel,cPerg,@cTit,,,,.F.,aOrd,,nTamanho,,.F.)
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Carregando variaveis MV_PAR?? para Variaveis do Sistema.     ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+nOrdem  := aReturn[8]
+
+cFilDe	:= If(!Empty(MV_PAR01), MV_PAR01, Space(FWGETTAMFILIAL))
+cFilAte	:= If(!Empty(MV_PAR02), MV_PAR02, Replicate("Z", FWGETTAMFILIAL))
+cMatDe	:= If(!Empty(MV_PAR03), MV_PAR03, Space(GetSx3Cache("RA_MAT", "X3_TAMANHO")))
+cMatAte	:= If(!Empty(MV_PAR04), MV_PAR04, Replicate("Z", GetSx3Cache("RA_MAT", "X3_TAMANHO")) )
+cCCDe	:= If(!Empty(MV_PAR05), MV_PAR05, Space(GetSx3Cache("RA_CC", "X3_TAMANHO")))
+cCCAte	:= If(!Empty(MV_PAR06), MV_PAR06, Replicate("Z", GetSx3Cache("RA_CC", "X3_TAMANHO")) )
+nVias	:= If(!Empty(MV_PAR07), IIf(MV_PAR07 <= 0, 1, MV_PAR07), 1)
+cSituacao  := MV_PAR08	 	//Situacoes a Imprimir
+cCategoria := "EG" 			//Categorias a Imprimir 
+
+Titulo  := STR0001	//'TERMO DE REALIZAÇÃO DE ESTAGIO'
+   
+If nLastKey == 27
+	Return Nil
+EndIf
+
+SetDefault(aReturn,cString)
+
+If nLastKey == 27
+	Return Nil
+EndIf
+
+lEND	:= .F.
+WnRel	:= "REAEST"
+cSTRING := "SRA"
+
+RptStatus({|lEnd| fReaEst() })// Substituido pelo assistente de conversao do AP5 IDE em 17/04/00 ==>         RptStatus({|lEnd| Execute(fSalFam)},"Ficha de Salario Familia",lEnd)
+Return
+
+// Substituido pelo assistente de conversao do AP5 IDE em 17/04/00 ==> 	Function fSalFam
+Static Function fReaEst()
+
+Local nX
+Local nZ
+
+dbSelectArea('SRA')
+dbSetOrder(nOrdem)
+SetRegua(RecCount())
+dbGotop()
+
+If nOrdem == 1
+   dbSetOrder( 1 )
+   dbSeek(cFilDe + cMatDe,.T.)
+   cInicio  := "SRA->RA_FILIAL + SRA->RA_MAT"
+   cFim     := cFilAte + cMatAte
+ElseIf nOrdem == 2
+   dbSetOrder( 2 )
+   dbSeek(cFilDe + cCcDe + cMatDe,.T.)
+   cInicio  := "SRA->RA_FILIAL + SRA->RA_CC + SRA->RA_MAT"
+   cFim     := cFilAte + cCcAte + cMatAte
+EndIf
+
+//--Setar impressora
+@ Li,00 pSay AvalImp(132)
+
+While !Eof()
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Incrementa Regua de Processamento.                           ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	IncRegua()
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Cancela ImpresÆo ao se pressionar <ALT> + <A>.               ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	
+ 	If lEnd
+		@ Prow()+1, 0 PSAY STR0021		//"Cancelado pelo Operador"
+		Chave := 1
+		Exit
+	EndIf
+	
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Processa Quebra de Filial.                                   ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	If SRA->RA_FILIAL != cFilAnte
+		If	!fInfo(@aInfo,SRA->RA_FILIAL)
+			dbSelectArea('SRA')
+			dbSkip()
+			Loop
+		EndIf		
+		cFilAnte := SRA->RA_FILIAL		
+	EndIf	
+
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Consiste Parametriza‡Æo do Intervalo de ImpressÆo.           ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	If  (SRA->RA_FILIAL < cFilDe) .Or. (SRA->RA_FILIAL > cFilAte) .Or. ;
+		(SRA->RA_MAT < cMatDe)    .Or. (SRA->RA_MAT > cMatAte) .Or. ;
+		(SRA->RA_CC < cCcDe)      .Or. (SRA->RA_CC > cCCAte) .Or.;
+		!( SRA->RA_SITFOLH $ cSituacao ) .OR.  ! ( SRA->RA_CATFUNC $ cCategoria ).Or. ;
+		 SRA->RA_SITFOLH $ "D" .And.  Mesano(SRA->RA_DEMISSA) != Mesano(dDataBase) //Imprime somente os Demitidos do mes Atual.//
+		
+		dbSelectArea('SRA')
+		dbSkip()
+		Loop
+	EndIf
+	
+   	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³Consiste Filiais e Acessos                                             ³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	IF !( SRA->RA_FILIAL $ fValidFil() .and. Eval( cAcessaSRA ) )
+		dbSelectArea("SRA")
+   		dbSkip()
+   		Loop
+	EndIf
+
+
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Variaveis utilizadas na impressao.                           ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	cE_Empresa  := Left(aInfo[3],40)
+    cE_Endereco := Left(aInfo[4],30)
+    cE_Cidade   := Left(aInfo[5],20)
+	cE_Uf       := Left(aInfo[6],2)
+	cE_Cep      := Transform(Left(aInfo[7],8),'@R #####-###')
+    cE_Cgc      := Transform(Left(aInfo[8],14),'@R ##.###.###/####-##')
+	cE_Telefone := Left( aInfo[10] + Space( 17 ), 17 )
+    cE_Bairro   := Left(aInfo[13],20)
+    cF_Nome     := Left(SRA->RA_Nome,30)
+	cF_Mat      := Left(SRA->RA_Mat,6)
+    cF_admissa  := DtoC(SRA->RA_Admissa)
+    cF_demissa  := DtoC(SRA->RA_Demissa)
+    cF_Cghor	:= Transform(Sra->Ra_HrsMes,'999') +  space(1) + 'horas/semanais'
+    
+   //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+   //³ Posicionamento das colunas do Termo de Realização de Estágio ³
+   //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+   //           1         2         3         4         5         6         7         8         9         0         1         2         3
+   // +---------------------------------------------------------------------------------------------------------------------------------+            
+   // |Nome da Empresa:                                                                                                                 |            
+   // |CNPJ:                                                                                                                            |          
+   // |Endereço:                                                                                                                        |          
+   // |Telefone:                                                                                                                        |
+   // |Supervisor de Estagio:                                                                                                           |                    
+   // +---------------------------------------------------------------------------------------------------------------------------------+           
+   
+   
+   // +---------------------------------------------------------------------------------------------------------------------------------+            
+   // |Nome do Estagiario:                                                                                                              |            
+   // |Curso:                                                                                                                           |          
+   // |Matricula:                                                                                                                       |          
+   // +---------------------------------------------------------------------------------------------------------------------------------+           
+   //
+   //
+   // +---------------------------------------------------------------------------------------------------------------------------------+           
+   // |* Tarefas realizadas pelo estagiário:                                                                                            |            
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // +---------------------------------------------------------------------------------------------------------------------------------+
+   //
+   //   
+   // +---------------------------------------------------------------------------------------------------------------------------------+
+   // |* Avaliação de Desempenho:                                                                                                       |            
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // |                                                                                                                                 |          
+   // +---------------------------------------------------------------------------------------------------------------------------------+
+   //
+   // 
+   // +---------------------------------------------------------------------------------------------------------------------------------+            
+   // |Período de Estágio:              a                                                                                               |            
+   // |Carga Horária:         horas/semanais                                                                                            |          
+   // +---------------------------------------------------------------------------------------------------------------------------------+             
+   // +---------------------------------------------------------------------------------------------------------------------------------+            
+   // |Declaro, para fins de comprovação junto a(o) Setor de Estágios da(o) 
+   // |que o aluno acima indicado realizou seu Estágio sob minha responsabilidade.
+   // +---------------------------------------------------------------------------------------------------------------------------------+              
+       //ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+       //³ Impressao da Ficha de Salario-Famila                         ³
+       //ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+	If cPaisLoc == "BRA
+		For Nx := 1 to nVias
+	       @ Li, 50 PSAY STR0001		//	'TERMO DE REALIZAÇÃO DE ESTÁGIO'
+	       Li := Li+2                                  
+	       @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+	       Li := Li+1
+	       @ Li, 00 PSAY STR0002 + cE_Empresa + Space(73) + '|' //'Nome da Empresa '
+	       Li := Li+1
+	       @ Li, 00 PSAY STR0003 + cE_Cgc + Space(106) + '|' //'CNPJ '
+	       Li := Li+1
+		   @ Li, 00 PSAY STR0004 + cE_Endereco+ space(3)+STR0017 + cE_Bairro + Space(3) + STR0020 + cE_Cep + Space(2) + STR0018 + cE_Cidade + Space(2) + STR0019 + cE_UF + '|'	//'Endereco: '###'  Bairro: '###'CEP: '###'  Cidade: '###'UF: '
+	       Li := Li+1
+	       @ Li, 00 PSAY STR0005 + cE_Telefone+ space(103) + '|' //Telefone
+	       Li := Li+1
+	       @ Li, 00 PSAY STR0006 +  space(107) +'|' //Supervisor do Estagio 
+	       Li := Li+1
+	       @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+			 Li := Li+2 
+		   @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		   Li := Li+1 
+		   @ Li, 00 PSAY STR0007 + cF_Nome + Space(80) + '|' //'Nome do Estagiario: '
+		   Li := Li+1
+		   @ Li, 00 PSAY STR0008 + Space(123) + '|' //'Curso '
+		   Li := Li+1
+		   @ Li, 00 PSAY STR0009 + cF_Mat + Space(113) + '|' //'Matricula: '
+		   Li := Li+1 
+		   @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+			 Li := Li+2 
+		   @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		   Li := Li+1 
+		   @ Li, 00 PSAY STR0010 + Space(92) + '|' //'Tarefas realizadas pelo estagiário: 
+		   Li := Li+1 
+	       For Nz:=1 to 15
+	       		@ Li, 00 PSAY '|' + Space(130)+ '|'
+	        	Li := Li+1
+	        Next
+	        @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+			Li := Li+2 
+			@ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+			Li := Li+1 
+			@ Li, 00 PSAY STR0011 + Space(103) + '|' //'Avaliação de Desempenho: 
+		   	Li := Li+1 
+	       	For Nz:=1 to 10
+	       		@ Li, 00 PSAY '|' + Space(130)+ '|'
+	        	Li := Li+1
+	        Next
+	        @ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+			Li := Li+2
+			 
+			@ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		   	Li := Li+1 
+		   	@ Li, 00 PSAY STR0012 +  space(1) + cF_admissa + space(1) + 'a' + space(1) + cF_demissa + Space(87) + '|' //'Periodo de Estagio: 	 		
+		   	Li := Li+1
+		   	@ Li, 00 PSAY STR0013 +  cF_Cghor + Space(97) + '|' //'Carga Horária: 	 		
+		   	Li := Li+1
+		   	@ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		   	Li := Li+2 
+		   	@ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		 	Li := Li+1           
+		 	@ Li, 00 PSAY STR0014 + Space(67) + '|'
+		 	Li := Li+1  
+		 	@ Li, 00 PSAY STR0015 + Space(55) + '|' 
+		 	Li := Li+1  
+		 	@ Li, 00 PSAY '+' + Replicate('-',130) + '+'
+		 	Li := Li+3   
+		 	@ Li, 00 PSAY AllTrim(cE_Cidade) + ',_____ de_____________________de______' 
+		 	Li := Li+3
+		 	@ Li, 00 PSAY '___________________________________________________'  
+		 	Li := Li+1
+		 	@ Li, 00 PSAY STR0016
+		Next Nx   
+	EndIf
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	//³ Reinicializa Variaveis.                                      ³
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+   	Li      := 0
+	dbSelectArea('SRA')
+	dbSkip()	
+	
+EndDo	
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Termino do Relatorio.                                        ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+dbSelectArea( 'SRA' )
+RetIndex('SRA')
+dbSetOrder(1)
+   
+Set Device To Screen
+If aReturn[5] == 1
+	Set Printer To
+	dbCommit()
+	OurSpool(WnRel)
+EndIf
+MS_Flush()
+
+Return Nil

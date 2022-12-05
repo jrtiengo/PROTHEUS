@@ -1,0 +1,984 @@
+#INCLUDE "IMPMODEL.CH"
+#INCLUDE "PROTHEUS.CH"
+#INCLUDE "RPTDEF.CH"
+#INCLUDE "FWPRINTSETUP.CH"
+#INCLUDE "REPORT.CH"
+//
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Funca‡…o  ³ IMPMODEL ³ Autor ³ M. Silveira                              ³ Data ³   22.03.17    ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descricao ³ Imprime modelos de Documentos                                                      ³±±
+±±³          ³ Conversao Modelos .DOT: Contrato/Prorrog.Contrato/VT/Acordo de compensacao de horas³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³                     ATUALIZACOES SOFRIDAS DESDE A CONSTRU€CAO INICIAL.                        ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Programador ³Data      ³TICKET     ³Motivo da Alteracao                                        ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³            ³00/00/0000³           ³                                                           ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+User Function IMPMODEL()
+
+#DEFINE IMP_SPOOL     	2
+#DEFINE ALIGN_H_LEFT   	0
+#DEFINE ALIGN_H_RIGHT  	1
+#DEFINE ALIGN_H_CENTER 	2
+
+Local aOrdem     	:= {STR0002, STR0003, STR0004} //"Matricula"#"Centro de Custo"#"Nome"
+Local aDevice		:= {"DISCO","SPOOL","EMAIL","EXCEL","HTML","PDF"}
+Local bParam		:= {|| Pergunte('IMPMODEL', .T.)}
+Local cDevice		:= ""
+Local cSession		:= GetPrinterSession()
+Local lAdjust		:= .F.
+Local nFlags		:= PD_ISTOTVSPRINTER+PD_DISABLEORIENTATION+PD_DISABLEPAPERSIZE+PD_DISABLEMARGIN
+Local nLocal		:= 1
+Local nOrient		:= 1
+Local nPrintType	:= 6
+Local oPrinter		:= Nil
+Local oSetup		:= Nil
+
+Local aOfusca		:= If(FindFunction('ChkOfusca'), ChkOfusca(), { .T., .F., {"",""} }) //[1]Acesso; [2]Ofusca; [3]Mensagem
+Local aFldRel		:= { "RA_NOME" }
+Local lBlqAcesso	:= aOfusca[2] .And. !Empty( FwProtectedDataUtil():UsrNoAccessFieldsInList( aFldRel ) )
+
+Private Titulo   	:= OemtoAnsi(STR0001) //"Gera‡„o de relatorios Modelo (Contrato/Prorrogação/VT/Acordo)"
+Private aInfo		:= {}
+Private nOrdem   	:= 1
+Private cRelName	:= 'IMPMODEL'
+Private lExpPDF		:= .F.
+
+If lBlqAcesso
+	//"Dados Protegidos-Acesso Restrito"
+	Help(" ",1,aOfusca[3,1],,aOfusca[3,2],1,0)
+	RETURN
+EndIf
+
+cSession	:= GetPrinterSession()
+cDevice	:= If(Empty(fwGetProfString(cSession,"PRINTTYPE","SPOOL",.T.)),"PDF",fwGetProfString(cSession,"PRINTTYPE","SPOOL",.T.))
+nOrient	:= If(fwGetProfString(cSession,"ORIENTATION","PORTRAIT",.T.)=="PORTRAIT",1,2)
+nLocal		:= If(fwGetProfString(cSession,"LOCAL","SERVER",.T.)=="SERVER",1,2 )
+nPrintType	:= aScan(aDevice,{|x| x == cDevice })
+
+oPrinter	:= FWMSPrinter():New(cRelName, nPrintType, lAdjust, , .T.)
+oSetup		:= FWPrintSetup():New (nFlags,Titulo)
+
+oSetup:SetPropert(PD_PRINTTYPE   , nPrintType)
+oSetup:SetPropert(PD_ORIENTATION , nOrient)
+oSetup:SetPropert(PD_DESTINATION , nLocal)
+oSetup:SetPropert(PD_MARGIN      , {20,20,20,20})
+oSetup:SetPropert(PD_PAPERSIZE   , 2)
+oSetup:SetOrderParms(aOrdem,@nOrdem)
+oSetup:SetUserParms(bParam)
+
+If oSetup:Activate() == PD_OK
+	fwWriteProfString(cSession, "LOCAL"      , If(oSetup:GetProperty(PD_DESTINATION)==1 ,"SERVER"    ,"CLIENT"    ), .T. )
+	fwWriteProfString(cSession, "PRINTTYPE"  , If(oSetup:GetProperty(PD_PRINTTYPE)==2   ,"SPOOL"     ,"PDF"       ), .T. )
+	fwWriteProfString(cSession, "ORIENTATION", If(oSetup:GetProperty(PD_ORIENTATION)==1 ,"PORTRAIT"  ,"LANDSCAPE" ), .T. )
+
+	oPrinter:lServer := oSetup:GetProperty(PD_DESTINATION) == AMB_SERVER
+	oPrinter:SetDevice(oSetup:GetProperty(PD_PRINTTYPE))
+	oPrinter:SetPortrait()
+	oPrinter:SetPaperSize(oSetup:GetProperty(PD_PAPERSIZE))
+	oPrinter:setCopies(Val(oSetup:cQtdCopia))
+
+	fwWriteProfString(cSession,"LOCAL", If(oSetup:GetProperty(PD_DESTINATION)==1,"SERVER","LOCAL"), .T.)
+	fwWriteProfString(cSession,"PRINTTYPE", aDevice[oSetup:GetProperty( PD_PRINTTYPE )], .T.)
+
+	If oSetup:GetProperty(PD_PRINTTYPE) == IMP_SPOOL
+		oPrinter:nDevice		:= IMP_SPOOL
+		fwWriteProfString(cSession,"DEFAULT", oSetup:aOptions[PD_VALUETYPE], .T.)
+		oPrinter:cPrinter		:= oSetup:aOptions[PD_VALUETYPE]
+	Else
+		oPrinter:nDevice		:= IMP_PDF
+		fwWriteProfString(cSession,"DEFAULT", oSetup:aOptions[PD_VALUETYPE], .T.)
+		oPrinter:cPathPDF		:= oSetup:aOptions[PD_VALUETYPE]
+		oPrinter:SetViewPDF(.T.)
+		lExpPDF					:= .T.
+	Endif
+
+	RptStatus( { |lEnd| fImpModProc(@lEnd,@oPrinter ) } , Titulo )
+	oPrinter:Preview()
+EndIf
+
+Return
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³fImpModProc   ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Processamento da geracao do relatorio                       ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Sintaxe   ³fImpModProc()                                               ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Parametros³                                                            ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³ Uso      ³ Gper900                                                    ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function fImpModProc( lEnd, oPrinter )
+
+Local cTexto		:= ""	//Bloco com o conteudo total que sera quebrado em linhas
+Local cTxtFinal 	:= ""	//Conteudo extraido do bloco cTexto com a linha que sera impressa
+Local cRelTit 	:= ""	//Titulo do relatorio
+Local cFileLogo	:= ""
+Local nY 			:= 0
+Local nX			:= 0
+Local nZ			:= 0
+Local nTipo 		:= 4
+Local nInc	   		:= 0	//Incremento da linha
+Local nLin			:= 30	//Inicio da linha
+Local nStrLin		:= 90 	//Numero de caracteres por linha
+Local nMargE		:= 30	//Numero da margem direita
+Local nMargD		:= 60	//Numero da margem direita
+Local nMaxCol		:= 600	//Numero maximo de colunas em pixels
+local nLimite		:= 0
+Local lEspaco		:= .F.	//Indica que a proxima linha eh um espaco vazio
+Local lQuebra		:= .F.	//Indica que houve quebra de pagina
+Local aImpFun		:= {}	//Matriz com os dados do funcionario que esta sendo impresso
+
+//Variaveis especificas ajustar o alinhamento do texto para o tipo Justificado
+Local cAuxJ			:= ""
+Local nTotStr 		:= 0
+Local nJ 				:= 0
+Local nJ1 				:= 0
+Local nTamJ 			:= 0
+Local nAlign			:= ALIGN_H_LEFT
+Local lJustifica		:= .F.
+
+//Variaveis especificas ajustar a impressao dos dados do funcionario em negrito
+Local cAux				:= ""
+Local cTxtF 			:= ""
+Local nXb				:= 0
+Local nXb1				:= 0
+Local nTbIni 			:= 0
+Local nTbFim 			:= 0
+Local nColuna 		:= 0
+Local nTotTxt 		:= 0
+Local nUltPos			:= 0
+Local lImpNgt			:= .F.
+Local aImpB			:= {} //Matriz do conteudo que sera impresso em negrito
+Local aImpLin 		:= {} //Matriz com a cadeia de caracteres Normal/Negrito que serao impressos a cada linha
+
+//Variaveis especificas para uso na query
+Local cOrdem   		:= ""
+Local cFiltro 		:= ""
+Local cSitQuery		:= ""
+Local cCatQuery		:= ""
+Local cSvProcesso		:= ""
+Local cProcesso		:= ""
+Local cSit     		:= ""
+Local cCat     		:= ""
+Local nTamProc		:= GetSx3Cache( "RA_PROCES", "X3_TAMANHO" )
+
+Private cAliasSRA		:= ""
+Private aTitRel		:= {}
+Private cFilAtu 		:= Space(FWGETTAMFILIAL)
+
+Private oFtC10 		:= TFont():New( 'Courier New', 10, 10,,.F.,,,,.T.,.F. ) //Fonte normal
+Private oFtC10n		:= TFont():New( 'Courier New', 10, 10,,.T.,,,,.T.,.F. ) //Fonte Negrito
+Private oFtC14n		:= TFont():New( 'Courier New', 14, 14,,.T.,,,,.T.,.F. ) //Fonte Titulos
+
+//A exportacao PDF comprime o relatorio e por isso os valores precisam ser ajustados
+If lExpPDF
+	nMaxCol 	-= 15
+	nLin		:= 10
+	nMargD		:= 50
+	oFtC10 	:= TFont():New( 'Courier New', 13, 13,,.F.,,,,.T.,.F. )
+	oFtC10n	:= TFont():New( 'Courier New', 13, 13,,.T.,,,,.T.,.F. )
+	oFtC14n 	:= TFont():New( 'Courier New', 17, 17,,.T.,,,,.T.,.F. )
+EndIf
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Variaveis utilizadas para parametros                         ³
+³ mv_par01		// Filial   								  			³
+³ mv_par02		// Centro de Custo   						   		³
+³ mv_par03		// Matricula   								   		³
+³ mv_par04		// Nome   									   			³
+³ mv_par05		// Processo									   		³
+³ mv_par06		// Situacoes a Imprimir						   		³
+³ mv_par07		// Categorias a Imprimir					   			³
+³ mv_par08 	// Ordem de Impressao                          	³
+³ mv_par09 	// Modelo                                      	³
+³ mv_par10 	// Alinhamento: Esquerda/Justificado           	³
+³ mv_par11 	// Imprime dados em negrito					   		³
+³ mv_par12 	// Testemunha 1         					   			³
+³ mv_par13 	// Testemunha 2         					   			³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Pergunte(cRelName, .F.)
+cProcesso	:= mv_par03
+cSit     	:= mv_par06
+cCat     	:= mv_par07
+nOrdem		:= mv_par08
+nTipo		:= Val( mv_par09 )
+lJustifica	:= mv_par10 == 1
+lImpNgt	:= mv_par11 == 1
+c1Testemun	:= AllTrim( mv_par12 )
+c2Testemun	:= AllTrim( mv_par13 )
+lAllProc	:= Empty(cProcesso) .Or. cProcesso == '*'
+
+//Transforma parametros Range em expressao SQL ³
+MakeSqlExpr(cRelName)
+
+If nOrdem == 1								// Matricula
+	cOrdem := "%RA_FILIAL, RA_MAT%"
+ElseIf nOrdem == 2							// Centro de Custo
+	cOrdem := "%RA_FILIAL, RA_CC, RA_MAT%"
+ElseIf nOrdem == 3							// Nome
+	cOrdem := "%RA_FILIAL, RA_NOME, RA_MAT%"
+EndIf
+
+If !Empty(mv_par01)	//Filial
+	cFiltro := mv_par01
+EndIf
+If !Empty(mv_par02)	//Centro de Custo
+	cFiltro += If( !Empty(cFiltro)," AND ","")
+	cFiltro += mv_par02
+EndIf
+If !Empty(mv_par04)	//Matricula
+	cFiltro += If(!Empty(cFiltro)," AND ","")
+	cFiltro += mv_par04
+
+EndIf
+If !Empty(mv_par05)	//Nome
+	cFiltro += If(!Empty(cFiltro)," AND ","")
+	cFiltro += mv_par05
+EndIf
+
+//Situacao do Funcionario
+cSitQuery := ""
+For nX :=1 To Len(cSit)
+	cSitQuery += "'"+Subs(cSit,nX,1)+"'"
+	If ( nX+1 ) <= Len(cSit)
+		cSitQuery += ","
+	Endif
+Next nCont
+cSitQuery := "%" + cSitQuery + "%"
+
+//Categoria do Funcionario
+cCatQuery := ""
+For nX :=1 To Len(cCat)
+	cCatQuery += "'"+Subs(cCat,nX,1)+"'"
+	If ( nX+1 ) <= Len(cCat)
+		cCatQuery += ","
+	Endif
+Next nX
+cCatQuery := "%" + cCatQuery + "%"
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³Gerar lista de Itens dos Processos.  										  ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+If !lAllProc
+	cSvProcesso := cProcesso
+	cProcesso 	:= ""
+	For nX := 1 To Len(Alltrim(cSvProcesso)) Step nTamProc
+		cProcesso += "'" + Substr(cSvProcesso, nX, nTamProc) + "',"
+	Next nX
+	cProcesso := Substr( cProcesso, 1, Len(cProcesso)-1)
+	cFiltro += If( !Empty(cFiltro), " AND ", "" )
+	cFiltro += " SRA.RA_PROCES IN (" + cProcesso + ")
+EndIf
+
+cFiltro := "%" + iif(!Empty(cFiltro), " AND ", "") + cFiltro + "%"
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+³ Inicializa Query                                                  	  ³
+ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+cAliasSRA := GetNextAlias()
+
+BeginSql alias cAliasSRA
+	SELECT * FROM %table:SRA% SRA
+	WHERE  	SRA.RA_SITFOLH IN (%exp:Upper(cSitQuery)%)	AND
+		    SRA.RA_CATFUNC IN (%exp:Upper(cCatQuery)%)
+		    %exp:cFiltro%
+	ORDER BY %exp:cOrdem%
+EndSql
+
+//Carrega o Logotipo
+fCarLogo(@cFileLogo)
+
+While (cAliasSRA)->( !Eof() )
+
+	// Carregando Informacoes da Empresa
+	If (cAliasSRA)->RA_FILIAL # cFilAtu
+		If !fInfo(@aInfo,(cAliasSRA)->RA_FILIAL)
+   			// Encerra o Loop se Nao Carregar Informacoes da Empresa
+			Exit
+		EndIf
+		// Atualiza a Variavel cFilialAnt
+		dbSelectArea("SRA")
+		cFilAtu := (cAliasSRA)->RA_FILIAL
+	EndIf
+
+	//Inicia a impressao da pagina
+	oPrinter:StartPage()
+
+	Do Case
+		Case nTipo == 1 //Contrato de trabalho
+			aImpFun := Mod001()
+
+		Case nTipo == 2	//Prorrogacao do contrato
+			aImpFun := Mod002()
+
+		Case nTipo == 3	//Vale Transporte
+			aImpFun := Mod003()
+
+		Case nTipo == 4	//Acordo para Compensacao de Horas de Trabalho
+			aImpFun := Mod004()
+	EndCase
+
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³Imprime o Logo da empresa e o titulo do relatorio                      ³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	If File(cFilelogo)
+		oPrinter:SayBitmap(nLin+nInc, 30, cFileLogo, 100, 30)
+		nInc += 40
+	Endif
+
+	For nX := 1 To Len( aTitRel )
+		cRelTit := AllTrim( aTitRel[nX,1] )
+		If nX > 1
+			nInc += 14
+		EndIf
+		oPrinter:SayAlign(nLin+nInc, 0, cRelTit,	oFtC14n, nMaxCol, 100, 2, ALIGN_H_CENTER)
+	Next nX
+
+	/*
+	ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+	³Imprime os dados do relatorio e trata o alinhamento das informacoes    ³
+	ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+	nLinhas := Len(aImpFun)
+	For nX := 1 To nLinhas
+
+		lEspaco := Empty( Alltrim(aImpFun[nX,1]) ) .Or. Alltrim(aImpFun[nX,1]) $ "__Esp06|__Esp12"
+
+		//Apos quebrar a pagina desconsidera a proxima linha caso seja um espaco vazio
+		If lEspaco .And. lQuebra
+			Loop
+		Else
+			lQuebra := .F.
+		EndIf
+
+		If ( lEspaco .And. !Empty( cTexto ) ) .Or. nX == nLinhas
+
+			If nX == nLinhas .And. !lEspaco
+				cTexto += AllTrim( aImpFun[nX,1] ) + " "
+			EndIf
+
+			//Imprime o conteudo acumulado ate o momento da quebra, considerando em cada linha o maximo de caracteres por linha (nStrLin)
+			For nY := nStrLin To 1 Step - 1
+
+				lImpDireto := Len(cTexto) <= nStrLin
+
+				If lImpDireto .Or. ( SubStr(cTexto,nY,1) == " " .Or. SubStr(cTexto,nY+1,1) == " " )
+
+					If lImpDireto
+						cTxtFinal := AllTrim(cTexto)
+						cTexto 	  := ""
+					Else
+						cTxtFinal := AllTrim( SubStr(cTexto, 1, nY ) )
+						cTexto	  := AllTrim( SubStr(cTexto, nY+1  ) )
+					EndIf
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³Trata o conteudo que sera impresso em negrito                          ³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					If lImpNgt .And. Len( aImpB ) > 0
+
+						For nXb := 1 To Len( aImpB )
+
+							If Empty( aImpB[nXb,1] )
+								Loop
+							EndIf
+
+                            //Quando o texto completo em negrito esta contido na linha adiciona na matriz de impressao
+							If aImpB[nXb,1] $ cTxtFinal
+								nTbIni := At( aImpB[nXb,1], cTxtFinal )
+								nTbFim := Len( aImpB[nXb,1] )
+
+								If nTbIni == 1
+									aAdd( aImpLin, { aImpB[nXb,1], "B" } )
+								Else
+									nUltPos := If( nUltPos == 0, 1, nUltPos )
+									aAdd( aImpLin, { AllTrim( SubStr( cTxtFinal, nUltPos, nTbIni-nUltPos ) ), "" } )
+									aAdd( aImpLin, { AllTrim( aImpB[nXb,1] ), "B" } )
+								EndIf
+								aImpB[nXb,1] := ""
+
+								nUltPos := nTbIni+nTbFim
+							Else
+								//Quando o texto nao esta contido na linha, vai reduzindo a frase retirando
+								//sempre a ultima palavra para verificar se parte dele esta na linha atual.
+								cAux := SubStr( aImpB[nXb,1], 1, Rat( " ", aImpB[nXb,1] ) )
+
+								For nXb1 := 1 To Len( cAux )
+
+									If cAux $ cTxtFinal
+										nTbIni := At( cAux, cTxtFinal )
+										nTbFim := Len( cAux )
+										cAux   := cAux + " "
+
+										If nTbIni == 1
+											aAdd( aImpLin, { AllTrim( cAux ), "B" } )
+										Else
+											aAdd( aImpLin, { AllTrim( SubStr( cTxtFinal, nUltPos, nTbIni-nUltPos ) ), "" } )
+											aAdd( aImpLin, { AllTrim( cAux ), "B" } )
+											nUltPos := nTbIni+nTbFim
+										EndIf
+
+										//Quando somente parte do texto em negrito foi impresso, atualiza a matriz
+										//com o conteudo que nao foi impresso, para ser impresso na proxima linha
+										aImpB[nXb,1] := AllTrim( SubStr( aImpB[nXb][1], Len(cAux) ) ) + " "
+										Exit
+									Else
+										cAux := AllTrim( SubStr( cAux, 1, rAt( " ", cAux ) ) )
+									EndIf
+
+								Next nXb1
+
+							EndIf
+
+						Next nXb
+
+						//Se apos a avaliacao do texto em negrito ainda houver conteudo a ser impresso
+						//adiciona esse conteudo restante, ou caso ainda nao exista conteudo na matriz
+						//de impressao, adiciona todo o conteudo da linha que esta sendo verificada.
+						If nTbIni + nTbFim > 0 .And. nStrLin > ( nTbIni + nTbFim )
+							If !Empty( SubStr( cTxtFinal, nTbIni+nTbFim ) )
+								aAdd( aImpLin, { AllTrim( SubStr( cTxtFinal, nTbIni+nTbFim ) ), "" } )
+							EndIf
+						ElseIf Empty(aImpLin)
+							aAdd( aImpLin, { AllTrim( cTxtFinal ), "" } )
+						EndIf
+					Else
+						aAdd( aImpLin, { AllTrim( cTxtFinal ), "" } )
+					EndIf
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³Trata o alinhamento justificado                                        ³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					If lJustifica .And. !lImpDireto
+
+						nTotStr  := 0
+						cAuxJ    := ""
+
+						//Conta a quantidade de caracteres considerando o espaco entre as cadeias de palavras para determinar quantos
+						//espacos serao necessarios para preencher a linha ate o limite de caracteres definido na variavel nStrLin
+						For nJ := 1 To Len(aImpLin)
+							nTotStr += Len( AllTrim(aImpLin[nJ,1]) + If( nJ == Len(aImpLin), "", " " ) )
+						Next nJ
+
+						nTamJ  := nStrLin - nTotStr //Numero de espacos necessarios para chegar ao final da linha
+
+						If nTamJ > 0
+							For nJ := 1 To Len(aImpLin)
+
+								For nJ1 := 1 To Len( AllTrim(aImpLin[nJ,1]) )
+									cStr := SubStr( aImpLin[nJ,1], nJ1, 1 )
+									If cStr <> " " .Or. nTamJ == 0
+										cAuxJ += cStr
+									Else
+										cAuxJ += cStr + " "
+										nTamJ --
+									EndIf
+								Next nJ1
+
+								aImpLin[nJ,1] := cAuxJ + If( Len(aImpLin) == nJ, "", " ")
+								cAuxJ := ""
+
+								//Quando ja percorreu toda a linha e ainda existem espacos a serem preenchidos,
+								//volta ao inicio da linha para incluir espacos novamente ate zerar a quantidade
+								If nTamJ > 0 .And. nJ == Len(aImpLin)
+									nJ := 0
+								EndIf
+
+							Next nJ
+
+						EndIf
+						//Atualiza o conteudo da linha apos a inclusao dos espacos, pois sera
+						//usado para calcular a posicao da coluna de impressao de cada conteudo
+						cTxtFinal := ""
+						For nJ := 1 To Len( aImpLin )
+							cTxtFinal += aImpLin[nJ,1]
+						Next nJ
+					EndIf
+
+					//Quando o texto nao eh justificado eh necessario incluir espacos entre as
+					//cadeias de palavras para que a frase nao fique com as palavras coladas.
+					If !lJustifica .Or. lImpDireto
+						For nJ := 1 To Len(aImpLin)
+							aImpLin[nJ,1] := aImpLin[nJ,1] + " "
+						Next nJ
+					EndIf
+
+					nInc += 12
+					nLimite := If ( nAlign == ALIGN_H_RIGHT, nMaxCol-nMargD, nMaxCol-nMargE )
+
+					/*
+					ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+					³Faz a impressao da linha                                               ³
+					ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+					For nZ := 1 To Len( aImpLin )
+						cTxtF := aImpLin[nZ,1]
+						nColuna := ( (nMaxCol-nMargD) / nStrLin ) * Len( SubStr(cTxtFinal,1,nTotTxt) )
+						If aImpLin[nZ,2] == "B"
+							oPrinter:SayAlign(nLin+nInc, nMargE+nColuna, cTxtF, oFtC10n, nLimite, 100, 2, nAlign)
+						Else
+							oPrinter:SayAlign(nLin+nInc, nMargE+nColuna, cTxtF, oFtC10, nLimite, 100, 2, nAlign)
+						EndIf
+						nTotTxt += Len(cTxtF)
+					Next nZ
+
+					//Atualiza a variavel para que a impressao da proxima linha considere o maximo de caracteres
+					nY := If( Len(cTexto) > nStrLin, nStrLin, Len(cTexto) )
+
+					//Zera as variaveis
+					nTotTxt := 0
+					nUltPos := 0
+					nTbIni  := 0
+					nTbFim  := 0
+					aImpLin := {}
+
+				EndIf
+
+				If Empty(cTexto) .And. lEspaco
+					cTxtFinal := ""
+					nInc += Val( SubStr( Alltrim(aImpFun[nX,1]), 6, 2 ) )
+					oPrinter:SayAlign(nLin+nInc, nMargE, cTxtFinal, oFtC10, nLimite, 100, 2, nAlign)
+					Exit
+				EndIf
+
+				//Verifica se havera quebra na impressao da proxima linha
+				If ( nLin+nInc ) + 12 >= 740
+					//Finaliza a impressao atual
+					oPrinter:EndPage()
+
+					//Inicia uma nova pagina se ainda houver linhas a serem impressas
+					If nLinhas > nX
+						oPrinter:StartPage()
+						nInc 	:= 0
+						lQuebra	:= .T.
+						If File(cFilelogo)
+							oPrinter:SayBitmap(nLin+nInc, 30, cFileLogo, 100, 30)
+							nInc += 30
+						Endif
+					EndIf
+				EndIf
+
+			Next nY
+
+		Else
+			If lEspaco
+				cTxtFinal := ""
+				nInc += Val( SubStr( Alltrim(aImpFun[nX,1]), 6, 2 ) )
+				oPrinter:SayAlign(nLin+nInc, nMargE, cTxtFinal, oFtC10, nMaxCol-nMargE, 100, 2, nAlign)
+			Else
+				//Inclui textos que serao impressos em negrito
+				If lImpNgt .And. aImpFun[nX,3] == "B"
+					aAdd( aImpB, { AllTrim( aImpFun[nX,1] ) } )
+				EndIf
+				cTexto += AllTrim( aImpFun[nX,1] ) + " "
+				nAlign := If( aImpFun[nX,2] == "E", ALIGN_H_LEFT, If( aImpFun[nX,2] == "D", ALIGN_H_RIGHT, ALIGN_H_CENTER ) )
+			EndIf
+		EndIf
+
+		//Trata a quebra da linha
+		If ( nLin+nInc ) + 12 >= 740
+			//Finaliza a impressao atual
+			oPrinter:EndPage()
+
+			//Inicia uma nova pagina se ainda houver linhas a serem impressas
+			If nLinhas > nX
+				oPrinter:StartPage()
+				nInc 	:= 0
+				lQuebra	:= .T.
+				If File(cFilelogo)
+					oPrinter:SayBitmap(nLin+nInc, 30, cFileLogo, 100, 30)
+					nInc += 30
+				Endif
+			EndIf
+		EndIf
+
+	Next nX
+
+	//Finaliza a impressao da pagina
+	oPrinter:EndPage()
+
+	nInc  := 0
+	aImpB := {}
+
+	(cAliasSRA)->(dbSkip())
+
+Enddo
+
+Return( Nil )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³fOpcModelo    ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Seleciona um entre os Modelos disponiveis                   ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+User Function fOpcModelo(lTipoRet)
+
+Local cTitulo	:= ""
+Local MvParDef	:= ""
+Local MvPar
+
+Private aMod := {}
+
+DEFAULT lTipoRet := .T.
+
+cAlias := Alias()
+
+MvPar := &(Alltrim(ReadVar()))
+mvRet := Alltrim(ReadVar())
+
+aMod :=	{;
+			OemtoAnsi(STR0005),; //"1 - Contrato de trabalho"
+			OemtoAnsi(STR0006),; //"2 - Prorrogacao do contrato"
+			OemtoAnsi(STR0007),; //"3 - Vale Transporte"
+			OemtoAnsi(STR0008);  //"4 - Acordo para compensacao de horas"
+		}
+
+MvParDef	:= "1234"
+cTitulo 	:= OemtoAnsi(STR0009) //"Modelos disponiveis para selecao"
+
+IF f_Opcoes(@MvPar,cTitulo,aMod,MvParDef,12,49,.T.)
+	&MvRet := mvpar
+EndIF
+
+dbSelectArea(cAlias)
+
+Return( .T. )
+
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³fcarLogo      ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Carrega o Logo da empresa                   				³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function fCarLogo(cLogo)
+Local  cStartPath:= GetSrvProfString("Startpath","")
+
+cLogo	:= cStartPath + "LGRL"+cEmpAnt+SRA->RA_FILIAL+".BMP" // Empresa+Filial
+//-- Logotipo da Empresa
+If !File( cLogo )
+	cLogo := cStartPath + "LGRL"+cEmpAnt+".BMP" // Empresa
+Endif
+
+Return cLogo
+
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³Mod001        ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Modelo 1 - Contrato de Trabalho                             ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function Mod001() //Contrato de Trabalho
+
+Local aImpFun  := {}
+Local cVgCont  := If( !Empty( (cAliasSRA)->RA_VCTOEXP ), StrZero( (SToD((cAliasSRA)->RA_VCTOEXP) - SToD((cAliasSRA)->RA_ADMISSA))+1, 3), "00" )
+Local cDescFun := AllTrim( fDesc('SRJ',(cAliasSRA)->RA_CODFUNC,'RJ_DESC',,(cAliasSRA)->RA_FILIAL) )
+Local cHrMes   := If( (cAliasSRA)->RA_CATFUNC$"H","P/Hora", If((cAliasSRA)->RA_CATFUNC$"J","P/Aula","P/Mes") )+"."
+Local cCidDat  := AllTrim( aInfo[05] ) + ", " + StrZero( Day( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + MesExtenso( Month( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + StrZero( Year( SToD((cAliasSRA)->RA_ADMISSA) ), 4 )
+Local cSalario := If( Empty( (cAliasSRA)->RA_SALARIO ), "00.0", cValToChar((cAliasSRA)->RA_SALARIO) )
+Local cDescSal := If( Empty( (cAliasSRA)->RA_SALARIO ), "SEM SALARIO INFORMADO", AllTrim( Extenso((cAliasSRA)->RA_SALARIO, .F.,1)) )
+
+//Titulo
+aTitRel := {}
+aAdd( aTitRel, { OemtoAnsi(STR0010) }) //"CONTRATO DE TRABALHO A TÍTULO DE EXPERIÊNCIA"
+
+//Conteudo
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Espaco
+aAdd( aImpFun, { OemtoAnsi(STR0011)						,'E'	,'' } )	//"Entre a firma "
+aAdd( aImpFun, { AllTrim( aInfo[03] ) + " "				,'E'	,'B'} )	// Nome da empresa
+aAdd( aImpFun, { OemtoAnsi(STR0012)						,'E'	,'' } )	//"com sede em "
+aAdd( aImpFun, { AllTrim( aInfo[05] )						,'E'	,'B'} )	// Cidade da empresa
+aAdd( aImpFun, { OemtoAnsi(STR0013)						,'E'	,'' } )	//"à rua "
+aAdd( aImpFun, { AllTrim( aInfo[04] ) + ", "				,'E'	,'B'} )	// Endereco da empresa
+aAdd( aImpFun, { OemtoAnsi(STR0014)						,'E'	,'' } )	//"doravante designada simplesmente EMPREGADORA e "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_NOME) + ", "	,'E'	,'B'} )	// Nome da matricula
+aAdd( aImpFun, { OemtoAnsi(STR0015)						,'E'	,'' } )	//"portador da Carteira de Trabalho n.º "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_NUMCP) + " "	,'E'	,'B'} )	// Numero da carteira de trabalho
+aAdd( aImpFun, { OemtoAnsi(STR0016)						,'E'	,'' } )	//'Série '
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_SERCP) + ", "	,'E'	,'B'} ) 	// Serie da carteira de trabalho
+aAdd( aImpFun, { OemtoAnsi(STR0017)						,'E'	,'' } )	//"a seguir chamado apenas EMPREGADO, é celebrado o presente CONTRATO DE EXPERIÊNCIA, que terá vigência a "
+aAdd( aImpFun, { OemtoAnsi(STR0018)						,'E'	,'' } )	//"Partir da data de início da prestação de serviços, de acordo com as condições a seguir especificadas : "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0019)						,'E'	,'' } )	//"1 - Fica o EMPREGADO admitido no quadro de funcionários da EMPREGADORA para exercer as funções de "
+aAdd( aImpFun, { cDescFun									,'E'	,'B'} )	// Descricao da funcao
+aAdd( aImpFun, { OemtoAnsi(STR0020)						,'E'	,'' } )	//"mediante a remuneração de R$ "
+aAdd( aImpFun, { AllTrim( cSalario )						,'E'	,'B'} ) 	// Salario
+aAdd( aImpFun, { " ("										,'E'	,'' } )
+aAdd( aImpFun, { AllTrim( cDescSal )						,'E'	,'B'} )  	// Salario por extenso
+aAdd( aImpFun, { "), "										,'E'	,'' } )
+aAdd( aImpFun, { cHrMes										,'E'	,'B'} )	// Por mes/Por hora
+aAdd( aImpFun, { OemtoAnsi(STR0021)						,'E'	,'' } )	//"A circunstancia, porem, de ser a função especificada não importa na intransferibilidade do EMPREGADO para outro serviço, no qual demonstre melhor capacidade de adaptação desde que compatível com a sua condição pessoal. "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Espaco
+aAdd( aImpFun, { OemtoAnsi(STR0022)						,'E'	,'' } )	//"2 - O horário de trabalho será anotado na sua ficha de registro e a eventual redução de jornada, por determinação da EMPREGADORA, não inovará este ajuste, permanecendo sempre íntegra a obrigação do EMPREGADO de cumprir o horário que lhe for determinado, observando o limite legal."
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0023)						,'E'	,'' } )	//"3 - Obriga-se também o empregado a prestar serviços em horas extraordinárias, sempre que lhe for determinado pela EMPREGADORA, na forma prevista em Lei.  Na hipótese desta faculdade pela EMPREGADORA, o EMPREGADO receberá as horas extraordinárias com o acréscimo legal, salvo a ocorrência de compensação, com a conseqüente  redução de jornada de trabalho em outro dia. "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0024)						,'E'	,'' } )	//"4 - Aceita o EMPREGADO, expressamente, a condição de prestar serviços em qualquer dos turnos de trabalho, isto é, tanto durante o dia como a noite, desde que sem simultaneidade, observadas as  prescrições legais reguladoras do assunto, quanto à remuneração. "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0025)						,'E'	,'' } )	//"5 - Fica ajustado nos termos do que se dispõe o parágrafo 1º do artigo 469, da Consolidação das Leis de Trabalho, que o EMPREGADO acatará à ordem emanada da EMPREGADORA para a prestação de serviços tanto na localidade de celebração do Contrato de Trabalho, como em qualquer outra Cidade, Capital  ou Vila do Território Nacional, quer essa transferencia seja transitória, quer seja definitiva. "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0026)						,'E'	,'' } )	//"6 - No ato da assinatura deste contrato, o EMPREGADO recebe o Regulamento Interno da Empresa cujas cláusulas fazem parte do Contrato de Trabalho, e a violação  de qualquer delas implicará em sanção, cuja graduação dependerá da gravidade da mesma, culminando com a rescisão do contrato. "
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0027)						,'E'	,'' } )	//"7 - Em caso de dano causado pelo EMPREGADO, fica a EMPREGADORA, autorizada a efetivar o desconto da importância correspondente ao prejuízo, o qual fará, com fundamento no parágrafo 1º do artigo 462 da Consolidação  das Leis do Trabalho, já que essa possibilidade fica expressamente prevista em Contrato."
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0028)						,'E'	,'' } )	//"8 - O Presente Contrato, vigerá durante "
+aAdd( aImpFun, { cVgCont 									,'E'	,'B'} )
+aAdd( aImpFun, { OemtoAnsi(STR0029)						,'E'	,'' } )	//"dias, sendo celebrado para as partes verificarem reciprocamente, a conveniência ou não de se vincular em caracter definitivo a um Contrato de Trabalho.  A Empresa passando a conhecer as aptidões do EMPREGADO e suas qualidades pessoais e morais; o EMPREGADO verificando se o ambiente e os métodos de trabalho atendem à sua conveniência."
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0030)						,'E'	,'' } )	//"9 - Opera-se a rescisão do presente Contrato pela decorrência do prazo  supra ou por vontade de uma das partes; rescindindo-se por vontade do EMPREGADO ou pela EMPREGADORA, fica esta obrigada a pagar 50% dos salários devidos até o final (metade do tempo combinado  restante), nos termos do artigo 479 da C.L.T., sem prejuízo no Reg. do F.G.T.S.. Nenhum aviso prévio é devido pela rescisão do presente Contrato."
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0031)						,'E'	,'' } )	//"10 - Na hipótese deste ajuste transformar-se em Contrato de Prazo Indeterminado, pelo decurso o tempo, continuarão em plena  vigência em poder da EMPREGADORA, e a Segunda com o EMPREGADO, que dela dará o competente recibo."
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { AllTrim( cCidDat )						,'E'	,'B'} )	// Cidade e data
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)						,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 									,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0033)						,'E'	,'' } )	//"Empresa: "
+aAdd( aImpFun, { AllTrim( aInfo[03] )						,'E'	,'B'} )	// Nome da empresa
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)						,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 									,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0034)						,'E'	,'' } ) 	//"Empregado: "
+aAdd( aImpFun, { AllTrim( (cAliasSRA)->RA_NOME )			,'E'	,'B'} )	// Nome da matricula
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)						,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 									,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0035)						,'E'	,'' } ) 	//"Testemunha: "
+aAdd( aImpFun, { c1Testemun									,'E'	,'B'} )
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)						,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 									,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0035)						,'E'	,'' } ) 	//"Testemunha: "
+aAdd( aImpFun, { c2Testemun									,'E'	,'B'} )
+aAdd( aImpFun, { '__Esp12' 									,'E'	,'' } )	// Linha vazia
+
+Return( aImpFun )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³Mod002        ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Modelo 2 - Termo de Prorrogacao de Contrato                 ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function Mod002() //Termo de Prorrogacao de Contrato
+
+Local aImpFun := {}
+Local cCidDat := AllTrim( aInfo[05] ) + ", " + StrZero( Day( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + MesExtenso( Month( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + StrZero( Year( SToD((cAliasSRA)->RA_ADMISSA) ), 4 )
+Local cVgCont := CtoD("")
+
+If Empty((cAliasSRA)->RA_VCTEXP2)
+	cVgCont := StrZero( Day( SToD( (cAliasSRA)->RA_VCTOEXP ) ),2 ) + ' de ' + MesExtenso( Month( SToD( (cAliasSRA)->RA_VCTOEXP ) ) ) + " de " + StrZero( Year( SToD( (cAliasSRA)->RA_VCTOEXP ) ),4 ) + "."
+else
+	cVgCont := StrZero( Day( SToD( (cAliasSRA)->RA_VCTEXP2 ) ),2 ) + ' de ' + MesExtenso( Month( SToD( (cAliasSRA)->RA_VCTEXP2 ) ) ) + " de " + StrZero( Year( SToD( (cAliasSRA)->RA_VCTEXP2 ) ),4 ) + "."
+ENDIF
+
+
+//Titulo
+aTitRel := {}
+aAdd( aTitRel, { OemtoAnsi(STR0036) }) //"Termo de Prorrogação de Contrato"
+
+//Conteudo
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0037)				,'E'	,'' } ) 	//"Por mútuo acordo entre as partes, fica o presente Contrato de Experiência que deverias vencer nesta data prorrogado até "
+aAdd( aImpFun, { cVgCont 							,'E'	,'B'} )	// Prorrogacao do contrato
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { AllTrim( cCidDat )				,'E'	,'B'} )	// Cidade e data
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)				,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 							,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0033)				,'E'	,'' } )	//"Empresa: "
+aAdd( aImpFun, { AllTrim( aInfo[03] )				,'E'	,'B'} )	// Nome da empresa
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)				,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 							,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0034)				,'E'	,'' } ) 	//"Empregado: "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_NOME)	,'E'	,'B'} )	// Nome da matricula
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)				,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 							,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0035)				,'E'	,'' } ) 	//"Testemunha: "
+aAdd( aImpFun, { c1Testemun							,'E'	,'B'} )
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)				,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 							,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0035)				,'E'	,'' } ) 	//"Testemunha: "
+aAdd( aImpFun, { c2Testemun							,'E'	,'B'} )
+aAdd( aImpFun, { '__Esp12' 							,'E'	,'' } )	// Linha vazia
+
+Return( aImpFun )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³Mod003        ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Modelo 3 - Vale Transporte                                  ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function Mod003() //Vale Transporte
+
+Local aImpFun := {}
+Local cDescUF := AllTrim( fDesc("SX5","12"+(cAliasSRA)->RA_ESTADO,"X5_DESCRI") )
+Local cCidDat := AllTrim( aInfo[05] ) + ", " + StrZero( Day( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + MesExtenso( Month( SToD((cAliasSRA)->RA_ADMISSA) ), 2 ) + " de " + StrZero( Year( SToD((cAliasSRA)->RA_ADMISSA) ), 4 )
+
+//Titulo
+aTitRel := {}
+aAdd( aTitRel, { OemtoAnsi(STR0038) })		//"VALE TRANSPORTE"
+aAdd( aTitRel, { OemtoAnsi(STR0039) })		//"DECRETO N.º 95.247 DE 17/11/87"
+aAdd( aTitRel, { OemtoAnsi(STR0040) })		//"REG. A LEI N.º 7.418 DE 16/12/85"
+aAdd( aTitRel, { OemtoAnsi(STR0041) })		//"ALT. LEI N.º 7.619 DE 30/09/87"
+
+//Conteudo
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0042)					,'E'	,'' } ) 	//"Eu, abaixo assinado, declaro sob as penas de Lei, meu endereço, bairro, cidade, estado, quantidade de ônibus, trem, metro, integração (ônibus + Metro) e/ou integração (ônibus + trem), que utilizo no deslocamento da minha residência para o trabalho e vice-versa. "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0043)					,'E'	,'' } )	//"Endereço:......... "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_ENDEREC)	,'E'	,'B'} )	// Endereco
+aAdd( aImpFun, { ''										,'E'	,'' } )	// Quebra de linha
+aAdd( aImpFun, { OemtoAnsi(STR0044)					,'E'	,'' } )	//"Compl. End.: ..... "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_COMPLEM)	,'E'	,'B'} )	// Complemento do endereco
+aAdd( aImpFun, { ''										,'E'	,'' } )	// Quebra de linha
+aAdd( aImpFun, { OemtoAnsi(STR0045)					,'E'	,'' } )	//"Bairro:........... "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_BAIRRO)		,'E'	,'B'} )	// Descricao do Bairro
+aAdd( aImpFun, { ''										,'E'	,'' } )	// Quebra de linha
+aAdd( aImpFun, { OemtoAnsi(STR0046)					,'E'	, ''} )	//"Município:........ "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_MUNICIP)	,'E'	,'B'} )	// Descricao do Municipio
+aAdd( aImpFun, { ''										,'E'	,'' } )	// Quebra de linha
+aAdd( aImpFun, { OemtoAnsi(STR0047)					,'E'	,'' } )	//"Estado:........... "
+aAdd( aImpFun, { cDescUF									,'E'	,'B'} )	// Descricao do Estado
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0048)			   		,'E'	,'B'} )	//"Condução Utilizada "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0049)					,'E'	,'' } )	//"Tipo        Quant.     Valor           Tipo        Quant.     Valor"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0050)					,'E'	,'' } )	//"Ônibus      ______     __________      Trem        ______     __________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0051)					,'E'	,'' } )	//"Metro       ______     __________      Integração  ______     __________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0052)					,'E'	,'' } )	//"Nome da(s) Companhia(s) de Ônibus: "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0053)					,'E'	,'' } )	//"1) __________________________________________________________________________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0054)					,'E'	,'' } )	//"2) __________________________________________________________________________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0055)					,'E'	,'' } )	//"3) __________________________________________________________________________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0056)					,'E'	,'' } )	//"Obs.: Estou ciente de que, se o empregador constatar qualquer irregularidade ou falta grave na minha declaração acima ou uso indevido do vale transporte, poderei ser dispensado de conformidade com o artigo 482 da C.L.T. e artigo 7 parágrafo 3 do decreto n.º 95.247 de 17/11/87."
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0057)					,'E'	,'' } )	//"* Reconheço que me será descontado mensalmente uma parcela equivalente a 6 % do salário básico ou vencimento."
+aAdd( aImpFun, { '__Esp06' 								,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0058)					,'E'	,'' } )	//"* Quando ocorrer mudança de endereço ou modificação do meio do serviço de transporte, deverá ser preenchida nova declaração: "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { AllTrim( cCidDat )					,'E'	,'B'} )	// Cidade e data
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0059)					,'E'	,'' } )	//"Carga Horária Mensal: "
+aAdd( aImpFun, { cValToChar( SRA->RA_HRSMES )			,'E'	,'B'} )	// Horas mes
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0060)					,'D'	,'' } )	//"____________________________________________"
+aAdd( aImpFun, { '__Esp06' 								,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0061)					,'D'	,'' } )	//"Assinatura ou polegar direito"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0062)					,'D'	,'' } )	//"Nome: "
+aAdd( aImpFun, { AllTrim( (cAliasSRA)->RA_NOME )		,'E'	,'B'} )
+aAdd( aImpFun, { ''										,'E'	,'' } )	// Quebra de linha
+aAdd( aImpFun, { OemtoAnsi(STR0063)					,'D'	,'' } )	//"RG Nº: "
+aAdd( aImpFun, { AllTrim( (cAliasSRA)->RA_RG )		,'E'	,'B'} )
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+
+Return( aImpFun )
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Funca‡…o  ³Mod004        ³ Autor ³ M. Silveira       ³ Data ³22/03/2017³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Modelo 4 - Acordo para Compensacao de Horas de Trabalho     ³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+Static Function Mod004 () //Acordo para Compensacao de Horas de Trabalho
+
+Local aImpFun  := {}
+Local cDesTurn := AllTrim( fDesc('SR6',(cAliasSRA)->RA_TNOTRAB,'R6_DESC',,(cAliasSRA)->RA_FILIAL) )
+
+//Titulo
+aTitRel := {}
+aAdd( aTitRel, { OemtoAnsi(STR0064) })		//"Acordo para Compensação de Horas de Trabalho"
+
+//Conteudo
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0065)					,'E'	,'' } )	//"Pelo presente acordo para compensação de horas, firmado entre a Empresa  estabelecida em "
+aAdd( aImpFun, { AllTrim( aInfo[05] ) 					,'E'	,'B'} )	// Empresa
+aAdd( aImpFun, { ' à ' 									,'E'	,''	} )
+aAdd( aImpFun, { AllTrim( aInfo[04] )					,'E'	,'B'} )	// Endereco
+aAdd( aImpFun, { OemtoAnsi(STR0066)					,'E'	,'' } )	//"com o ramo de Prestação de Serviço e seu empregado abaixo assinado portador da Carteira Profissional  N.º "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_NUMCP)		,'E'	,'B'} )	// Numero da carteira de trabalho
+aAdd( aImpFun, { OemtoAnsi(STR0067)					,'E'	,'' } )	//", Serie', "
+aAdd( aImpFun, { AllTrim((cAliasSRA)->RA_SERCP)+", "	,'E'	,'B'} ) 	// Serie da carteira de trabalho
+aAdd( aImpFun, { OemtoAnsi(STR0068)					,'E'	,'' } )	//"fica convencionado, com base no que faculta o artigo acima, que o horário normal de trabalho será o seguinte: "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0069)					,'E'	,'' } )	//"De Segunda a Sexta Feira das "
+aAdd( aImpFun, { cDesTurn								,'E'	,'B'} )	// Descricao do turno
+aAdd( aImpFun, { OemtoAnsi(STR0070)					,'E'	,'' } )	//"com 1 hora de Refeição e descanso. Perfazendo o total de "
+aAdd( aImpFun, { StrZero((cAliasSRA)->RA_HRSEMAN,2)	,'E'	,'B'} )	// Horas semanais
+aAdd( aImpFun, { OemtoAnsi(STR0071)					,'E'	,'' } )	//"horas semanais. "
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0072)					,'E'	,'' } )	//"E pôr estarem de pleno acordo, as partes Contratantes assinam o presente acordo em duas vias, o qual vigorará até ____/____/________"
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)					,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 								,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0034)					,'E'	,'' } ) 	//"Empregado: "
+aAdd( aImpFun, { AllTrim( (cAliasSRA)->RA_NOME )		,'E'	,'B'} )	// Nome da matricula
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0032)					,'E'	,'' } )	//"____________________________________________________________"
+aAdd( aImpFun, { '__Esp06' 								,'E'	,'' } )	// 1/2 Linha vazia
+aAdd( aImpFun, { OemtoAnsi(STR0033)					,'E'	,'' } )	//"Empresa: "
+aAdd( aImpFun, { AllTrim( aInfo[03] )					,'E'	,'B'} )	// Nome da empresa
+aAdd( aImpFun, { '__Esp12' 								,'E'	,'' } )	// Linha vazia
+
+Return( aImpFun )

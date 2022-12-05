@@ -1,0 +1,90 @@
+#INCLUDE "PROTHEUS.CH"
+
+User Function UPDKEYINI()
+
+	Local oDlg			:= NIL
+	Local oBtTDN		:= NIL
+	Local oGroup		:= NIL
+	Local lProcRH3		:= .F.
+	Local bOk			:= { || lProcRH3 := .T., oDlg:End() }
+	Local bFecha		:= { || oDlg:End() }
+	Local aAdvSize		:= MsAdvSize()
+	Local aInfo			:= {}
+	Local aPosObj		:= {}
+	Local aObjects		:= {}
+	Private nRetorno := 0
+	
+	aAdvSize[5] := 600
+	aAdvSize[6] := 200
+	aInfo := { aAdvSize[1], aAdvSize[2], aAdvSize[3], aAdvSize[4], 20, 0 }
+	AAdd( aObjects, { 0, 1, .T., .T. } )
+	aPosObj := MsObjSize( aInfo, aObjects, .T. )
+	
+	DEFINE FONT oFont  NAME "Arial" SIZE 0,-11 BOLD
+	DEFINE FONT oFont1 NAME "Arial" SIZE 0,-11
+	
+	DEFINE MSDIALOG oDlg TITLE OemToAnsi("Atualização") FROM  aAdvSize[7],0 TO aAdvSize[6],aAdvSize[5] OF oMainWnd PIXEL
+		
+	@ 020,015	GROUP oGroup TO 70,285 LABEL OemToAnsi("Solicitações")  OF oDlg PIXEL 
+	oGroup:oFont:=oFont
+
+	@ 040 , 030 SAY OemToAnsi( "Esta rotina atualiza chave de busca das solicitações referente a RH3 com status igual a pendente." ) SIZE 300,15 OF oDlg PIXEL FONT oFont1 
+	@ 050 , 030 SAY OemToAnsi( "Somente quando existir divergência entre a chave de busca do departamento de solicitações realizadas ") SIZE 300,15 OF oDlg PIXEL FONT oFont1 
+	@ 060 , 030 SAY OemToAnsi( "antes da correção da issue DRHGCH-17695." )		SIZE 300,15 OF oDlg PIXEL FONT oFont1 
+
+	@ aPosObj[1, 1] + 50 , 015 SAY oBtTDN PROMPT "<u>" + OemToAnsi( "Link para documentação no TDN" ) + "</u>" 	SIZE 090,008 OF oDlg HTML PIXEL FONT oFont  
+		
+	TButton():New(aPosObj[1, 1] + 50, aPosObj[1, 2] + 210,	"Cancelar", oDlg, bFecha,26,11,,,.F.,.T.,.F.,,.F.,,,.F. ) //"Cancelar"
+	TButton():New(aPosObj[1, 1] + 50, aPosObj[1, 2] + 240,	"OK", oDlg, bOk,26,11,,,.F.,.T.,.F.,,.F.,,,.F. )		 //"Ok"
+	
+	oBtTDN:bLClicked := {|| ShellExecute("open","https://tdn.totvs.com/x/a0M9I","","",1) }
+	
+	ACTIVATE DIALOG oDlg CENTERED
+
+	//Efetua o processamento 
+	If lProcRH3
+		ProcGpe( {|lEnd| fAltChave()},,,.T. )		
+		AVISO("Atualização", "Processamento concluído, "+ cValToChar(nRetorno) +" registros alterados." , { "Fechar" }, 1)		
+	EndIf    
+Return 
+
+/*/{Protheus.doc} fAltChave
+//Altera chave de busca
+@author  martins.ana
+@since   03/03/2020
+@version 1.0
+/*/
+User Function fAltChave()
+	
+	Local cAliasTmp := GetNextAlias()
+	Local cFilApr
+	Local cSolic	
+
+	Begin Sequence	
+		BeginSql alias cAliasTmp
+			SELECT * FROM %table:SQB% SQB INNER JOIN %table:RH3% RH3 ON
+			RH3_FILAPR = QB_FILRESP where RH3_MATAPR = QB_MATRESP 
+			AND  RH3_STATUS = '1' AND  QB_KEYINI != RH3_KEYINI
+			AND SQB.%NotDel% AND RH3.%NotDel%
+		EndSql
+		
+		dbSelectArea( cAliasTmp )
+		(cAliasTmp)->(DbGoTop())
+		While !(cAliasTmp)->(Eof())
+			cFilApr := (cAliasTmp)->RH3_FILAPR
+			cSolic  := (cAliasTmp)->RH3_CODIGO
+	
+			dbSelectArea("RH3")
+			RH3->( dbSetOrder(1) )		
+			If RH3->( dbSeek(xFilial("RH3", cFilApr) + cSolic )) 	
+			   RecLock("RH3", .F.)		
+					RH3->RH3_KEYINI := (cAliasTmp)->QB_KEYINI  
+			   MsUnlock()  			    								
+			   nRetorno +=1					
+			EndIf
+			(cAliasTmp)->(DbSkip())
+		EndDo
+		(cAliasTmp)->(dbCloseArea())
+		
+	End Sequence
+Return nil

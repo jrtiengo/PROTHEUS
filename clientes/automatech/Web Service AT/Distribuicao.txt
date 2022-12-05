@@ -1,0 +1,242 @@
+#INCLUDE "PROTHEUS.CH"
+#INCLUDE "JPEG.CH"
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Programa  ³ScrViaGaia³ Autor ³ Rogerio Oliveira      ³ Data ³11/11/2016³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Locacao   ³ Fabrica de SW JP ³Contato ³                                ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descricao ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Retorno   ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Aplicacao ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Uso       ³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Analista Resp.³  Data  ³ Bops ³ Manutencao Efetuada                    ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³              ³  /  /  ³      ³                                        ³±±
+±±³              ³  /  /  ³      ³                                        ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+User Function ScrViaGaia()
+// Variaveis Locais da Funcao
+Local aComboBx1	 := {"Item01","Item02"}
+Local aComboBx2	 := {"Item01","Item02"}
+Local cComboBx1
+Local cComboBx2
+Local cMemo1	 := ""
+Local cMemo10	 := ""
+Local cMemo11	 := ""
+Local cMemo12	 := ""
+Local cMemo13	 := ""
+Local cMemo14	 := ""
+Local cMemo2	 := ""
+Local cMemo3	 := ""
+Local cMemo4	 := ""
+Local cMemo5	 := ""
+Local cMemo6	 := ""
+Local cMemo7	 := ""
+Local cMemo8	 := ""
+Local cMemo9	 := ""
+Local oMemo1
+Local oMemo10
+Local oMemo11
+Local oMemo12
+Local oMemo13
+Local oMemo14
+Local oMemo2
+Local oMemo3
+Local oMemo4
+Local oMemo5
+Local oMemo6
+Local oMemo7
+Local oMemo8
+Local oMemo9
+
+// Variaveis da Funcao de Controle e GertArea/RestArea
+Local _aArea   		:= {}
+Local _aAlias  		:= {}
+// Variaveis Private da Funcao
+Private oDlg				// Dialog Principal
+// Variaveis que definem a Acao do Formulario
+Private VISUAL := .F.                        
+Private INCLUI := .F.                        
+Private ALTERA := .F.                        
+Private DELETA := .F.                        
+
+DEFINE MSDIALOG oDlg TITLE "Agendamento Técnico App Automatech AT" FROM C(178),C(181) TO C(640),C(913) PIXEL
+
+// Defina aqui a chamada dos Aliases para o GetArea
+CtrlArea(1,@_aArea,@_aAlias,{"SA1","SA2"}) // GetArea
+
+	// Cria Componentes Padroes do Sistema
+	@ C(002),C(002) Jpeg FILE "" Size C(118),C(026) PIXEL NOBORDER OF oDlg
+	@ C(032),C(002) GET oMemo1 Var cMemo1 MEMO Size C(358),C(001) PIXEL OF oDlg
+	@ C(035),C(275) Say "Status" Size C(019),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(036),C(005) Say "Técnico" Size C(024),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(043),C(324) Button "Pesquisar" Size C(037),C(012) PIXEL OF oDlg
+	@ C(045),C(005) ComboBox cComboBx1 Items aComboBx1 Size C(265),C(010) PIXEL OF oDlg
+	@ C(045),C(275) ComboBox cComboBx2 Items aComboBx2 Size C(045),C(010) PIXEL OF oDlg
+	@ C(058),C(005) Say "Relação de OSs não distribuídas ao técnico" Size C(109),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(068),C(005) GET oMemo2 Var cMemo2 MEMO Size C(315),C(039) PIXEL OF oDlg
+	@ C(068),C(324) Button "Veículos" Size C(037),C(012) PIXEL OF oDlg
+	@ C(081),C(324) Button "Agendar" Size C(037),C(012) PIXEL OF oDlg
+	@ C(095),C(324) Button "Voltar" Size C(037),C(012) PIXEL OF oDlg
+	@ C(111),C(029) GET oMemo3 Var cMemo3 MEMO Size C(001),C(109) PIXEL OF oDlg
+	@ C(111),C(029) GET oMemo6 Var cMemo6 MEMO Size C(306),C(001) PIXEL OF oDlg
+	@ C(111),C(335) GET oMemo4 Var cMemo4 MEMO Size C(001),C(109) PIXEL OF oDlg
+	@ C(114),C(034) Say "AGENDA REFERENTE AO MÊS/ANO: NOVEMBRO/2016" Size C(296),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(123),C(029) GET oMemo5 Var cMemo5 MEMO Size C(306),C(001) PIXEL OF oDlg
+	@ C(123),C(074) GET oMemo9 Var cMemo9 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(123),C(117) GET oMemo10 Var cMemo10 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(123),C(161) GET oMemo11 Var cMemo11 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(123),C(204) GET oMemo12 Var cMemo12 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(123),C(248) GET oMemo13 Var cMemo13 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(123),C(291) GET oMemo14 Var cMemo14 MEMO Size C(001),C(097) PIXEL OF oDlg
+	@ C(125),C(034) Say "DOMINGO" Size C(027),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(077) Say "SEGUNDA" Size C(027),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(121) Say "TERÇA" Size C(020),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(164) Say "QUARTA" Size C(025),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(208) Say "QUINTA" Size C(023),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(251) Say "SEXTA" Size C(021),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(125),C(294) Say "SABADO" Size C(024),C(008) COLOR CLR_BLACK PIXEL OF oDlg
+	@ C(134),C(029) GET oMemo8 Var cMemo8 MEMO Size C(306),C(001) PIXEL OF oDlg
+	@ C(137),C(034) Button "1 ( 5 )" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(077) Button "2 ( 0 )" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(121) Button "3 ( 3 )" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(164) Button "4 ( 7 )" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(208) Button "Button5" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(251) Button "Button6" Size C(037),C(012) PIXEL OF oDlg
+	@ C(137),C(294) Button "Button7" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(034) Button "Button8" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(077) Button "Button9" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(121) Button "Button10" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(164) Button "Button11" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(208) Button "Button12" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(251) Button "Button13" Size C(037),C(012) PIXEL OF oDlg
+	@ C(151),C(294) Button "Button14" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(005) Button "<<" Size C(021),C(023) PIXEL OF oDlg
+	@ C(164),C(034) Button "Button15" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(077) Button "Button16" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(121) Button "Button17" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(164) Button "Button18" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(208) Button "Button19" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(251) Button "Button20" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(294) Button "Button21" Size C(037),C(012) PIXEL OF oDlg
+	@ C(164),C(340) Button ">>" Size C(021),C(023) PIXEL OF oDlg
+	@ C(178),C(034) Button "Button22" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(077) Button "Button23" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(121) Button "Button24" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(164) Button "Button25" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(208) Button "Button26" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(251) Button "Button27" Size C(037),C(012) PIXEL OF oDlg
+	@ C(178),C(294) Button "Button28" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(034) Button "Button29" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(077) Button "Button30" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(121) Button "Button31" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(164) Button "Button32" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(208) Button "Button33" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(251) Button "Button34" Size C(037),C(012) PIXEL OF oDlg
+	@ C(191),C(294) Button "Button35" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(034) Button "Button36" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(077) Button "Button37" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(121) Button "Button38" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(164) Button "Button39" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(208) Button "Button40" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(251) Button "Button41" Size C(037),C(012) PIXEL OF oDlg
+	@ C(205),C(294) Button "Button42" Size C(037),C(012) PIXEL OF oDlg
+	@ C(220),C(029) GET oMemo7 Var cMemo7 MEMO Size C(306),C(001) PIXEL OF oDlg
+
+	// Cria ExecBlocks dos Componentes Padroes do Sistema
+
+CtrlArea(2,_aArea,_aAlias) // RestArea
+
+ACTIVATE MSDIALOG oDlg CENTERED 
+
+Return(.T.)
+
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Programa   ³   C()   ³ Autores ³ Norbert/Ernani/Mansano ³ Data ³10/05/2005³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descricao  ³ Funcao responsavel por manter o Layout independente da       ³±±
+±±³           ³ resolucao horizontal do Monitor do Usuario.                  ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+Static Function C(nTam)                                                         
+Local nHRes	:=	oMainWnd:nClientWidth	// Resolucao horizontal do monitor     
+	If nHRes == 640	// Resolucao 640x480 (soh o Ocean e o Classic aceitam 640)  
+		nTam *= 0.8                                                                
+	ElseIf (nHRes == 798).Or.(nHRes == 800)	// Resolucao 800x600                
+		nTam *= 1                                                                  
+	Else	// Resolucao 1024x768 e acima                                           
+		nTam *= 1.28                                                               
+	EndIf                                                                         
+                                                                                
+	//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿                                               
+	//³Tratamento para tema "Flat"³                                               
+	//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ                                               
+	If "MP8" $ oApp:cVersion                                                      
+		If (Alltrim(GetTheme()) == "FLAT") .Or. SetMdiChild()                      
+			nTam *= 0.90                                                            
+		EndIf                                                                      
+	EndIf                                                                         
+Return Int(nTam)                                                                
+
+/*ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºPrograma  ³ CtrlArea º Autor ³Ricardo Mansano     º Data ³ 18/05/2005  º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºLocacao   ³ Fab.Tradicional  ³Contato ³ mansano@microsiga.com.br       º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDescricao ³ Static Function auxiliar no GetArea e ResArea retornando   º±±
+±±º          ³ o ponteiro nos Aliases descritos na chamada da Funcao.     º±±
+±±º          ³ Exemplo:                                                   º±±
+±±º          ³ Local _aArea  := {} // Array que contera o GetArea         º±±
+±±º          ³ Local _aAlias := {} // Array que contera o                 º±±
+±±º          ³                     // Alias(), IndexOrd(), Recno()        º±±
+±±º          ³                                                            º±±
+±±º          ³ // Chama a Funcao como GetArea                             º±±
+±±º          ³ P_CtrlArea(1,@_aArea,@_aAlias,{"SL1","SL2","SL4"})         º±±
+±±º          ³                                                            º±±
+±±º          ³ // Chama a Funcao como RestArea                            º±±
+±±º          ³ P_CtrlArea(2,_aArea,_aAlias)                               º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºParametros³ nTipo   = 1=GetArea / 2=RestArea                           º±±
+±±º          ³ _aArea  = Array passado por referencia que contera GetArea º±±
+±±º          ³ _aAlias = Array passado por referencia que contera         º±±
+±±º          ³           {Alias(), IndexOrd(), Recno()}                   º±±
+±±º          ³ _aArqs  = Array com Aliases que se deseja Salvar o GetArea º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºAplicacao ³ Generica.                                                  º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+Static Function CtrlArea(_nTipo,_aArea,_aAlias,_aArqs)                       
+Local _nN                                                                    
+	// Tipo 1 = GetArea()                                                      
+	If _nTipo == 1                                                             
+		_aArea   := GetArea()                                                    
+		For _nN  := 1 To Len(_aArqs)                                             
+			DbSelectArea(_aArqs[_nN])                                              
+			AAdd(_aAlias,{ Alias(), IndexOrd(), Recno()})                          
+		Next                                                                     
+	// Tipo 2 = RestArea()                                                     
+	Else                                                                       
+		For _nN := 1 To Len(_aAlias)                                             
+			DbSelectArea(_aAlias[_nN,1])                                           
+			DbSetOrder(_aAlias[_nN,2])                                             
+			DbGoto(_aAlias[_nN,3])                                                 
+		Next                                                                     
+		RestArea(_aArea)                                                         
+	Endif                                                                      
+Return Nil                                                                   

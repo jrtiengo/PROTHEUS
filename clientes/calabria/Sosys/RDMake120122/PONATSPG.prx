@@ -1,0 +1,199 @@
+#INCLUDE "PROTHEUS.CH"
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡„o    ³ PONATSPG   ³ Autor ³ Marco Nakazawa	    ³ Data ³ 15.05.20 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³ RDMake para corrigir o campo PG_PAPONTA, após a correção	  ³±±
+±±³da issue DRHPAG-36823									              ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe   ³ PONATSPG(void)                                             ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ Generico                                                   ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³         ATUALIZACOES SOFRIDAS DESDE A CONSTRU€AO INICIAL.             ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Programador ³ Data   ³ BOPS ³  Motivo da Alteracao                     ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+
+User Function PONATSPG()
+Local aPerSPO		:= {}
+Local aAdvSize		:= {}
+Local aInfoAdvSize	:= {}
+Local aObjCoords	:= {}
+Local aObjSize		:= {}
+Local dDataDe		:= CToD("  /  /  ")
+Local dDataAte		:= CToD("  /  /  ")
+Local cFilDe		:= Space(FwSizeFilial())
+Local cFilAte		:= Space(FwSizeFilial())
+Local cAliasSPG		:= GetNextAlias()
+Local cWhere		:= ""
+Local nOpcA			:= 0
+Local nPos			:= 0
+Local nAlterados	:= 0
+Local bSet15		:= { || nOpcA := 1, oDlg:End() }
+Local bSet24		:= { || nOpca := 2, oDlg:End() }
+Local oFont
+Local oDlg
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Reinicializa as Static do SIGAPON                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+PonDestroyStatic()
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Incio da execução                           				 ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+If !MsgYesNo( "A execução desta rotina irá corrigir todos os registros que estão com o campo PG_PAPONTA errado na tabela SPG. Deseja continuar?", "Atualização SPG" )
+	Return
+Else
+	
+	aAdvSize		:= MsAdvSize()
+	aAdvSize[5]	:=	340	//horizontal
+	aAdvSize[6]	:=  240	//Vertical
+	aInfoAdvSize	:= { aAdvSize[1] , aAdvSize[2] , aAdvSize[3] , aAdvSize[4] , 5 , 5 }					 
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	
+	aObjSize	:= MsObjSize( aInfoAdvSize , aObjCoords )
+	
+	DEFINE FONT oFont  NAME "Arial" SIZE 0,-11 BOLD
+	DEFINE MSDIALOG oDlg FROM aAdvSize[7], 0 TO aAdvSize[6], aAdvSize[5] TITLE OemToAnsi("Teste") OF oMainWnd PIXEL
+		
+		@ aObjSize[1][1],aObjSize[1][2] 	SAY "Periodo de"  SIZE 050,10 FONT oFont OF oDlg PIXEL
+		@ aObjSize[1][1],aObjSize[1][2]+35	MSGET dDataDe  SIZE 50,10 OF oDlg WHEN .T.  PIXEL
+	
+		@ aObjSize[2][1],aObjSize[2][2] 	SAY "Periodo ate" SIZE 050,10 FONT oFont OF oDlg PIXEL
+		@ aObjSize[2][1],aObjSize[2][2]+35	MSGET dDataAte SIZE 50,10 OF oDlg WHEN .T. PIXEL
+
+		@ aObjSize[3][1],aObjSize[3][2] 	SAY "Filial de"	 SIZE 050,10  FONT oFont OF oDlg PIXEL
+		@ aObjSize[3][1],aObjSize[3][2]+35	MSGET cFilDe   SIZE 50,10 OF oDlg F3 "XM0" WHEN .T. PIXEL
+	
+		@ aObjSize[4][1],aObjSize[4][2] 	SAY "Filial ate" SIZE 050,10  FONT oFont OF oDlg PIXEL
+		@ aObjSize[4][1],aObjSize[4][2]+35	MSGET cFilAte  SIZE 50,10 OF oDlg F3 "XM0" PIXEL
+	
+	ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg, bSet15, bSet24) CENTERED
+
+	If nOpcA == 2
+		Return
+	Else
+		// Tratamento dos parâmetros preenchidos
+		If Empty(cFilAte)
+			cFilAte := Replicate("Z", FwSizeFilial())
+		EndIf
+		
+		If Empty(dDataAte)
+			dDataAte := Replicate("Z", 8)
+		Else
+			dDataAte := DtoS(dDataAte)
+		EndIf
+
+		// Carrega todos os períodos de acordo com os parâmetros preenchidos no MSDIALOG
+		aPerSPO := fPerSPO(cFilDe, cFilAte, dDataDe)
+		
+		// Se voltar vazio o período, paro o processamento
+		If Empty(aPerSPO)
+			MsgAlert("Nenhum resgistro alterado." , "Processo Executado") 
+			Return
+		EndIf
+
+		// Pega as marcações na SPG de acordo com os parâmetros preenchidos no MSDIALOG
+		cWhere += "%"
+		cWhere += "SPG.PG_FILIAL >= '" + xFilial("SPG",cFilDe) + "' AND "
+		cWhere += "SPG.PG_FILIAL <= '" + xFilial("SPG",cFilAte) + "' AND "
+		cWhere += "SPG.PG_DATAAPO >= '" + DtoS(dDataDe) + "' AND "
+		cWhere += "SPG.PG_DATAAPO <= '" + dDataAte + "'"
+		cWhere += "%"
+
+		BeginSql alias cAliasSPG
+			SELECT 
+			  R_E_C_N_O_
+			FROM %table:SPG% SPG
+			WHERE %Exp:cWhere%
+			  AND SPG.%notDel%
+		EndSql
+		
+		// Verifica se deve alterar o registro
+		If (cAliasSPG)->(!EoF())
+			DbSelectArea("SPG")
+	
+			While (cAliasSPG)->(!EoF())
+				SPG->(DbGoTo((cAliasSPG)->R_E_C_N_O_))
+				nPos := aScan( aPerSPO, { |x| AllTrim(x[1]) $ SPG->PG_FILIAL .And. DToS(SPG->PG_DATAAPO) >= x[2] .And. DToS(SPG->PG_DATAAPO) <= x[3] } )
+				If nPos > 0
+					RecLock("SPG",.F.)
+					SPG->PG_PAPONTA  := aPerSPO[nPos,2] + aPerSPO[nPos,3]
+					SPG->(MsUnLock())
+					nAlterados++					
+				EndIf
+				(cAliasSPG)->(DbSkip())
+			EndDo
+			(cAliasSPG)->(DbCloseArea())
+			SPG->(DbCloseArea())
+		EndIf
+	EndIf
+EndIf
+
+If nAlterados > 0
+	MsgAlert("Foram alterados " + cValToChar(nAlterados) + " registro(s)." , "Processo Executado") 
+Else
+	MsgAlert("Nenhum resgistro alterado." , "Processo Executado") 
+EndIf
+
+Return
+
+/*
+ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿
+³Fun‡…o    fPerSPO  ³ Autor ³ Marco Nakazawa ³ Data ³15/05/2020			³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´
+³Descri‡…o ³Pega todos os períodos do ponto fechados                    ³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Sintaxe   fPerSPO														³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Parametros³ cFilDe   Filial De 										³
+³			 cFilDe   Filial Até										³
+³			 dDataIni Data inicial dos Períodos							³
+ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´
+³Uso       PONATSPG                                                    	³
+ÀÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+
+Static Function fPerSPO(cFilDe, cFilAte, dDataDe)
+Local aPerPon		:= {}
+Local cAliasSPO		:= GetNextAlias()
+Local cWhere		:= ""
+
+cWhere += "%"
+cWhere += "SPO.PO_FILIAL >= '" + AllTrim(xFilial("SPO",cFilDe)) + "' AND "
+cWhere += "SPO.PO_FILIAL <= '" + AllTrim(xFilial("SPO",cFilAte)) + "' AND "
+cWhere += "SPO.PO_DATAINI >= '" + DtoS(dDataDe) + "'"
+cWhere += "%"
+
+BeginSql alias cAliasSPO
+	SELECT 
+	  PO_FILIAL,
+	  PO_DATAINI,
+	  PO_DATAFIM
+	FROM %table:SPO% SPO
+	WHERE %Exp:cWhere%
+	  AND SPO.PO_FLAGFEC = '0'
+	  AND SPO.%notDel%
+EndSql
+
+If (cAliasSPO)->(!EoF())
+	While (cAliasSPO)->(!EoF())
+		aAdd(aPerPon,{(cAliasSPO)->PO_FILIAL,(cAliasSPO)->PO_DATAINI,(cAliasSPO)->PO_DATAFIM})
+		(cAliasSPO)->(DbSkip())
+	EndDo
+EndIF
+
+(cAliasSPO)->( DbCloseArea() )
+
+Return aPerPon

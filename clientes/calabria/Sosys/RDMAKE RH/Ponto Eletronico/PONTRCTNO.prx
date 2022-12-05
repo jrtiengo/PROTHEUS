@@ -1,0 +1,359 @@
+#INCLUDE "PROTHEUS.CH"
+//#INCLUDE "PONCALEN.CH"
+#INCLUDE "PONTRCTNO.CH"
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÚÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄ¿±±
+±±³Fun‡„o    ³ PONTRCTNO   ³ Autor ³ Marco Nakazawa	    ³ Data ³ 13.12.21 ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Descri‡…o ³ RDMake para corrigir os campos PF_TURNODE, PF_SEQUEDE, 	  ³±±
+±±³PF_REGRADE, PF_TURNOPA, PF_SEQUEPA, PF_REGRAPA, RA_TNOTRAB, RA_REGRA e ³±±  
+±±³RA_SEQTURN vazios após o fechamento mensal. (DRHJORNPRT-1370)		  ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Sintaxe   ³ PONTRCTNO(void)                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Parametros³                                                            ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÅÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³ Uso      ³ Generico                                                   ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³         ATUALIZACOES SOFRIDAS DESDE A CONSTRU€AO INICIAL.             ³±±
+±±ÃÄÄÄÄÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÂÄÄÄÄÄÄÂÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ´±±
+±±³Programador ³ Data   ³ BOPS ³  Motivo da Alteracao                     ³±±
+±±ÀÄÄÄÄÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÁÄÄÄÄÄÄÁÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß*/
+
+User Function PONTRCTNO()
+Local oFont
+Local oDlg
+Local oStaSPF		:= FWPreparedStatement():New()
+Local oStaSPO		:= FWPreparedStatement():New()
+Local aAdvSize		:= {}
+Local aInfoAdvSize	:= {}
+Local aObjCoords	:= {}
+Local aObjSize		:= {}
+Local aTabPadrao	:= {}
+Local aTabCalend	:= {}
+Local aTurnos		:= {}
+Local bSet15		:= { || nOpcA := 1, oDlg:End() }
+Local bSet24		:= { || nOpca := 2, oDlg:End() }
+Local bAscan		:= { |x| x[CALEND_POS_DATA_APO] == dData .and. x[CALEND_POS_TIPO_MARC] == cFlagMarc }
+Local cFilDe		:= Space(FwSizeFilial())
+Local cFilAte		:= Space(FwSizeFilial())
+Local cAliasSRA		:= GetNextAlias()
+Local cSGBD			:= AllTrim(Upper(TcGetDb()))
+Local cAliasSPF		:= ""
+Local cAliasSPO		:= ""
+Local cWhere		:= ""
+Local cNextTnoSra	:= ""
+Local cNextSeqSra	:= ""
+Local cNextRegSra 	:= ""
+Local cSPFRecno 	:= ""
+Local cNextTno 		:= ""
+Local cNextSeq 		:= ""
+Local cNextReg 		:= ""
+Local cLastTno		:= ""
+Local cLastSeq		:= ""
+Local cLastReg		:= ""
+Local cQuerySPF		:= ""
+Local cQuerySPO		:= ""
+Local cSelect		:= ""
+Local cOrderBy		:= ""
+Local dPerIni		:= Ctod("//")
+Local dPerFim		:= Ctod("//")
+Local dPerFimAnt	:= Ctod("//")
+Local dNextPerIni	:= Ctod("//")
+Local dNextPerFim	:= Ctod("//")
+Local nOpcA			:= 0
+Local nAlterados	:= 0
+Local nTamCalen		:= 0
+Local nPosTab		:= 0
+Local nPosTurno		:= 0
+Local lPerCompleto	:= .F.
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Reinicializa as Static do SIGAPON                            ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+PonDestroyStatic()
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Incio da execução                           				 ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+If !MsgNoYes(STR0001, STR0002)
+	Return
+Else
+	aAdvSize		:= MsAdvSize()
+	aAdvSize[5]	:=	340	//horizontal
+	aAdvSize[6]	:=  240	//Vertical
+	aInfoAdvSize	:= { aAdvSize[1] , aAdvSize[2] , aAdvSize[3] , aAdvSize[4] , 5 , 5 }					 
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	aAdd( aObjCoords , { 000 , 010 , .T. , .F. } )
+	
+	aObjSize	:= MsObjSize( aInfoAdvSize , aObjCoords )
+	
+	DEFINE FONT oFont  NAME "Arial" SIZE 0,-11 BOLD
+	DEFINE MSDIALOG oDlg FROM aAdvSize[7], 0 TO aAdvSize[6], aAdvSize[5] TITLE STR0002 OF oMainWnd PIXEL
+		
+		@ aObjSize[1][1],aObjSize[1][2] 	SAY STR0007 SIZE 050,10  FONT oFont OF oDlg PIXEL
+		@ aObjSize[1][1],aObjSize[1][2]+35	MSGET cFilDe   SIZE 50,10 OF oDlg F3 "XM0" WHEN .T. PIXEL
+	
+		@ aObjSize[2][1],aObjSize[2][2] 	SAY STR0008 SIZE 050,10  FONT oFont OF oDlg PIXEL
+		@ aObjSize[2][1],aObjSize[2][2]+35	MSGET cFilAte  SIZE 50,10 OF oDlg F3 "XM0" PIXEL
+	
+	ACTIVATE MSDIALOG oDlg ON INIT EnchoiceBar(oDlg, bSet15, bSet24) CENTERED
+
+	If nOpcA == 2
+		Return
+	Else		
+		dbSelectArea('SRA')
+		dbSelectArea('SPF')
+
+		If Empty(cFilAte)
+			cFilAte := Replicate("Z", FwSizeFilial())
+		EndIf
+
+		cWhere += "%"
+		cWhere += "SRA.RA_FILIAL >= '" + AllTrim(xFilial("SRA",cFilDe)) + "' AND "
+		cWhere += "SRA.RA_FILIAL <= '" + AllTrim(xFilial("SRA",cFilAte)) + "' AND "
+		cWhere += "SRA.RA_TNOTRAB = '' AND "
+		cWhere += "SRA.RA_REGRA = '' AND "
+		cWhere += "SRA.RA_SEQTURN = '' AND "
+		cWhere += "SRA.RA_DEMISSA = ''"
+		cWhere += "%"
+
+		BeginSql alias cAliasSRA
+			SELECT 
+			  RA_FILIAL,
+			  RA_MAT,
+			  RA_DEMISSA,
+			  R_E_C_N_O_
+			FROM %table:SRA% SRA
+			WHERE %Exp:cWhere%
+			  AND SRA.%notDel%
+		EndSql
+
+		If (cAliasSRA)->(!EoF())
+			// Montagem da query da SPF para pegar as duas ultimas trocas de turno
+			cWhere := " WHERE PF_MAT = ?"
+			cWhere += " AND PF_FILIAL = ?"
+			cWhere += " AND D_E_L_E_T_<> '*'"
+			cOrderBy := " ORDER BY PF_DATA DESC"
+
+			Do Case
+				Case cSGBD $ "ORACLE"
+					cSelect	:= "SELECT * FROM " + RetSqlName('SPF')
+					cWhere += " AND ROWNUM <= 2 "
+				Case cSGBD $ "MYSQL*POSTGRES"
+					cSelect := "SELECT * FROM " + RetSqlName('SPF')
+					cOrderBy += " LIMIT 2 "
+				Case cSGBD $ "DB2"
+					cSelect := "SELECT * FROM " + RetSqlName('SPF')
+					cOrderBy += " FETCH FIRST 2 ROW ONLY "	 	
+				Case cSGBD $ "INFORMIX"	
+					cSelect := "SELECT FIRST 2 * FROM " + RetSqlName('SPF')
+				Otherwise
+					cSelect := "SELECT TOP 2 * FROM " + RetSqlName('SPF')
+			EndCase
+			
+			cQuerySPF := cSelect + cWhere + cOrderBy
+			cQuerySPF := ChangeQuery(cQuerySPF)
+			oStaSPF:SetQuery(cQuerySPF)
+
+			// Montagem da query da SPO para pegar o período anterior fechado
+			cWhere := " WHERE PO_FILIAL = ?"
+			cWhere += " AND D_E_L_E_T_<> '*'"
+			cOrderBy := " ORDER BY PO_DATAINI DESC"
+
+			Do Case
+				Case cSGBD $ "ORACLE"
+					cSelect	:= "SELECT * FROM " + RetSqlName('SPO')
+					cWhere += " AND ROWNUM <= 1 "
+				Case cSGBD $ "MYSQL*POSTGRES"
+					cSelect := "SELECT * FROM " + RetSqlName('SPO')
+					cOrderBy += " LIMIT 1 "
+				Case cSGBD $ "DB2"
+					cSelect := "SELECT * FROM " + RetSqlName('SPO')
+					cOrderBy += " FETCH FIRST 1 ROW ONLY "	 	
+				Case cSGBD $ "INFORMIX"	
+					cSelect := "SELECT FIRST 1 * FROM " + RetSqlName('SPO')
+				Otherwise
+					cSelect := "SELECT TOP 1 * FROM " + RetSqlName('SPO')
+			EndCase
+			
+			cQuerySPO := cSelect + cWhere + cOrderBy
+			cQuerySPO := ChangeQuery(cQuerySPO)
+			oStaSPO:SetQuery(cQuerySPO)
+						
+			While (cAliasSRA)->(!EoF())
+				oStaSPF:SetString(1,(cAliasSRA)->RA_MAT)
+				oStaSPF:SetString(2,xFilial("SPF",(cAliasSRA)->RA_FILIAL))
+
+				cQuerySPF := oStaSPF:getFixQuery()
+
+				cAliasSPF := GetNextAlias()
+
+				dbUseArea(.T.,"TOPCONN",TcGenQry(,,cQuerySPF),cAliasSPF)
+
+				aTabCalend := {}
+				aTabPadrao := {}
+				aTurnos := {}
+
+				If (cAliasSPF)->(!EoF())
+					While (cAliasSPF)->(!EoF())
+						If Empty((cAliasSPF)->PF_TURNODE)
+							cSPFRecno := (cAliasSPF)->R_E_C_N_O_
+						ElseIf !Empty(cSPFRecno)
+							If (cAliasSRA)->RA_DEMISSA > (cAliasSPF)->PF_DATA .Or. Empty((cAliasSRA)->RA_DEMISSA)
+								
+								oStaSPO:SetString(1,xFilial("SPO",(cAliasSRA)->RA_FILIAL))
+
+								cQuerySPO := oStaSPO:getFixQuery()
+								cAliasSPO := GetNextAlias()
+								dbUseArea(.T.,"TOPCONN",TcGenQry(,,cQuerySPO),cAliasSPO)
+
+								dPerIni		:= sTod((cAliasSPO)->PO_DATAINI)
+								dPerFim		:= sTod((cAliasSPO)->PO_DATAFIM) + 1
+								dPerFimAnt	:= sTod((cAliasSPO)->PO_DATAFIM)
+
+								SRA->(dbGoto((cAliasSRA)->R_E_C_N_O_))
+
+								CriaCalend( dPerIni					,; //01 -> Periodo Inicial
+											dPerFim					,; //02 -> Periodo Final (Com mais 7 dias para garantir que terá a próxima sequência)
+											(cAliasSPF)->PF_TURNOPA	,; //03 -> Turno de Trabalho
+											(cAliasSPF)->PF_SEQUEPA	,; //04 -> Sequencia de Turno
+											@aTabPadrao				,; //05 -> Tabela de Horario Padrao
+											@aTabCalend				,; //06 -> Calendario de Marcacoes
+											(cAliasSRA)->RA_FILIAL	,; //07 -> Filial do Funcionario
+											(cAliasSRA)->RA_MAT		,; //08 -> Matricula do Funcionario
+											NIL   					,; //09 -> Centro de Custo do Funcionario (Nao Passar Pois Nao precisa carregar as Excecoes)
+											@aTurnos				,; //10 -> Array com as Trocas de Turno
+											NIL						,; //11 -> Array com Todas as Excecoes do Periodo
+											NIL						,; //12 -> Se executa Query para a Montagem da Tabela Padrao
+											.F.						,; //13 -> Se executa a funcao se sincronismo do calendario
+											.F.						 ; //14 -> Se forca a Criacao de novo Calendario	
+								)
+
+								If ((nTamCalen := Len( aTabCalend )) > 0)
+									/*
+									ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+									³ Obtem Turno, Sequencia e Regra referente ao Primeiro dia do  ³
+									³  Novo periodo. Essas informacoes serao utilizadas para criar ³
+									³  a troca de turno do primeiro dia do proximo periodo (se for ³
+									³  necessario ).											   ³					
+									ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+									nPosTab:= 0
+									cNextTno := GetInfoPosTab(	CALEND_POS_TURNO		,;	//01 - Posicao em aTabCalend para Obtencao da Informacao
+																"1E"					,;	//02 - Flag da Marcacao "1E,1S,..."
+																dPerFim					,;	//03 - Data em aTabCalend
+																aTabCalend			 	,;	//04 - Calendario de Marcacoes
+																NIL						,;	//05 -> Tabela de Horario Padrao
+																NIL						,;	//06 -> Periodo Inicial de Apontamento
+																NIL						,;	//07 -> Periodo Final de Apontamento	
+																NIL						,;	//08 -> Informacao Referente a Funcionario
+																NIL						,;	//09 -> Turno de Trabalho
+																NIL						,;	//10 -> Sequencia
+																NIL						,;	//11 -> Filial
+																NIL						,;  //12 -> Carrega Excecoes 
+																bAscan					,;	//13 -> Bloco para Pesquisa em aTabCalend
+																@nPosTab				;	//14 -> Retorno da Posicao do aTabCalend 	
+															)
+									cNextSeq :=  If( Empty(nPosTab), Space(1), aTabCalend[ nPosTab , CALEND_POS_SEQ_TURNO 	] )
+									cNextReg  := If( Empty(nPosTab), Space(1), aTabCalend[ nPosTab , CALEND_POS_REGRA	    ] )
+									
+									/*
+									ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+									³Verifica a Ultima Ordem do Calendario de Marcacoes            ³
+									ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+									nPosTab:= 0
+									cUltOrd := GetInfoPosTab(	CALEND_POS_ORDEM		,;	//01 - Posicao em aTabCalend para Obtencao da Informacao
+																"1E"					,;	//02 - Flag da Marcacao "1E,1S,..."
+																dPerFimAnt				,;	//03 - Data em aTabCalend
+																aTabCalend				,;	//04 - Calendario de Marcacoes
+																NIL						,;	//05 -> Tabela de Horario Padrao
+																NIL						,;	//06 -> Periodo Inicial de Apontamento
+																NIL						,;	//07 -> Periodo Final de Apontamento	
+																NIL						,;	//08 -> Informacao Referente a Funcionario
+																NIL						,;	//09 -> Turno de Trabalho
+																NIL						,;	//10 -> Sequencia
+																NIL						,;	//11 -> Filial
+																NIL						,;  //12 -> Carrega Excecoes 
+																bAscan					,;	//13 -> Bloco para Pesquisa em aTabCalend
+																@nPosTab				;	//14 -> Retorno da Posicao do aTabCalend 	
+															)
+									/*
+									ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+									³ Obtem Ultimo Turno, Sequencia e Regra do Periodo Atual confor³
+									³  me Calendario de Marcacao. Essas informacoes serao utiliza- ³
+									³  das para criar a troca de turno do primeiro dia do proximo  ³
+									³  periodo ( ser for necessario ).				               ³					
+									ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/
+									cLastTno := If( Empty(nPosTab), Space(1), aTabCalend[ nPosTab , CALEND_POS_TURNO 		] )
+									cLastSeq := If( Empty(nPosTab), Space(1), aTabCalend[ nPosTab , CALEND_POS_SEQ_TURNO 	] )
+									cLastReg := If( Empty(nPosTab), Space(1), aTabCalend[ nPosTab , CALEND_POS_REGRA	   	] )
+									
+									CheckPonMes(@dNextPerIni, @dNextPerFim, .F., .F., .F., (cAliasSRA)->RA_FILIAL, .F.,@lPerCompleto)
+
+									If !Empty(aTurnos)
+										aeval(aTurnos,{|x,y| If ( ( x[2]>= dNextPerIni .AND. x[2]<= dNextPerFim ), nPosTurno:=Y, NIL) } )
+									EndIf
+									/*
+									ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+									³ Se nao foi cadastrada troca de turno para o Proximo Periodo  ³
+									³ assume a troca projetada para o primeiro dia do Novo periodo.³
+									ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ*/ 
+									If Empty( nPosTurno ) 
+										cNextTnoSra	:= cNextTno
+										cNextSeqSra	:= cNextSeq
+										cNextRegSra := cNextReg 					 
+									Else
+										cNextTnoSra	:= aTurnos[nPosTurno,1] 
+										cNextSeqSra	:= aTurnos[nPosTurno,3]
+										cNextRegSra := aTurnos[nPosTurno,5] 
+									EndIf
+
+									If !Empty(cNextTno) .And. !Empty(cLastTno)
+										If SRA->(RecLock("SRA", .F.))
+											SRA->RA_TNOTRAB	:= cNextTnoSra
+											SRA->RA_SEQTURN	:= cNextSeqSra
+											SRA->RA_REGRA	:= cNextRegSra
+											SRA->(MsUnLock())
+										EndIf
+										SPF->(dbGoto(cSPFRecno))
+										If SPF->(RecLock("SPF", .F.))
+											SPF->PF_TURNODE	:= cNextTnoSra
+											SPF->PF_SEQUEDE	:= cNextSeqSra
+											SPF->PF_REGRADE	:= cNextRegSra
+											SPF->PF_TURNOPA	:= cLastTno
+											SPF->PF_SEQUEPA	:= cLastSeq
+											SPF->PF_REGRAPA	:= cLastReg
+											SPF->(MsUnLock())
+										EndIf
+										nAlterados++
+									EndIf
+								EndIf
+								(cAliasSPO)->(DbCloseArea())
+							EndIf
+						EndIf
+						(cAliasSPF)->(dbskip())
+					EndDo
+					cSPFRecno := ""
+					(cAliasSPF)->(DbCloseArea())
+				EndIf
+				(cAliasSRA)->(dbskip())
+			EndDo
+		EndIF 
+		SRA->(DbCloseArea())
+		(cAliasSRA)->(DbCloseArea())
+	EndIf		
+EndIf
+
+
+If nAlterados > 0
+	MsgAlert(STR0003 + cValToChar(nAlterados) + STR0004 , STR0005) 
+Else
+	MsgAlert(STR0006 , STR0005) 
+EndIf
+
+Return

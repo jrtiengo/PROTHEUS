@@ -1,0 +1,35 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 04/04/00
+
+User Function Md2linok()        // incluido pelo assistente de conversao do AP5 IDE em 04/04/00
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de variaveis utilizadas no programa atraves da funcao    ³
+//³ SetPrvt, que criara somente as variaveis definidas pelo usuario,    ³
+//³ identificando as variaveis publicas do sistema utilizadas no codigo ³
+//³ Incluido pelo assistente de conversao do AP5 IDE                    ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+SetPrvt("NHEADER,I1,NZA_VALOR,LRET,NTOTAL,")
+
+nHeader := Len(aHeader)+1
+
+For i1 := 1 to Len(aHeader)
+   IF Alltrim(aHeader[i1,2]) == "ZA_VALOR"
+      nZA_VALOR := i1
+   ENDIF
+Next
+lRet := .T.
+if !aCols[n,nHeader]
+   nTotal := 0
+   for i1 := 1 to Len(acols)
+       nTotal:= nTotal + aCols[I1,nZA_VALOR]
+   next
+   if aCols[n,nZA_VALOR] > 0 
+      lRet := .t.
+   else
+      lRet := .f.
+      MsgBox("Existem campos obrigatorios nao preenchidos. Verifique o Valor do item e a OP","Impossivel Continuar","INFO") 
+   endif
+endif
+// Substituido pelo assistente de conversao do AP5 IDE em 04/04/00 ==> __RETURN(lRet)
+Return(lRet)        // incluido pelo assistente de conversao do AP5 IDE em 04/04/00

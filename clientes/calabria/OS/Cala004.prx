@@ -1,0 +1,375 @@
+#include "rwmake.ch"        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+User Function Cala004()        // incluido pelo assistente de conversao do AP5 IDE em 28/03/00
+
+//зддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Declaracao de variaveis utilizadas no programa atraves da funcao    Ё
+//Ё SetPrvt, que criara somente as variaveis definidas pelo usuario,    Ё
+//Ё identificando as variaveis publicas do sistema utilizadas no codigo Ё
+//Ё Incluido pelo assistente de conversao do AP5 IDE                    Ё
+//юддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+
+SetPrvt("CALIAS,NOPCX,CCLIENTE,CLOJA,NUSADO,AHEADER")
+SetPrvt("CNUM,_NSZAREC,NITEMS,CNUMBER,ACOLS,I1")
+SetPrvt("_RECSZA,NREC,CFIELD,DDATA,NTOTAL,CTITULO")
+SetPrvt("AC,AR,ACGD,CLINHAOK,CTUDOOK,LRETMOD2")
+SetPrvt("CNUMOP,CCHASSI,CANO,CMODELO,CMARCA,CPLACA")
+SetPrvt("NKM,DENTREGA,NZA_COD,NZA_DESC,NZA_QUANT,NZA_VALOR")
+SetPrvt("NZA_CC,NZA_TIPO,NZA_GRUPO,")
+
+
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Opcao de acesso para o Modelo 2                              Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+// 3,4 Permitem alterar getdados e incluir linhas
+// 6 So permite alterar getdados e nao incluir linhas
+// Qualquer outro numero so visualiza
+
+cAlias := "SZA"  // Declaracao da alias a ser trabalhada
+
+nOpcx   := IIF(ParamIxb==0,6,ParamIxb)
+cCliente:= Space(6)
+cLoja   := Space(2)
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Montando aHeader                                             Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+dbSelectArea("Sx3")
+dbSetOrder(1)
+dbSeek(cAlias)
+nUsado:=0
+aHeader:={}
+While !Eof() .And. (x3_arquivo == cAlias)
+        IF X3USO(x3_usado) .AND. cNivel >= x3_nivel .AND.;
+           ALLTRIM(X3_CAMPO) <> "ZA_NUM" .AND. ALLTRIM(X3_CAMPO) <> "ZA_OP" .and.;
+           ALLTRIM(X3_CAMPO) <> "ZA_CLIENTE" .and. ALLTRIM(X3_CAMPO) <> "ZA_NOMCLI"
+           IF nOpcx == 3 .and. ALLTRIM(X3_CAMPO) == "ZA_ITEM"
+              DBSkip()
+              Loop
+           ENDIF
+          nUsado:=nUsado+1
+          IF nOpcx <> 0
+             AADD(aHeader,{ TRIM(x3_titulo), x3_campo, x3_picture,;
+                           x3_tamanho, x3_decimal,x3_vlduser,;
+                           x3_usado, x3_tipo, x3_arquivo, x3_context } )
+          ELSE
+             AADD(aHeader,{ TRIM(x3_titulo), x3_campo, x3_picture,;
+                           x3_tamanho, x3_decimal,x3_vlduser,.F.,;
+                           x3_tipo, x3_arquivo, x3_context } )
+          ENDIF
+    Endif
+    dbSkip()
+End
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Montando aCols                                               Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+
+IF nOpcx == 3
+   cNum := "A"+Substr(GETSX8NUM(cAlias,"ZA_NUM"),2)
+ELSE
+   cNum := SZA->ZA_NUM
+ENDIF
+
+DBSelectArea(cAlias)
+_nSZArec := Recno()
+DBSeek( xFilial(cAlias)+ cNum)
+nItems := 1
+cNumber := ZA_NUM
+While !eof() .and. SZA->ZA_NUM == cNumber .and. nOpcx <> 3
+   nItems := nItems +1
+   dbskip()
+enddo
+
+if nItems > 1
+   nItems := nItems -1
+endif
+DbGoto( _nSZArec )
+
+aCols:=Array(nItems,nUsado+1)
+
+dbSelectArea("SX3")
+dbSeek(cAlias)
+nUsado:=0
+For i1 := 1 to nItems
+   While !Eof() .And. (x3_arquivo == cAlias) 
+     IF X3USO(x3_usado) .AND. cNivel >= x3_nivel .AND.;
+        ALLTRIM(X3_CAMPO) <> "ZA_NUM" .AND. ALLTRIM(X3_CAMPO) <> "ZA_OP" .and.;
+        ALLTRIM(X3_CAMPO) <> "ZA_CLIENTE" .and. ALLTRIM(X3_CAMPO) <> "ZA_NOMCLI"
+        IF nOpcx == 3 .and. ALLTRIM(X3_CAMPO) == "ZA_ITEM"
+           dbskip()
+           Loop
+        ENDIF
+
+        nUsado:=nUsado+1
+
+        IF x3_tipo == "C"
+           aCOLS[nItems][nUsado] := SPACE(x3_tamanho)
+        Elseif x3_tipo == "N"
+           aCOLS[nItems][nUsado] := 0
+        Elseif x3_tipo == "D"
+           aCOLS[nItems][nUsado] := dDataBase
+        Elseif x3_tipo == "M"
+            aCOLS[nItems][nUsado] := ""
+        Else
+            aCOLS[nItems][nUsado] := .F.
+        Endif
+     Endif
+     dbSkip()
+   Enddo
+Next
+aCOLS[nItems][nUsado+1] := .F.
+
+DbSelectArea(cAlias)
+
+_RecSZA := Recno()
+DBSeek( xFilial(cAlias)+ cNum)
+nRec := 1
+While !eof() .and. SZA->ZA_NUM == cNum .and. nOpcx <> 3
+
+   DbSelectArea("SC2")
+   DBSetOrder(1)
+   IF DbSeek( xFilial("SC2")+ LEFT(SZA->ZA_OP,6))
+      cCliente := SC2->C2_CLIENTE
+   ENDIF
+   DBSelectArea("SZA")
+
+   For i1 := 1 to Len(aHeader)
+       cField := "SZA->"+aHeader[i1,2]
+       aCols[nRec,i1] := &cField
+   Next
+   aCols[nRec,i1] := .f.
+   DBSelectArea(cAlias)
+   DBSkip()
+   nRec := nRec +1
+Enddo
+
+
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Variaveis do Cabecalho do Modelo 2                           Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+dData   := MsDate()
+
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Variaveis do Rodape do Modelo 2                              Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+nTotal:=0
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Titulo da Janela                                             Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+cTitulo:="Movimento de Ordens de Servico"
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Array com descricao dos campos do Cabecalho do Modelo 2      Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+aC:={}
+// aC[n,1] = Nome da Variavel Ex.:"cCliente"
+// aC[n,2] = Array com coordenadas do Get [x,y], em Windows estao em PIXEL
+// aC[n,3] = Titulo do Campo
+// aC[n,4] = Picture
+// aC[n,5] = Validacao
+// aC[n,6] = F3
+// aC[n,7] = Se campo e' editavel .t. se nao .f.
+#IFDEF WINDOWS
+        IF nOpcx == 3
+           AADD(aC,{"cNum"       ,{20,010} ,"Numero"      ,"@!"   ,,     ,.T.})
+           AADD(aC,{"dData"      ,{20,080} ,"Emissao"     ,       ,,     ,.F.})
+           AADD(aC,{"cCliente"   ,{20,170} ,"Cliente"     ,       ,,"SA1",.T.})
+           AADD(aC,{"cLoja"      ,{20,250} ,"Loja"        ,       ,,     ,.T.})
+        ELSE
+           AADD(aC,{"cNum"       ,{20,010} ,"Numero"      ,"@!"   ,,     ,.F.})
+           AADD(aC,{"dData"      ,{20,080} ,"Emissao"     ,       ,,     ,.F.})
+           AADD(aC,{"cCliente"   ,{20,170} ,"Cliente"     ,       ,,"SA1",.F.})
+           AADD(aC,{"cLoja"      ,{20,250} ,"Loja"        ,       ,,     ,.F.})
+        ENDIF
+#ENDIF
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Array com descricao dos campos do Rodape do Modelo 2         Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+aR:={}
+// aR[n,1] = Nome da Variavel Ex.:"cCliente"
+// aR[n,2] = Array com coordenadas do Get [x,y], em Windows estao em PIXEL
+// aR[n,3] = Titulo do Campo
+// aR[n,4] = Picture
+// aR[n,5] = Validacao
+// aR[n,6] = F3
+// aR[n,7] = Se campo e' editavel .t. se nao .f.
+#IFDEF WINDOWS
+        AADD(aR,{"nTotal"     ,{120,10},"Valor total da OS"   ,"@E 999,999.99",,,.F.})
+#ENDIF
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Array com coordenadas da GetDados no modelo2                 Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+#IFDEF WINDOWS
+	aCGD:={44,5,118,315}
+#ELSE
+	aCGD:={10,04,15,73}
+#ENDIF
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Validacoes na GetDados da Modelo 2                           Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+cLinhaOk:="ExecBlock('Md2LinOk',.f.,.f.)"
+cTudoOk:= "ExecBlock('Md2TudOk',.f.,.f.)"
+//здддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддд©
+//Ё Chamada da Modelo2                                           Ё
+//юдддддддддддддддддддддддддддддддддддддддддддддддддддддддддддддды
+// lRetMod2 = .t. se confirmou 
+// lRetMod2 = .f. se cancelou
+
+lRetMod2:=Modelo2(cTitulo,aC,aR,aCGD,nOpcx,cLinhaOk,cTudoOk)
+
+// No Windows existe a funcao de apoio CallMOd2Obj() que retorna o
+// objeto Getdados Corrente
+
+cNumOP := "A"+Substr(cNum,2)
+
+if lRetMod2 .and. nOpcx <> 0 .and. nOpcx <> 6
+
+   // Guardando posicoes do aheader
+   IF nOpcx <> 3
+      DbSelectArea("SC2")
+      DbSetOrder(1)
+      DbSeek( xFilial()+ cNumOP)
+      cChassi := C2_CHASSI
+      cAno    := C2_ANO
+      cModelo := C2_MODELO
+      cMarca  := C2_MARCA
+      cPlaca  := C2_PLACA
+      nKM     := C2_KM
+      dEntrega:= C2_DATPRF
+   ELSE
+      cChassi := Space(20)
+      cAno    := Space(4)
+      cModelo := Space(10)
+      cMarca  := space(10)
+      cPlaca  := Space(7)
+      nKM     := 0.00
+      dEntrega:= msDate()
+   ENDIF
+   @ 000,000 TO 210,500 DIALOG oDlg TITLE "Ordens de Servico"
+   @ 010,010 TO 80,245 TITLE "Rodape"
+   @ 020,015 SAY "Chassi" 
+   @ 020,070 GET cChassi
+   @ 030,015 SAY "Ano"
+   @ 030,070 GET cAno
+   @ 030,150 SAY "Modelo"
+   @ 030,180 GET cModelo
+   @ 040,015 SAY "Marca"
+   @ 040,070 GET cMarca
+   @ 050,015 SAY "KM"
+   @ 050,070 GET nKM Picture "@E 9,999.99"
+   @ 050,150 SAY "Entrega"
+   @ 050,180 GET dEntrega
+   @ 060,015 SAY "Placa"
+   @ 060,070 GET cPlaca
+   @ 090,190 BMPBUTTON TYPE 1 ACTION oGrava()//Close(oDlg)
+   @ 090,218 BMPBUTTON TYPE 2 ACTION Close(oDlg)//oGrava()// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==>    @ 090,218 BMPBUTTON TYPE 1 ACTION Execute(oGrava)
+   ACTIVATE DIALOG oDlg CENTERED
+
+ElseIF nOpcx == 6 .and. ParamIxb > 0 .and. lRetMod2
+   DbSelectArea( cAlias )
+   DbSeek( xFilial()+ cNum)
+   While !eof() .and. ZA_NUM == cNum
+      RecLock( cAlias,.F.)
+      DBDelete()
+      MSUnlock()
+      DBSkip()
+   Enddo
+ENDIF
+
+Return
+// Substituido pelo assistente de conversao do AP5 IDE em 28/03/00 ==> FUNCTION oGrava
+Static FUNCTION oGrava()
+   Close(oDlg)
+   For i1 := 1 to Len( aHeader )
+       IF Alltrim(aHeader[i1,2]) == "ZA_COD"
+          nZA_COD  := i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_DESC"
+          nZA_DESC := i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_QUANT"
+          nZA_QUANT:= i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_VALOR"
+          nZA_VALOR:= i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_CC"
+          nZA_CC   := i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_TIPO"
+          nZA_TIPO := i1
+       ELSEIF Alltrim(aHeader[i1,2]) == "ZA_GRUPO"
+          nZA_GRUPO:= i1
+       ENDIF
+   Next
+
+   if nOpcx == 3
+
+      DBSelectArea("SA1")
+      DBSetOrder(1)
+      DbSeek( xFilial()+ cCliente )
+
+      For i1 := 1 to Len( aCols )
+        RecLock(cAlias,.T.)
+        SZA->ZA_FILIAL := xFilial(cAlias)
+        SZA->ZA_NUM    := "A"+Substr(cNum,2)
+        SZA->ZA_ITEM   := StrZero(i1,2)
+        SZA->ZA_COD    := aCols[i1,nZA_COD]
+        SZA->ZA_OP     := cNumOP
+        SZA->ZA_DESC   := aCols[i1,nZA_DESC]
+        SZA->ZA_VALOR  := aCols[i1,nZA_VALOR]
+        SZA->ZA_CC     := aCols[i1,nZA_CC]
+        SZA->ZA_TIPO   := aCols[i1,nZA_TIPO]
+        SZA->ZA_GRUPO  := aCols[i1,nZA_GRUPO]
+        SZA->ZA_CLIENTE:= cCliente
+        SZA->ZA_NOMCLI := SA1->A1_NOME
+        SZA->ZA_PLACA  := cPlaca
+        MSUnlock()
+      Next
+      ConfirmSX8("SZA")
+
+      DbSelectArea("SB1")
+      DBSetOrder(1)
+      DbSeek( xFilial() + "AMGE") // PRODUTO GENERICO DE SERVICO DA MECANICA
+
+      DbSelectArea("SC2")
+      RecLock("SC2",.T.)
+      SC2->C2_FILIAL := xFilial()
+      SC2->C2_NUM    := cNumOP
+      SC2->C2_ITEM   := "01"
+      SC2->C2_SEQUEN := "001"
+      SC2->C2_PRODUTO:= "AMGE"
+      SC2->C2_DESC   := SB1->B1_DESC
+      SC2->C2_QUANT  := 1
+      SC2->C2_LOCAL  := "01"
+      SC2->C2_EMISSAO:= DDATABASE
+      SC2->C2_DATPRI := DDATABASE
+      SC2->C2_PRIOR  := "500"
+      SC2->C2_TPOP   := "F"
+      SC2->C2_CLIENTE:= cCliente
+      SC2->C2_NOME   := SA1->A1_NOME
+      SC2->C2_UM     := SB1->B1_UM
+      SC2->C2_TIPO   := LEFT(C2_PRODUTO,2)
+      SC2->C2_MODELO := cModelo
+      SC2->C2_MARCA  := cMarca
+      SC2->C2_KM     := nKM
+      SC2->C2_CHASSI := cChassi
+      SC2->C2_ANO    := cAno
+      SC2->C2_DATPRF := dEntrega
+      SC2->C2_PLACA  := cPlaca
+      SC2->C2_CC     := SZA->ZA_CC
+      MSUNLOCK()
+      ConfirmSX8("SC2")
+   Else
+      For i1 := 1 to Len( aCols )
+        DbSelectArea(cAlias)
+        DBSetOrder(1)
+        if DbSeek( xFilial(cAlias)+ cNum + StrZero(i1,2))
+           RecLock(cAlias,.F.)
+           SZA->ZA_FILIAL := xFilial(cAlias)
+           SZA->ZA_NUM    := cNum
+           SZA->ZA_ITEM   := StrZero(i1,2)
+           SZA->ZA_COD    := aCols[i1,nZA_COD]
+           SZA->ZA_DESC   := aCols[i1,nZA_DESC]
+           SZA->ZA_VALOR  := aCols[i1,nZA_VALOR]
+           SZA->ZA_CC     := aCols[i1,nZA_CC]
+           SZA->ZA_TIPO   := aCols[i1,nZA_TIPO]
+           SZA->ZA_GRUPO  := aCols[i1,nZA_GRUPO]
+           MSUnlock()
+        Endif
+      Next
+   Endif
+Return

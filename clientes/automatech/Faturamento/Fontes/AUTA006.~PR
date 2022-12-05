@@ -1,0 +1,125 @@
+#INCLUDE "rwmake.ch"
+#INCLUDE "protheus.ch"
+/*/
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºPrograma  ³ AUTA006  º Autor ³ Cesar Mussi        º Data ³  23/12/10   º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDescricao ³                                                            º±±
+±±º          ³                                                            º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºUso       ³                                                            º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+/*/
+
+User Function AUTA006
+
+//ÚÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ¿
+//³ Declaracao de Variaveis                                             ³
+//ÀÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÙ
+
+Private cCadastro := "Liberação de Pedidos de venda Bloqueados pelo Quoting"
+
+Private aRotina := { {"Pesquisar"	,"AxPesqui",0,1} ,;
+ 	        	     {"Visualizar"	,"U_VISQTG",0,2} ,;
+    		         {"Liberar"		,"U_LIBQTG",0,3} }
+
+Private cDelFunc := ".F." // Validacao para a exclusao. Pode-se utilizar ExecBlock
+
+Private cString := "SC6"
+
+dbSelectArea("SC6")
+dbSetOrder(1)
+
+aCampos := {	{"PedVenda"			,"C6_NUM" 	  },;
+				{"Itm"				,"C6_ITEM"	  },;
+				{"Codigo"			,"C6_PRODUTO" },;
+				{"Descricao"		,"C6_DESCRI"  },;
+				{"Unid"				,"C6_UM"	  },;
+				{"QtdVend"			,"C6_QTDVEN"  },;
+				{"R$_Unid"			,"C6_PRCVEN"  },;
+				{"R$_Total"			,"C6_VALOR"	  },;
+				{"Custo_R$_Unid"	,"C6_QTGMIN"  },;
+				{"Margem_Perc. "	,"C6_VALOR"	  },;
+				{"BloqQTG"  		,"C6_BLQ"	  }	}
+
+				
+dbSelectArea(cString)
+Set Filter to C6_BLQ = 'S'
+dbGoTop()
+mBrowse( 6,1,22,75,cString,aCampos)
+
+Return
+
+
+/*
+ÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜÜ
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+±±ÉÍÍÍÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍËÍÍÍÍÍÍÑÍÍÍÍÍÍÍÍÍÍÍÍÍ»±±
+±±ºPrograma  ³ LIBQTG ºAutor  ³ César Mussi          º Data ³  23/12/10   º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÊÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºDesc.     ³ Libera o campo C6_BLQ                                      º±±
+±±º          ³                                                            º±±
+±±ÌÍÍÍÍÍÍÍÍÍÍØÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¹±±
+±±ºUso       ³                                                            º±±
+±±ÈÍÍÍÍÍÍÍÍÍÍÏÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍÍ¼±±
+±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±±
+ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß
+*/
+
+User Function LibQtg()
+Local cCodped := SC6->C6_NUM
+Local _lBlqItm:= .f.
+Local _aArea  := GetArea()
+
+Reclock("SC6",.f.)
+C6_BLQ := ""
+Msunlock()         
+
+DbSelectArea("SC6")
+DbSetOrder(1)
+DbSeek(xfilial("SC6")+cCodPed)
+Do While SC6->C6_NUM = cCodPed
+   
+   IF SC6->C6_BLQ == "S"
+	  _lBlqItm := .t.
+   ENDIF
+
+   DbSelectArea("SC6")
+   DbSkip()
+Enddo
+
+   DbSelectArea("SC5")
+   DbSetOrder(1)
+   DbSeek(xfilial("SC5")+cCodPed)
+   Reclock("SC5",.f.)
+   C5_BLQ := IIF( _lBlqItm , "3"," ")
+   Msunlock()
+   Alert(IIF( _lBlqItm ,"Pedido com itens ainda Bloqueados!","Pedido Liberado!"))
+
+RestArea(_aArea)
+
+Return
+
+
+
+User Function VisQtg
+Local aArea 		:= Getarea()
+Local aAreaSB1 		:= SB1->(GetArea())
+
+Private lclose 		:= .t.
+
+Define MsDialog oDlgCab Title "Detalhamento" From 10,0 to 340,630 OF oMainWnd Pixel
+@010,020 SAY "Custo Atual " SIZE 60,10  OF oDlgCab Pixel
+
+@010,090 SAY Posicione("SB2",1,xFilial("SB2")+SC6->C6_PRODUTO+SC6->C6_LOCAL,"B2_CM1")	Picture("@E 9,999,999.99") SIZE 100,10  OF oDlgCab Pixel
+
+ACtivate MsDialog oDlgcab Valid lClose
+
+RestArea(aAreaSB1)
+RestArea(aArea)
+
+Return()
