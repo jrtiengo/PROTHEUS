@@ -6,8 +6,95 @@
 	"permissions": {
 		"authorizationtoken": ""
 	},
-	"connectedServer": {},
-	"configurations": [],
-	"savedTokens": [],
-	"lastConnectedServer": ""
+	"connectedServer": {
+		"id": "9gqgihy86vmlbwah1ocgvb8cq7v9h4",
+		"type": "totvs_server_protheus",
+		"name": "app_local_33",
+		"port": 6010,
+		"address": "localhost",
+		"buildVersion": "7.00.210324P",
+		"secure": true,
+		"includes": [
+			"C:\\TOTVS\\protheus12.1.33\\protheus\\include"
+		],
+		"environments": [
+			"protheus12.1.33"
+		],
+		"username": "admin",
+		"environment": "protheus12.1.33",
+		"token": "djM6OWdxZ2loeTg2dm1sYndhaDFvY2d2YjhjcTd2OWg0OjE6bG9jYWxob3N0OjYwMTA6MTo3LjAwLjIxMDMyNFA6Mw==:djE6cHJvdGhldXMxMi4xLjMzOmFkbWluOlZvQ2I3dGtaSThCL0FhdEl2YlBKeGhUVDBrd210U3R0YXBJYytvbWxid0k9|djI6MTY3MTU0NDY3ODowOjE6MQ==.ykERKAkG9UrjMJ79nwdHKUTt4nEUAjKb+o13uE0WzHXJEb9PSh1DixxwVWGoNBrdzX6VJRt/BO///zBBqRsZX+OP3cBnN1nG5ruj02k02NYyI5B9kcHWenRN4wCJeEw9otCBphWJvXmUg660B2pQHMCdY2KtxCDvtIcwfrLen9q6nQg5Kr/+FWGHKdbOWjN0kUSZHrRQJvDrSG6je6ri9GcFo53fAFPdd0T3g+CZNrVSKqZQbe5VSQUtCS7nj7yUiByk2MZfo5XfRaYgoMlndqsQRDtCd+nOJmo82Rkh2B2CCvwtw95ZEX4dA6TpcktDPaS9uUCOylsFbqyHF13d2A==",
+		"informations": {
+			"permissions": [],
+			"errorMessage": "",
+			"environmentDetectedType": "totvs_server_protheus",
+			"serverDetectedType": "totvs_server_protheus"
+		}
+	},
+	"configurations": [
+		{
+			"id": "pqa1cv5uvxhlbdqeg588341bm3z9vq",
+			"type": "totvs_server_protheus",
+			"name": "engSB_comp",
+			"port": 2020,
+			"address": "192.168.1.147",
+			"buildVersion": "7.00.210324P",
+			"secure": true,
+			"includes": [
+				"C:\\TOTVS\\protheus12.1.33\\protheus\\include"
+			],
+			"environments": [
+				"compila"
+			],
+			"username": "solutio.tiengo",
+			"environment": "compila",
+			"token": "djM6cHFhMWN2NXV2eGhsYmRxZWc1ODgzNDFibTN6OXZxOjE6MTkyLjE2OC4xLjE0NzoyMDIwOjE6Ny4wMC4yMTAzMjRQOjM=:djE6Y29tcGlsYTpzb2x1dGlvLnRpZW5nbzo5azhOR0JsQ1VoaDlyNkJFcGxlSEVvNkRpODYrZEtsU3ZuS1FKUU9mbGE4PQ==|djI6MTY3MDQyMjQ4NzowOjE6MQ==.bXwduaVqe9dHUcb3nDT6VsxCHGrVEYFfe9kGMmklRh1Y3EexVYcwisR/N5qVV85GLrT3BgREsaeIwgFLY8zJdi2Q6z0bTaP8Edn+8I7t+Qh6sYjMlzuIbbvtZc+niUnM5IB8kfJ4jN6tLwrpbLLLUq58PQLYnSI701gLVmCYgO5E55z1f/9TgkGhjTcdYXfY3flqjgM6kCPfuObLTnOJp8IHtseYg4lNXJTVPHouo8zAs1i8bzK0/AujVKNYxe+v1g+fweEeWtYzydZQjaqAi0Bnd/+DfI0lx/0dLc6vfUIrNUphoZ+YVCvqRvzQ6x8NbIJKaFodUxtGbLrWqv/gZQ==",
+			"informations": {
+				"permissions": [],
+				"errorMessage": "",
+				"environmentDetectedType": "totvs_server_protheus",
+				"serverDetectedType": "totvs_server_protheus"
+			}
+		},
+		{
+			"id": "9gqgihy86vmlbwah1ocgvb8cq7v9h4",
+			"type": "totvs_server_protheus",
+			"name": "app_local_33",
+			"port": 6010,
+			"address": "localhost",
+			"buildVersion": "7.00.210324P",
+			"secure": true,
+			"includes": [
+				"C:\\TOTVS\\protheus12.1.33\\protheus\\include"
+			],
+			"environments": [
+				"protheus12.1.33"
+			],
+			"username": "admin",
+			"environment": "protheus12.1.33",
+			"token": "djM6OWdxZ2loeTg2dm1sYndhaDFvY2d2YjhjcTd2OWg0OjE6bG9jYWxob3N0OjYwMTA6MTo3LjAwLjIxMDMyNFA6Mw==:djE6cHJvdGhldXMxMi4xLjMzOmFkbWluOlZvQ2I3dGtaSThCL0FhdEl2YlBKeGhUVDBrd210U3R0YXBJYytvbWxid0k9|djI6MTY3MTU0NDY3ODowOjE6MQ==.ykERKAkG9UrjMJ79nwdHKUTt4nEUAjKb+o13uE0WzHXJEb9PSh1DixxwVWGoNBrdzX6VJRt/BO///zBBqRsZX+OP3cBnN1nG5ruj02k02NYyI5B9kcHWenRN4wCJeEw9otCBphWJvXmUg660B2pQHMCdY2KtxCDvtIcwfrLen9q6nQg5Kr/+FWGHKdbOWjN0kUSZHrRQJvDrSG6je6ri9GcFo53fAFPdd0T3g+CZNrVSKqZQbe5VSQUtCS7nj7yUiByk2MZfo5XfRaYgoMlndqsQRDtCd+nOJmo82Rkh2B2CCvwtw95ZEX4dA6TpcktDPaS9uUCOylsFbqyHF13d2A==",
+			"informations": {
+				"permissions": [],
+				"errorMessage": "",
+				"environmentDetectedType": "totvs_server_protheus",
+				"serverDetectedType": "totvs_server_protheus"
+			}
+		}
+	],
+	"savedTokens": [
+		[
+			"pqa1cv5uvxhlbdqeg588341bm3z9vq:compila",
+			{
+				"id": "pqa1cv5uvxhlbdqeg588341bm3z9vq",
+				"token": "djM6cHFhMWN2NXV2eGhsYmRxZWc1ODgzNDFibTN6OXZxOjE6MTkyLjE2OC4xLjE0NzoyMDIwOjE6Ny4wMC4yMTAzMjRQOjM=:djE6Y29tcGlsYTpzb2x1dGlvLnRpZW5nbzo5azhOR0JsQ1VoaDlyNkJFcGxlSEVvNkRpODYrZEtsU3ZuS1FKUU9mbGE4PQ==|djI6MTY3MDQyMjQ4NzowOjE6MQ==.bXwduaVqe9dHUcb3nDT6VsxCHGrVEYFfe9kGMmklRh1Y3EexVYcwisR/N5qVV85GLrT3BgREsaeIwgFLY8zJdi2Q6z0bTaP8Edn+8I7t+Qh6sYjMlzuIbbvtZc+niUnM5IB8kfJ4jN6tLwrpbLLLUq58PQLYnSI701gLVmCYgO5E55z1f/9TgkGhjTcdYXfY3flqjgM6kCPfuObLTnOJp8IHtseYg4lNXJTVPHouo8zAs1i8bzK0/AujVKNYxe+v1g+fweEeWtYzydZQjaqAi0Bnd/+DfI0lx/0dLc6vfUIrNUphoZ+YVCvqRvzQ6x8NbIJKaFodUxtGbLrWqv/gZQ=="
+			}
+		],
+		[
+			"9gqgihy86vmlbwah1ocgvb8cq7v9h4:protheus12.1.33",
+			{
+				"id": "9gqgihy86vmlbwah1ocgvb8cq7v9h4",
+				"token": "djM6OWdxZ2loeTg2dm1sYndhaDFvY2d2YjhjcTd2OWg0OjE6bG9jYWxob3N0OjYwMTA6MTo3LjAwLjIxMDMyNFA6Mw==:djE6cHJvdGhldXMxMi4xLjMzOmFkbWluOlZvQ2I3dGtaSThCL0FhdEl2YlBKeGhUVDBrd210U3R0YXBJYytvbWxid0k9|djI6MTY3MTU0NDY3ODowOjE6MQ==.ykERKAkG9UrjMJ79nwdHKUTt4nEUAjKb+o13uE0WzHXJEb9PSh1DixxwVWGoNBrdzX6VJRt/BO///zBBqRsZX+OP3cBnN1nG5ruj02k02NYyI5B9kcHWenRN4wCJeEw9otCBphWJvXmUg660B2pQHMCdY2KtxCDvtIcwfrLen9q6nQg5Kr/+FWGHKdbOWjN0kUSZHrRQJvDrSG6je6ri9GcFo53fAFPdd0T3g+CZNrVSKqZQbe5VSQUtCS7nj7yUiByk2MZfo5XfRaYgoMlndqsQRDtCd+nOJmo82Rkh2B2CCvwtw95ZEX4dA6TpcktDPaS9uUCOylsFbqyHF13d2A=="
+			}
+		]
+	],
+	"lastConnectedServer": "9gqgihy86vmlbwah1ocgvb8cq7v9h4"
 }
