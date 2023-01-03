@@ -4,7 +4,7 @@
 		{
 			"type": "totvs_language_debug",
 			"request": "launch",
-			"name": "Debug_Local",
+			"name": "Debug_Local_2210",
 			"program": "${command:AskForProgramName}",
 			"smartclientBin": "C:/TOTVS/protheus12.1.2210/protheus/bin/smartclient/smartclient.exe",
 			"cwb": "${workspaceFolder}",
