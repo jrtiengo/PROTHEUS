@@ -279,13 +279,7 @@ User Function M460FIM()
 			// Atualiza a despesa acessoria e a diferenca
 		 	_cQryUpd	:= "BEGIN UPDATE "+RetSQLName("SE1")+" "
 		  	_cQryUpd	+= "SET E1_VALOR=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "
-		  	//_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", " // Quando for adiantamento, é necessário baixar o título NF - TIENGO 2212
-			IF iTotAdia > 0
-				_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp-iTotAdia))) + ", "
-			Else
-				_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "	
-			EndIf
-		  	_cQryUpd	+= "E1_VLCRUZ=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + " "
+		  	_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "
 		  	_cQryUpd	+= "E1_VLCRUZ=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "
 			_cQryUpd	+= "WHERE E1_FILIAL='" + xFilial("SE1") + "' "
 		  	_cQryUpd	+= "AND E1_CLIENTE='"+SF2->F2_CLIENTE+"' "
@@ -294,7 +288,7 @@ User Function M460FIM()
 		  	_cQryUpd	+= "AND E1_NUM='"+SF2->F2_DOC+"' "  
 		  	_cQryUpd	+= "AND D_E_L_E_T_ <> '*'; COMMIT; END;"
 			MEMOwrite('C:\temp\_cQryUpd3.txt', _cQryUpd)
-		  	TCSqlExec(_cQryUpd)			
+		  	TCSqlExec(_cQryUpd)
 		Endif
 	ElseIf nVlrDesp <> 0 .or. iTotAdia > 0
 		
@@ -310,7 +304,11 @@ User Function M460FIM()
 		  	_cQryUpd	+= "SET E1_VALOR=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "
 			// _cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "	// Quando for adiantamento, é necessário baixar o título NF - TIENGO 2212
 			IF iTotAdia > 0
-				_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp-iTotAdia))) + ", "
+				if iTotAdia > nVlrParc .and. SE1->E1_PARCELA == 'A'
+					_cQryUpd	+= "E1_SALDO= ''"+", "
+				else
+					_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp-iTotAdia))) + ", "
+				EndIF
 			Else
 				_cQryUpd	+= "E1_SALDO=" + Ltrim(Rtrim(Str(nVlrParc+cValDifDesp))) + ", "	
 			EndIf
