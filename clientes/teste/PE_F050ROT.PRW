@@ -7,7 +7,7 @@ User Function F050ROT()
     Local aRotina := Paramixb // Array contendo os botoes padrões da rotina.
  
     // Tratamento no array aRotina para adicionar novos botoes e retorno do novo array.
-    Aadd(aRotina, { "#Copiar", "u_xCopySE2", 0, 8, 0,.F.})
+    Aadd(aRotina, { "#Copiar", "U_xCopySE2", 0, 8, 0,.F.})
      
     RestArea(aArea)
  

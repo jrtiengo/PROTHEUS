@@ -3,15 +3,14 @@
 
 Static nRecSE2 := 0
 
-//-------------------------------------------------------------------
 /*/{Protheus.doc} xCopySE2
 Copia o título do contas a pagar
-
-@author  Jonatas Martins
-@since   09/04/2020
+@author  Tiengo	
+@since   06/02/2023
 /*/
-//-------------------------------------------------------------------
+
 User Function xCopySE2()
+
 	Local aArea    := GetArea()
 	Local aAreaSE2 := SE2->(GetArea())
 	Local aAreaSED := SED->(GetArea())
@@ -37,6 +36,7 @@ Valida a cópia do título
 /*/
 //-------------------------------------------------------------------
 Function VldCopy()
+
 Local lPEPreVld := ExistBlock("J273Pre")
 Local lContinue := .F.
 Local cMsgErro  := ""
