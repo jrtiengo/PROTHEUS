@@ -4,6 +4,16 @@
 		{
 			"type": "totvs_language_debug",
 			"request": "launch",
+			"name": "TV_ADMIN",
+			"program": "${command:AskForProgramName}",
+			"smartclientBin": "C:/Users/jr-ti/OneDrive/Documentos/Tiengo/smartclient_tv/smartclient/smartclient.exe",
+			"cwb": "${workspaceFolder}",
+			"isMultiSession": true,
+			"enableTableSync": true
+		},
+		{
+			"type": "totvs_language_debug",
+			"request": "launch",
 			"name": "LOCAL_2210",
 			"program": "${command:AskForProgramName}",
 			"cwb": "${workspaceFolder}",
@@ -15,6 +25,16 @@
 	"lastPrograms": [
 		{
 			"label": "sigamdi"
+		},
+		{
+			"args": [],
+			"label": "RFIN033"
+		},
+		{
+			"label": "U_RFIN033"
+		},
+		{
+			"label": "apsdu"
 		}
 	],
 	"lastProgramExecuted": "sigamdi"
