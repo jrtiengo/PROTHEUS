@@ -1,0 +1,397 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+class aula_05 from fwAdapterBaseV2
+
+	public method new() constructor
+
+	@get('/treinamento/list/fornecedores')
+	public method lista_fornecedores() as logical
+
+	@post('/treinamento/fornecedores')
+	public method incluir_fornecedor() as logical
+
+    @put('/treinamento/fornecedores')
+    public method update_fornecedor() as logical
+
+	@delete('/treinamento/fornecedores')
+	public method delete_fornecedor() as logical
+
+end class
+
+method new() class aula_05; return self
+
+method delete_fornecedor() class aula_05
+
+	Local lRPC 		as logical
+	Local cError 	as character
+	Local jResp  	as json
+	Local jHeader	as json
+	Local cCodigo   as character
+	Local cLoja		as character
+
+	Private err 	as object
+
+	IF type('cEmpAnt') == 'U'
+		rpcSetEnv('99','01')
+		lRPC := .T.
+	EndIF
+
+	try
+
+		jHeader 		:= oRest:getHeaderRequest()
+		cCodigo			:= jHeader['codigo']
+		cLoja			:= jHeader['loja'  ]
+
+		SA2->(dbSetOrder(1),dbSeek(xFilial(alias())+cCodigo+cLoja))
+
+		IF SA2->(Found())
+
+			aDados := {{"A2_COD" ,SA2->A2_COD ,Nil},;
+					   {"A2_LOJA",SA2->A2_LOJA,Nil}}
+
+			lMsErroAuto := .F.
+
+			msExecAuto({|x,y| mata020(x,y)},aDados,5)	
+
+			IF lMsErroAuto
+				
+				mostraerro('\data\','erro_sa2.txt')		
+				cError := memoread('\data\erro_sa2.txt')  
+
+				err := errorClass():new()
+				err:descrition := cError
+
+				throw err
+
+			EndIF
+
+			jResp := jsonObject():new()
+			jResp['retorno'] := 'REGISTRO EXCLUIDO!!'	
+
+			oRest:setResponse(jResp:toJson())	 
+
+		Else
+
+			err := errorClass():new()
+			err:description := 'FORNECEDOR NAO ENCONTRADOR'
+
+			throw err
+
+		EndIF
+
+	catch err
+
+		cError          := err:description
+
+		jResp           := jsonObject():new()
+		jResp['error']  := cError
+
+		oRest:setFault(jResp:toJson())     	
+
+	endtry
+
+	IF lRPC
+		rpcClearEnv()
+	EndIF	
+
+return .T.
+
+method update_fornecedor() class aula_05
+
+	Local lRPC      as logical
+	Local jBodyReq  as json
+	Local aDados    as array
+	Local nOpc      as numeric
+    Local cNome     as character
+
+	Private lMsErroAuto as logical
+    Private err as object
+
+	IF type('cEmpAnt') == 'U'
+		rpcSetEnv('99','01')
+		lRPC := .T.
+	EndIF
+
+	try
+
+		jBodyReq := jsonObject():new()
+		jBodyReq:fromJson(oRest:getBodyRequest())
+
+        cCodigo  := jBodyReq['codigo']
+        cLoja    := jBodyReq['loja']
+		cNome    := jBodyReq['nome']
+        cNomeRed := jBodyReq['nome_fantasia']
+        cTipoPes := jBodyReq['tipo']
+        cCGC     := jBodyReq['cgc']
+        cEnd     := jBodyReq['endereco']
+        cBairro  := jBodyReq['bairro']
+        cCidade  := jBodyReq['cidade']
+        cEstado  := jBodyReq['estado']
+        cEmail   := jBodyReq['email']
+        cTelefone:= jBodyReq['telefone']
+
+        SA2->(dbSetOrder(1),dbSeek(xFilial(alias())+cCodigo+cLoja))
+
+        IF .not. SA2->(found())
+
+            err := errorClass():new()
+            err:description := 'FORNECEDOR NAO ENCONTRADO'
+
+            throw err
+
+        EndIF
+
+        cCGC     := strtran(strtran(strtran(cCGC,'.',''),'-',''),'/','')
+        cTelefone:= strtran(strtran(strtran(strtran(cTelefone," ",""),"-",""),"(",""),")","")
+
+        CC2->(dbSetOrder(4),dbSeek(xFilial(alias())+cEstado+cCidade))
+        cCodMun  := CC2->CC2_CODMUN
+       
+		aDados   := {{"A2_COD"      ,cCodigo    ,Nil},;
+                     {"A2_LOJA"     ,cLoja      ,Nil},;
+                     {"A2_NOME"     ,cNome      ,Nil},;
+                     {"A2_NREDUZ"   ,cNomeRed   ,Nil},;                                         
+                     {"A2_END"      ,cEnd       ,Nil},;
+                     {"A2_BAIRRO"   ,cBairro    ,Nil},;
+                     {"A2_EST"      ,cEstado    ,Nil},;
+                     {"A2_MUN"      ,cCidade    ,Nil},;                     
+                     {"A2_COD_MUN"  ,cCodMun    ,Nil},;                     
+                     {"A2_EMAIL"    ,cEmail     ,Nil},;
+                     {"A2_TEL"      ,cTelefone  ,Nil}}
+
+		nOpc        := 4
+
+		lMsErroAuto := .F.
+		msExecAuto({|x,y| mata020(x,y)},aDados,nOpc)
+
+        IF lMsErroAuto
+            
+            mostraErro('\data\','erro_sa2.txt')
+            cError          := memoread('\data\erro_sa2.txt')
+
+            err             := errorClass():new()
+            err:description := cError
+
+            throw err
+
+        EndIF
+
+        jResp             := jsonObject():new()
+        jResp['codigo'  ] := SA2->A2_COD
+        jResp['loja'    ] := SA2->A2_LOJA
+        jResp['nome'    ] := SA2->(ALLTRIM(A2_NOME))
+        jResp['status'  ] := 'ATUALIZACAO COM SUCESSO!!'
+
+        oRest:setResponse(jResp:toJson())
+
+	catch err
+
+		cError          := err:description
+
+		jResp           := jsonObject():new()
+		jResp['error']  := cError
+
+		oRest:setFault(jResp:toJson())        
+
+	endtry
+
+	IF lRPC
+		rpcClearEnv()
+	EndIF
+
+return .T.
+
+method incluir_fornecedor() class aula_05
+
+	Local lRPC      as logical
+	Local jBodyReq  as json
+	Local aDados    as array
+	Local nOpc      as numeric
+    Local cNome     as character
+
+	Private lMsErroAuto as logical
+    Private err as object
+
+	IF type('cEmpAnt') == 'U'
+		rpcSetEnv('99','01')
+		lRPC := .T.
+	EndIF
+
+	try
+
+		jBodyReq := jsonObject():new()
+		jBodyReq:fromJson(oRest:getBodyRequest())
+
+		cNome    := jBodyReq['nome']
+        cNomeRed := jBodyReq['nome_fantasia']
+        cTipoPes := jBodyReq['tipo']
+        cCGC     := jBodyReq['cgc']
+        cEnd     := jBodyReq['endereco']
+        cBairro  := jBodyReq['bairro']
+        cCidade  := jBodyReq['cidade']
+        cEstado  := jBodyReq['estado']
+        cEmail   := jBodyReq['email']
+        cTelefone:= jBodyReq['telefone']
+
+        cCGC     := strtran(strtran(strtran(cCGC,'.',''),'-',''),'/','')
+        cTelefone:= strtran(strtran(strtran(strtran(cTelefone," ",""),"-",""),"(",""),")","")
+
+        CC2->(dbSetOrder(4),dbSeek(xFilial(alias())+cEstado+cCidade))
+        cCodMun  := CC2->CC2_CODMUN
+       
+		aDados   := {{"A2_LOJA"     ,"01"       ,Nil},;
+                     {"A2_NOME"     ,cNome      ,Nil},;
+                     {"A2_NREDUZ"   ,cNomeRed   ,Nil},;                     
+                     {"A2_CGC"      ,cCGC       ,Nil},;
+                     {"A2_TIPO"     ,cTipoPes   ,Nil},;                     
+                     {"A2_END"      ,cEnd       ,Nil},;
+                     {"A2_BAIRRO"   ,cBairro    ,Nil},;
+                     {"A2_EST"      ,cEstado    ,Nil},;
+                     {"A2_MUN"      ,cCidade    ,Nil},;                     
+                     {"A2_COD_MUN"  ,cCodMun    ,Nil},;                     
+                     {"A2_EMAIL"    ,cEmail     ,Nil},;
+                     {"A2_TEL"      ,cTelefone  ,Nil}}
+
+		nOpc        := 3
+
+		lMsErroAuto := .F.
+		msExecAuto({|x,y| mata020(x,y)},aDados,nOpc)
+
+        IF lMsErroAuto
+            
+            mostraErro('\data\','erro_sa2.txt')
+            cError          := memoread('\data\erro_sa2.txt')
+
+            err             := errorClass():new()
+            err:description := cError
+
+            throw err
+
+        EndIF
+
+        jResp             := jsonObject():new()
+        jResp['codigo'  ] := SA2->A2_COD
+        jResp['loja'    ] := SA2->A2_LOJA
+        jResp['nome'    ] := SA2->(ALLTRIM(A2_NOME))
+        jResp['status'  ] := 'INCLUIDO COM SUCESSO!!'
+
+        oRest:setResponse(jResp:toJson())
+
+	catch err
+
+		cError          := err:description
+
+		jResp           := jsonObject():new()
+		jResp['error']  := cError
+
+		oRest:setFault(jResp:toJson())        
+
+	endtry
+
+	IF lRPC
+		rpcClearEnv()
+	EndIF
+
+return .T.
+
+method lista_fornecedores() class aula_05
+
+	Local lRPC
+	Local nError        as numeric
+	Local cError        as character
+
+	Local jQueryStr     as json
+	Local jResp         as json
+
+	Local cSQL          as character
+	Local cWhere        as character
+	Local cEstado       as character
+	Local cCidade       as character
+	Local nSize         as numeric
+	Local nPage         as numeric
+	Local cOrder        as character
+	Local cSearch       as character
+
+	IF type('cEmpAnt') <> 'C'
+		rpcSetEnv('99','01')
+		lRPC            := .T.
+	EndIF
+
+	try
+
+		jQueryStr           := oRest:getQueryRequest()
+
+		cEstado             := jQueryStr['estado'   ]
+		cCidade             := jQueryStr['cidade'   ]
+		nSize               := jQueryStr['pageSize' ]
+		nPage               := jQueryStr['page'     ]
+		cOrder              := jQueryStr['order'    ]
+		cSearch             := jQueryStr['search'   ]
+
+		nSize               := if(empty(nSize),10,nSize)
+		nPage               := if(empty(nPage),1 ,nPage)
+
+		cSQL                := "SELECT #QueryFields# FROM " + retSqlName("SA2") + " SA2"
+		cSQL                += CRLF + "WHERE #QueryWhere# "
+
+		cWhere              := "D_E_L_E_T_ = ' ' "
+
+		IF .not. empty(cEstado)
+			cWhere          += CRLF + "AND A2_EST = '" + cEstado + "' "
+		EndIF
+
+		IF .not. empty(cCidade)
+			cWhere          += CRLF + "AND A2_MUN LIKE '%" + cCidade + "%'"
+		EndIF
+
+		IF .not. empty(cSearch)
+			cWhere          += CRLF + "AND A2_NOME LIKE '%" + cSearch + "%' "
+		EndIF
+
+		_Super:new('GET',.T.)
+		::addMapFields('cod'     ,'A2_COD'   ,.T.,.T.,{'A2_COD','C',06,00},'SA2.A2_COD')
+		::addMapFields('loja'    ,'A2_LOJA'  ,.T.)
+		::addMapFields('nome'    ,'A2_NOME'  ,.T.)
+		::addMapFields('fantasia','A2_NREDUZ',.T.)
+		::addMapFields('endereco','A2_END'   ,.T.)
+
+		::setQuery(cSQL)
+		::setWhere(cWhere)
+		::setPageSize(nSize)
+		::setPage(nPage)
+		::setOrder(cOrder)
+
+		IF ::execute()
+
+			::fillGetResponse()
+			oRest:setResponse(::getJsonResponse())
+
+		Else
+
+			nError := ::getCode()
+			cError := ::getMessage()
+
+			jResp := jsonObject():new()
+			jResp['error'] := cError
+
+			oRest:setFault(jResp:toJson())
+
+		EndIF
+
+	catch err
+
+		cError          := err:errorstack
+
+		jResp           := jsonObject():new()
+		jResp['error']  := cError
+
+		oRest:setFault(jResp:toJson())
+
+	endtry
+
+	IF lRPC
+		rpcClearEnv()
+	EndIF
+
+return .T.

@@ -1,0 +1,32 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+#include 'curso-api.th'
+
+NAMESPACE introducao.tlpp
+
+/*/{Protheus.doc} U_AULA_08
+    Annotations
+    @type  Function
+    @author Klaus Wolfgram
+    @since 17/02/2024
+
+    @see https://tdn.totvs.com/display/tec/Reflection+e+Annotation
+    /*/
+
+@aula(objetivo = "Exemplificar o funcionamento de annotations")
+Function U_AULA_08 as logical
+
+    Local lRPC as logical
+
+    IF type('cEmpAnt') <> 'C'
+        rpcSetEnv('99','01')
+        lRPC                    := .T.
+    EndIF  
+
+    xret                        := reflection.getFunctionsByAnnotation('aula')
+
+    IF lRPC
+        rpcClearEnv()
+    EndIF
+
+return .T.    

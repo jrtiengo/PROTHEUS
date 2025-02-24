@@ -1,0 +1,56 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE introducao.tlpp
+
+/*/{Protheus.doc} U_AULA_04
+    Exemplo try / catch
+    @type  Function
+    @author user
+
+    @see https://tdn.totvs.com/display/tec/Try...Catch
+    /*/
+
+//-- introducao.tlpp.U_AULA_04    
+Function U_AULA_04 as logical
+
+    Local err as object
+    Local error_description as character
+    Local error_stack as character
+    Local ocorreu_erro as logical
+
+    begin transaction
+
+    try
+
+        &('2 + 2')
+
+        ocorreu_erro := .T.
+
+        IF ocorreu_erro
+            
+            err := errorClass():new()
+            err:description := 'ERRO FORCADO'
+
+            throw err
+
+        EndIF
+
+    catch err
+
+        error_description := err:description
+        error_stack       := err:errorstack
+
+        disarmtransaction()
+
+    finally
+
+        fwAlertInfo('Finally')
+
+    endtry
+
+    end transaction
+
+    fwAlertInfo('SAiu do Try')
+   
+Return .T.

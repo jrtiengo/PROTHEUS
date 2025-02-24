@@ -14,12 +14,13 @@
 		{
 			"type": "totvs_language_debug",
 			"request": "launch",
-			"name": "LOCAL_2210",
+			"name": "LOCAL_2310",
 			"program": "${command:AskForProgramName}",
 			"cwb": "${workspaceFolder}",
-			"smartclientBin": "C:/TOTVS/protheus12.1.2210/protheus/bin/smartclient/smartclient.exe",
+			"smartclientBin": "C:\\TOTVS\\protheus12.1.2310\\protheus\\bin\\smartclient\\smartclient.exe",
 			"isMultiSession": true,
-			"enableTableSync": true
+			"enableTableSync": true,
+			"enableMultiThread": true
 		}
 	],
 	"lastPrograms": [
@@ -35,7 +36,11 @@
 		},
 		{
 			"label": "apsdu"
+		},
+		{
+			"label": "tlpp.environment.getIncludesTLPP"
 		}
 	],
-	"lastProgramExecuted": "sigamdi"
+	"lastProgramExecuted": "sigamdi",
+	"lastProgramArguments": []
 }

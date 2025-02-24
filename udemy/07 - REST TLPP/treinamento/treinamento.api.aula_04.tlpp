@@ -1,0 +1,117 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE treinamento.api
+
+/*/{Protheus.doc} U_GET_FORNECEDORES
+    Exemplo de API com paginacao
+    @type  Function
+    @author Klaus Wolfgram
+    @see https://tdn.totvs.com/display/public/framework/09.+FWAdapterBaseV2
+    /*/
+    
+@get(endpoint='/treinamento/listafornecedores')
+
+Function U_GET_FORNECEDORES as logical
+
+    Local lRPC          as logical
+    Local nError        as numeric
+    Local cError        as character
+
+    Local jQueryStr     as json
+    Local jResp         as json
+
+    Local oAdapter      as object
+    Local cSQL          as character
+    Local cWhere        as character
+    Local cEstado       as character
+    Local cCidade       as character
+    Local nSize         as numeric
+    Local nPage         as numeric
+    Local cOrder        as character
+    Local cSearch       as character
+
+    try
+
+        jQueryStr           := oRest:getQueryRequest()
+
+        cEstado             := jQueryStr['estado'   ]
+        cCidade             := jQueryStr['cidade'   ]
+        nSize               := jQueryStr['pageSize' ]
+        nPage               := jQueryStr['page'     ]
+        cOrder              := jQueryStr['order'    ]
+        cSearch             := jQueryStr['search'   ]
+        
+        nSize               := if(empty(nSize),10,nSize)
+        nPage               := if(empty(nPage),1 ,nPage)
+
+        IF type('cEmpAnt') <> 'C'
+            rpcSetEnv('99','01')
+            lRPC            := .T.
+        EndIF  
+
+        cSQL                := "SELECT #QueryFields# FROM " + retSqlName("SA2") + " SA2"
+        cSQL                += CRLF + "WHERE #QueryWhere# "
+
+        cWhere              := "D_E_L_E_T_ = ' ' "
+
+        IF .not. empty(cEstado)
+            cWhere          += CRLF + "AND A2_EST = '" + cEstado + "' "
+        EndIF
+
+        IF .not. empty(cCidade)
+            cWhere          += CRLF + "AND A2_MUN LIKE '%" + cCidade + "%'"
+        EndIF    
+
+        IF .not. empty(cSearch)
+            cWhere          += CRLF + "AND A2_NOME LIKE '%" + cSearch + "%' "
+        EndIF    
+
+        oAdapter            := fwAdapterBaseV2():new('GET',.T.)
+        oAdapter:addMapFields('cod'     ,'A2_COD'   ,.T.,.T.,{'A2_COD','C',06,00},'SA2.A2_COD')
+        oAdapter:addMapFields('loja'    ,'A2_LOJA'  ,.T.)
+        oAdapter:addMapFields('nome'    ,'A2_NOME'  ,.T.)
+        oAdapter:addMapFields('fantasia','A2_NREDUZ',.T.)
+        oAdapter:addMapFields('endereco','A2_END'   ,.T.) 
+
+        oAdapter:setQuery(cSQL)   
+        oAdapter:setWhere(cWhere)    
+        oAdapter:setPageSize(nSize)
+        oAdapter:setPage(nPage)
+        oAdapter:setOrder(cOrder)
+
+        IF oAdapter:execute()
+
+            oAdapter:fillGetResponse()
+            cResult := oAdapter:getJsonResponse()
+
+            oRest:setResponse(cResult)
+
+        Else
+
+            nError          := oAdapter:getCode()
+            cError          := oAdapter:getMessage()
+
+            jResp          := jsonObject():new()
+            jResp['error'] := cError
+
+            oRest:setFault(jResp:toJson())
+
+        EndIF
+
+    catch err
+
+        cError          := err:errorstack
+
+        jResp           := jsonObject():new()
+        jResp['error']  := cError
+
+        oRest:setFault(jResp:toJson())
+
+    endtry
+         
+    IF lRPC
+        rpcClearEnv()
+    EndIF
+    
+Return .T.

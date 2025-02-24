@@ -1,0 +1,18 @@
+export interface Customer {
+    nome: string,
+    pessoa: string,
+    cep: string,
+    endereco: string,
+    bairro: string,
+    estado: string,
+    cidade: string,
+    status: boolean,
+    cgc?: string,
+    tipo?: string,
+    cidade_ext?: string,
+    estado_ext?: string,
+    email?: string,
+    ddi?: string,
+    ddd?: string,
+    telefone?: string,
+}

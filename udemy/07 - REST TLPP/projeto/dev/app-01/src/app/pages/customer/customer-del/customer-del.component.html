@@ -1,0 +1,23 @@
+<po-page-detail [p-title]="formTitle">
+  <po-dynamic-form
+    #customerForm
+    [p-fields]="formFields"
+    [p-value]="customerData"
+  >
+  </po-dynamic-form>
+
+  <br />
+
+  <div class="po-row">
+    <po-button
+      class="po-md-3"
+      p-label="Salvar"
+      (p-click)="customerSave()"
+    ></po-button>
+    <po-button
+      class="po-md-3"
+      p-label="Cancelar"
+      (p-click)="customerCancel()"
+    ></po-button>
+  </div>
+</po-page-detail>

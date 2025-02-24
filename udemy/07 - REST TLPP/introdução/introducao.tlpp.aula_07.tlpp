@@ -1,0 +1,52 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE introducao.tlpp
+
+/*/{Protheus.doc} U_AULA_07
+    Exemplo de uso de objetos json.
+    @type  Function
+    @author Klaus Wolfgram
+    @since 17/02/2024
+    /*/
+Function U_AULA_07          as logical
+
+    Local lRPC              as logical
+    Local lRET              as logical
+    Local lAbertura         as logical
+    Local lFechamento       as logical    
+    Local cJsonReceitaWS    as character
+    Local jJsonReceitaWS    as json
+
+    IF type('cEmpAnt') <> 'C'
+        rpcSetEnv('99','01')
+        lRPC                     := .T.
+    EndIF
+
+    cJsonReceitaWS               := introducao.tlpp.pessoa():getJsonReceitaWS('33.649.575/0001-99')
+    jJsonReceitaWS               := jsonObject():new()
+
+    jJsonReceitaWS:fromJson(cJsonReceitaWS)
+
+    lAbertura                    := .not. empty(jJsonReceitaWS['abertura'  ])
+    lFechamento                  := .not. empty(jJsonReceitaWS['fechamento'])
+
+    jJsonReceitaWS['fechamento'] := if(lFechamento,jJsonReceitaWS['fechamento'],'01/01/2024')
+    
+    aAtividades                  := jJsonReceitaWS['atividades_secundarias']
+    
+    jAtividade                   := jsonObject():new()
+    jAtividade['code']           := '99.99-9-99'
+    jAtividade['text']           := 'Teste Json'
+
+    aadd(aAtividades,jAtividade)
+
+    cJsonRet                     := jJsonReceitaWS:toJson() 
+
+    IF lRPC
+        rpcClearEnv()
+    EndIF    
+
+    lRET := .T.     
+    
+Return lRET

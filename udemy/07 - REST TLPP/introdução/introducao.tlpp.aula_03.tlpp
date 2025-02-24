@@ -1,0 +1,31 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE introducao.tlpp
+
+/*/
+TIPO        | DEFAULT   | DESCRICAO
+character   | ""        | TEXTO
+numeric     | 0         | NUMEROS
+logical     | .F.       | LOGICOS
+date        | 31/12/1899| DATA
+codeblock   | Nil       | Blocos de código
+array       | Nil       | Arrays e Matrizes
+object      | Nil       | Instancias de classes
+json        | Nil       | Objetos instanciados da classe jsonObject
+variant     | Nil       | Tipo de dados indefido
+variadic    |           | Indicar que uma funcao pode receber uma quantidade variavel de parametros
+ 
+@see https://tdn.totvs.com/display/tec/Tipos+Nativos
+/*/
+
+//introducao.tlpp.U_AULA_03(1,2,'somar')
+Function U_AULA_03(xpar as variadic) as logical
+
+    Local nome as character
+    Local dataAtual as date
+
+    nome := 'Klaus Wolfgram'
+    dataAtual := ctod('12/02/2024')
+
+return lret

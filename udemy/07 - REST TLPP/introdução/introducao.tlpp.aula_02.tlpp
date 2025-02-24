@@ -1,0 +1,10 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE introducao.tlpp
+
+Function U_AULA_02
+
+    U_AULA_01()
+
+return fwAlertInfo('AULA_02')

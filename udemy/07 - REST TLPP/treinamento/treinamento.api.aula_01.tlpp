@@ -1,0 +1,63 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE treinamento.api
+
+//-- http://localhost:8080/rest
+@get(endpoint='/teste', description='Servico rest de testes - metodo get')
+Function U_AULA_01 as logical
+
+    Local lRPC as logical
+    Local lRET as logical
+
+    IF type('cEmpAnt') <> 'C'
+        rpcSetEnv('99','01')
+        lRPC := .T.
+    EndIF
+
+    oRest:setResponse('{"Hello":"Olá Primeiro teste!!"}')
+
+    lRET     := .T.
+
+    IF lRPC
+        rpcClearEnv()
+    EndIF    
+
+return lRET
+
+class AULA_01
+
+    public method new() constructor
+
+    @get(endpoint='/teste2', description="Exemplo teste de uma metodo de uma classe para uma api rest")
+    public method teste() as logical
+    
+end class
+
+method new() class AULA_01
+
+return self
+
+method teste() class AULA_01
+    
+    Local lRPC as logical
+    Local lRET as logical
+    Local jResp as json
+
+    IF type('cEmpAnt') <> 'C'
+        rpcSetEnv('99','01')
+        lRPC        := .T.
+    EndIF
+
+    jResp           := jsonObject():new()
+    jResp['hello']  := 'Olá, esse é o meu primeiro teste com classe!!'
+
+    oRest:setResponse(jResp:toJson())
+
+    lRET            := .T.
+
+    IF lRPC
+        rpcClearEnv()
+    EndIF    
+
+return lRET

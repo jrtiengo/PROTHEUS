@@ -1,0 +1,59 @@
+<po-page-detail [p-title]="editTitle">
+  <po-breadcrumb
+    [p-items]="[
+      { label: 'CLIENTES', link: '/customer-list' },
+      { label: 'INCLUIR' }
+    ]"
+  ></po-breadcrumb>
+  <form #customerForm>
+    <po-divider p-border-width="small" p-label="Identificação"></po-divider>
+    <div class="po-row">
+      <po-input #nome class="po-md-10" name="nome" p-label="Nome"></po-input>
+
+      <po-select
+        #selectPessoa
+        class="po-md-2"
+        name="pessoa"
+        [p-options]="tipoPessoaOptions"
+        p-label="Pessoa"
+      ></po-select>
+    </div>
+
+    <po-divider p-border-width="small" p-label="Endereço"></po-divider>
+
+    <div class="po-row">
+      <po-input #endereco class="po-md-12" name="endereco" p-label="Endereço">
+      </po-input>
+      <po-input #cep class="po-md-4" name="cep" p-label="Cep"></po-input>
+      <po-input
+        #bairro
+        class="po-md-8"
+        name="bairro"
+        p-label="Bairro"
+      ></po-input>
+      <po-select
+        #selectEstado
+        class="po-md-2"
+        name="estado"
+        [p-options]="estados"
+        p-label="Estado"
+        (p-change)="onChangeEstado()"
+      ></po-select>
+      <po-select
+        #selectCidade
+        class="po-md-10"
+        name="cidade"
+        [p-options]="cidadeOptions"
+        p-label="Cidade"
+      ></po-select>
+    </div>
+  </form>
+
+  <po-divider p-border-width="small" p-label=""></po-divider>
+  <div class="po-row">
+    <po-button class="po-md-3" p-label="Salvar" (p-click)="customerSave()">
+    </po-button>
+    <po-button class="po-md-3" p-label="Cancelar" (p-click)="customerCancel()">
+    </po-button>
+  </div>
+</po-page-detail>

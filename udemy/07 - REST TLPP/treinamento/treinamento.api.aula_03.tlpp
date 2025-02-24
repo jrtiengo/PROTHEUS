@@ -1,0 +1,99 @@
+#include 'totvs.ch'
+#include 'tlpp-core.th'
+
+NAMESPACE treinamento.api
+
+/*/{Protheus.doc} U_GET_CLIENTES
+    Exemplo de API para listagem de clientes com passagem de parametros via query string.
+    @type  Function
+    @author Klaus Wolfgram
+    /*/
+    
+@get(endpoint='/treinamento/listaclientes',;
+description='Listagem de clientes com passagem de parametros via querystring')
+
+Function U_GET_CLIENTES as logical
+
+    Local lRPC      as logical
+    Local cCliente  as character
+    Local cLoja     as character
+    Local cEstado   as character
+    Local cCidade   as character
+    Local cPessoa   as character
+    Local cTipo     as character
+    Local cSQL      as character
+    Local cAliasSQL as character
+
+    Local jQueryStr as json
+    Local jResp     as json
+
+    IF type('cEmpAnt') <> 'C'
+        rpcSetEnv('99','01')
+        lRPC        := .T.
+    EndIF  
+
+    jQueryStr       := oRest:getQueryRequest()
+    cCliente        := jQueryStr['cCliente']
+    cLoja           := jQueryStr['cLoja'   ]
+    cEstado         := jQueryStr['cEstado' ]
+    cCidade         := jQueryStr['cCidade' ]
+    cPessoa         := jQueryStr['cPessoa' ]
+    cTipo           := jQueryStr['cTipo'   ]
+
+    cSQL            := "SELECT  * FROM " + retSqlName("SA1") + " SA1 "
+    cSQL            += CRLF + "WHERE D_E_L_E_T_ = ' ' "
+
+    IF .not. empty(cCliente)
+        cSQL        += CRLF + "AND A1_COD = '" + cCliente + "' "
+    EndIF
+
+    IF .not. empty(cLoja)
+        cSQL        += CRLF + "AND A1_LOJA = '" + cLoja + "' "
+    EndIF    
+    IF .not. empty(cEstado)
+        cSQL        += CRLF + "AND A1_EST = '" + cEstado + "' "
+    EndIF  
+
+    IF .not. empty(cCidade)
+        cSQL        += CRLF + "AND A1_MUN LIKE '%" + cCidade + "%'"
+    EndIF
+
+    IF .not. empty(cPessoa)
+        cSQL        += CRLF + "AND A1_PESSOA = '" + cPessoa + "' "
+    EndIF
+
+    IF .not. empty(cTipo)
+        cSQL        += CRLF + "AND A1_TIPO = '" + cTipo + "' "
+    EndIF  
+
+    cAliasSQL       := getNextAlias()
+
+    dbUseArea(.T.,"TOPCONN",tcGenQry(,,cSQL),cAliasSQL,.T.,.T.)    
+
+    jResp             := jsonObject():new()
+    jResp['clientes'] := array(0)
+
+    While .not. (cAliasSQL)->(eof())
+        
+        jCliente              := jsonObject():new()
+        jCliente['codigo'   ] := (cAliasSQL)->(A1_COD              )
+        jCliente['loja'     ] := (cAliasSQL)->(A1_LOJA             )
+        jCliente['nome'     ] := (cAliasSQL)->(alltrim(A1_NOME    ))
+        jCliente['fantasia' ] := (cAliasSQL)->(alltrim(A1_NREDUZ  ))
+        jCliente['endereco' ] := (cAliasSQL)->(alltrim(A1_END     ))      
+
+        aadd(jResp['clientes'],jCliente)  
+
+        (cAliasSQL)->(dbSkip())
+
+    End
+
+    (cAliasSQL)->(dbCloseArea())
+
+    oRest:setResponse(jResp:toJson())
+
+    IF lRPC
+        rpcClearEnv()
+    EndIF
+    
+Return .T.
