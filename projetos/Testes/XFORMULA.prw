@@ -1,81 +1,182 @@
-#INCLUDE 'PROTHEUS.ch'
-#INCLUDE "TOTVS.CH"
-
-/*/{Protheus.doc} xFormula
-//Rotina para execucao de funcoes dentro do Protheus (rotina de formulas descontinuada no Protheus)
-@author Celso Rene
-@since 12/04/2018
+//Bibliotecas
+#Include "Protheus.ch"
+ 
+//Variáveis estáticas
+Static cLogNome  := "\system\historico_zMiniForm.log"
+Static oLogWrite
+Static cLogSepar := "|-|"
+  
+/*/{Protheus.doc} zMiniForm
+Funcao Mini Formulas, para executar formulas
+@author Atilio
+@since 17/12/2017
 @version 1.0
 @type function
+@obs Assim como o formulas foi bloqueado no Protheus 12, cuidado ao deixar exposto no menu o Mini Formulas
 /*/
-
+  
 User Function xFormula()
-	
-	//Declaracao de variaveis
-	Local oError	:= ErrorBlock({|e| MsgAlert("Mensagem de Erro: " + Chr(13)+Chr(10) + e:Description)})
-	//Local cError	:= ""
-	Local cGet1Frm	:= PadR("Ex.: u_NomeFuncao() ", 30)
-	Local oDlg1Frm	:= Nil
-	Local oSay1Frm	:= Nil
-	Local oGet1Frm	:= Nil
-	Local oBtn1Frm	:= Nil
-	Local oBtn2Frm	:= Nil
-	
-	//Recupera e/ou define um bloco de codigo para ser avaliado quando ocorrer um erro em tempo de execucao.
-	//oError := ErrorBlock( {|e| cError := e:Description } ) //, Break(e) } )
-	
-	//Inicia sequencia
-	BEGIN SEQUENCE
-	
-		//Construcao da interface
-		oDlg1Frm := MSDialog():New( 091, 232, 225, 574, "Formulas" ,,, .F.,,,,,, .T.,,, .T. )
-		
-		//Rotulo 
-		oSay1Frm := TSay():New( 008 ,008 ,{ || "Informe a sua funcao aqui:" } ,oDlg1Frm ,,,.F. ,.F. ,.F. ,.T. ,CLR_BLACK ,CLR_WHITE ,084 ,008 )
-		
-		//Campo
-		oGet1Frm := TGet():New( 020 ,008 ,{ | u | If( PCount() == 0 ,cGet1Frm ,cGet1Frm := u ) } ,oDlg1Frm ,150 ,008 ,'!@' ,,CLR_BLACK ,CLR_WHITE ,,,,.T. ,"" ,,,.F. ,.F. ,,.F. ,.F. ,"" ,"cGet1Frm" ,,)
-		
-		//Botoes
-		//oBtn1Frm := TButton():New( 045 ,010 ,"Executar" ,oDlg1Frm ,{ || &("U_"+cGet1Frm)    } ,037 ,012 ,,,,.T. ,,"" ,,,,.F. )
-		oBtn1Frm := TButton():New( 045 ,010 ,"Executar" ,oDlg1Frm ,{ || &(xFormulaA(cGet1Frm))    } ,037 ,012 ,,,,.T. ,,"" ,,,,.F. )
-		oBtn2Frm := TButton():New( 045 ,125 ,"Sair"     ,oDlg1Frm ,{ || oDlg1Frm:End() } ,037 ,012 ,,,,.T. ,,"" ,,,,.F. )
-		
-		//Ativacao da interface
-		oDlg1Frm:Activate( ,,,.T.)
-	
-	RECOVER
-		
-		//Recupera e apresenta o erro
-		ErrorBlock( oError )
-		//MsgStop( cError )
-		
-	END SEQUENCE
-	
-Return()
-
-
-Static Function xFormulaA(_cGet)
-
-	Local _cRet := ""
-
-	If Upper(Substr(Alltrim(_cGet),1,2)) <> "U_"
-
-		_cRet := "U_" + Alltrim(_cGet)
-
-	Else
-
-		_cRet := _cGet
-
-	EndIf
-
-	If Substr(Alltrim(_cRet),Len(Alltrim(_cRet)),1) <> ")"
-
-		_cRet := Alltrim(_cRet) + "()"
-
-	EndIf
-
-
-
-Return(_cRet)
-
+    Local aArea := GetArea()
+    //Variaveis da tela
+    Private oDlgForm
+    Private oGrpForm
+    Private oGetForm
+    Private cGetForm := Space(250)
+    Private oGrpAco
+    Private oBtnExec
+    Private oBtnHist
+    Private oInibErro, lInibErro := .F.
+    //Tamanho da Janela
+    Private nJanLarg := 500
+    Private nJanAltu := 120
+    Private nTamBtn  := 048
+ 
+    //Abre o arquivo de log
+    fAbreLog()
+  
+    //Criando a janela
+    DEFINE MSDIALOG oDlgForm TITLE "zMiniForm - Execucao de Formulas" FROM 000, 000  TO nJanAltu, nJanLarg COLORS 0, 16777215 PIXEL
+        //Grupo Formula com o Get
+        @ 003, 003  GROUP oGrpForm TO 30, (nJanLarg/2)-1        PROMPT "Formula: " OF oDlgForm COLOR 0, 16777215 PIXEL
+            @ 010, 006  MSGET oGetForm VAR cGetForm SIZE (nJanLarg/2)-9, 013 OF oDlgForm COLORS 0, 16777215 PIXEL
+          
+        //Grupo Acoes com o Botao
+        @ (nJanAltu/2)-30, 003 GROUP oGrpAco TO (nJanAltu/2)-3, (nJanLarg/2)-1 PROMPT "Acoes: " OF oDlgForm COLOR 0, 16777215 PIXEL
+            @ (nJanAltu/2)-18, 006 CHECKBOX oInibErro VAR lInibErro PROMPT "Inibe Error Log (utilizar Begin Sequence)" SIZE 200, 010 OF oDlgForm COLORS 0, 16777215 PIXEL
+            @ (nJanAltu/2)-24, (nJanLarg/2) - ((nTamBtn*2) + 6) BUTTON oBtnHist PROMPT "Histórico" SIZE nTamBtn, 018 OF oDlgForm ACTION(fHistorico()) PIXEL
+            @ (nJanAltu/2)-24, (nJanLarg/2) - ((nTamBtn*1) + 6) BUTTON oBtnExec PROMPT "Executar"  SIZE nTamBtn, 018 OF oDlgForm ACTION(fExecuta()) PIXEL
+          
+    //Ativando a janela
+    ACTIVATE MSDIALOG oDlgForm CENTERED
+ 
+    //Encerra o arquivo
+    fFechaLog()
+      
+    RestArea(aArea)
+Return
+  
+/*---------------------------------------*
+ | Func.: fExecuta                       |
+ | Desc.: Executa a formula digitada     |
+ *---------------------------------------*/
+  
+Static Function fExecuta()
+    Local aArea     := GetArea()
+    Local cFormula  := Alltrim(cGetForm)
+    Local cError    := ""
+    Local bError    := Nil
+    Local cLinhaLog := ""
+    Local cCodUsr   := RetCodUsr()
+      
+    //Se tiver conteudo digitado
+    If ! Empty(cFormula)
+        //Adiciona no log
+        cLinhaLog := PadR(cCodUsr,             06) + cLogSepar
+        cLinhaLog += PadR(UsrRetName(cCodUsr), 20) + cLogSepar
+        cLinhaLog += PadR(GetEnvServer(),      20) + cLogSepar
+        cLinhaLog += PadR(dToC(Date()),        10) + cLogSepar
+        cLinhaLog += PadR(Time(),              08) + cLogSepar
+        cLinhaLog += cFormula
+        cLinhaLog += CRLF
+        oLogWrite:Write(cLinhaLog)
+ 
+        //Se tiver habilitado para inibir erros
+        If lInibErro
+            bError   := ErrorBlock({ |oError| cError := oError:Description})
+  
+            //Inicio a utilizacao da tentativa
+            Begin Sequence
+                &(cFormula)
+            End Sequence
+              
+            //Restaurando bloco de erro do sistema
+            ErrorBlock(bError)
+              
+            //Se houve erro, sera mostrado ao usuario
+            If ! Empty(cError)
+                MsgStop("Houve um erro na formula digitada: "+CRLF+CRLF+cError, "Atencao")
+            EndIf
+  
+        //Senão, simplesmente executa a fórmula conforme ela foi digitada
+        Else
+            &(cFormula)
+        EndIf
+    EndIf
+      
+    RestArea(aArea)
+Return
+ 
+Static Function fAbreLog()
+    Local cLinhaLog := ""
+    Local oFile
+ 
+    //Se o arquivo não existir, terá uma linha de cabeçalho
+    If ! File(cLogNome)
+        cLinhaLog := PadR("Usr.",              06) + cLogSepar
+        cLinhaLog += PadR("Nome do Usuário",   20) + cLogSepar
+        cLinhaLog += PadR("Ambiente",          20) + cLogSepar
+        cLinhaLog += PadR("Data",              10) + cLogSepar
+        cLinhaLog += PadR("Hora",              08) + cLogSepar
+        cLinhaLog += "Fórmula"
+        cLinhaLog += CRLF
+        cLinhaLog += Replicate("-", 06) + cLogSepar
+        cLinhaLog += Replicate("-", 20) + cLogSepar
+        cLinhaLog += Replicate("-", 20) + cLogSepar
+        cLinhaLog += Replicate("-", 10) + cLogSepar
+        cLinhaLog += Replicate("-", 08) + cLogSepar
+        cLinhaLog += Replicate("-", Len(cGetForm))
+        cLinhaLog += CRLF
+ 
+    //Senão, faz a leitura do que já existe
+    Else
+        //Tenta abrir o arquivo e pegar o conteudo
+        oFile := FwFileReader():New(cLogNome)
+        If oFile:Open()
+  
+            //Se deu certo abrir o arquivo, pega o conteudo e exibe
+            cLinhaLog  := oFile:FullRead()
+        EndIf
+        oFile:Close()
+    EndIf
+ 
+    //Abre o arquivo
+    oLogWrite := FWFileWriter():New(cLogNome, .F.)
+    oLogWrite:Create()
+ 
+    //Se tiver linha, escreve no arquivo
+    If ! Empty(cLinhaLog)
+        oLogWrite:Write(cLinhaLog)
+    EndIf
+Return
+ 
+Static Function fFechaLog()
+    oLogWrite:Close()
+Return
+ 
+Static Function fHistorico()
+    Local aArea     := FWGetArea()
+    Local cArqLocal := GetTempPath() + "zMiniForm.log"
+ 
+    //Fecha o log para permitir a cópia
+    fFechaLog()
+ 
+    //Se o arquivo já existir na máquina local, apaga ele
+    If File(cArqLocal)
+        FErase(cArqLocal)
+    EndIf
+ 
+    //Agora efatua a cópia da Protheus Data para a máquina local
+    __CopyFile(cLogNome, cArqLocal)
+ 
+    //Se o arquivo existir, exibe o conteúdo dele
+    If File(cArqLocal)
+        ShowMemo(cArqLocal)
+    Else
+        FWAlertError("Arquivo não encontrado na máquina local!", "Falha")
+    EndIf
+ 
+    //Abre o arquivo de log novamente
+    fAbreLog()
+ 
+    FWRestArea(aArea)
+Return

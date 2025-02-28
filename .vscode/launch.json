@@ -39,6 +39,9 @@
 		},
 		{
 			"label": "tlpp.environment.getIncludesTLPP"
+		},
+		{
+			"label": "u_teste"
 		}
 	],
 	"lastProgramExecuted": "sigamdi",
