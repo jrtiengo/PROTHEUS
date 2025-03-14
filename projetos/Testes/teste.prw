@@ -5,6 +5,6 @@ User Function teste()
 Local cParam := ""
 
 // Adjusted code to prevent '-Standard Price Book' from passing through u_PSIntNoSPace
-&(u_PSIntNoSPace(SC6->C6_PRODUTO)) + '-Standard Price Book'
+&(Iif(SC5->(IsDeleted()),'Cancelado',Iif(Empty(Alltrim(Posicione("ZS4",1,xFilial("ZS4")+"SC5"+SC5->C5_FILIAL+"|"+SC5->C5_NUM,"ZS4_IDSALES"))),'Orçamento','Pedido')))
 
 Return

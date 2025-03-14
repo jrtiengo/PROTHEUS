@@ -1,0 +1,1440 @@
+#include 'totvs.ch'
+#INCLUDE "TBICONN.CH"
+#include "Fileio.ch"
+#INCLUDE "protheus.ch"
+
+/*/{Protheus.doc} 
+CÛdigo auxiliar para integraÁ„o com o WebService da Gubee
+@type user function
+@author Tiengo
+@since 05/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PnPedgb()
+
+	Local lOKRequest    := ParamIXB[1]
+	Local cJSonRecebido := ParamIXB[3]
+	Local jTrataResp    := JsonObject():New() // Carrega o Json Vazio
+	Local nRegDet       := 1
+
+	// Caso o request de integracao tenha sido com sucesso.
+	If lOKRequest
+
+		// Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else // Obteve Sucesso.
+
+			// Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			// Obtem o numero de registros que retornou no JSon
+			If ValType(jTrataResp["_embedded"]["orders"]) = 'A'
+
+				// Passa por todos os registros
+				For nRegDet := 1 to Len(jTrataResp["_embedded"]["orders"])
+
+					u_AtPedGB(jTrataResp["_embedded"]["orders"][nRegDet])
+
+				Next nRegDet
+
+			EndIf
+		EndIf
+	EndIf
+
+Return()
+
+User Function AtPedGB(jJsonPed)
+
+	//Local aAreasBkp     := {}
+	Local cFilBkp       := cFilAnt
+	//Local aDadosSM0     := {}
+	//Local cEstFil       := ''
+	Local cQuery        := ''
+	Local cAliasQry     := ''
+	//Local jEndCli       := JsonObject():New()
+	Local cCriaCli      := ''
+	Local nFil          := 1
+	Local nItem         := 1
+	Local nAlm          := 1
+	Local cFilVnd       := cFilAnt
+	Local aPedidos      := {}
+	Local aEstSol       := {}
+	Local aSolEfet      := {}
+	Local lGeraPed      := .T.
+	Local cMsgValid     := ''
+	Local aEstAtual     := {}
+	Local nQtdVen       := 0
+	Local cItem         := ''
+	Local aItPV         := {}
+	Local aCabPV        := {}
+	Local aItemPV       := {}
+	Local aLinhaItem    := {}
+	Local cMailMsg      := ''
+	Local cMailTit      := ''
+	Local cCodTes       := ''
+	//Local nIdTrp        := 1
+	Local aIdTransp     := {}
+	Local cIdTransp     := ''
+	Local cCodTransp    := ''
+	Local nValTransp    := 0
+	Local cMsgInterna   := ''
+	Local nValMerc      := 0
+
+	Private cIDIntMag   := ''
+	Private cIDMagento  := ''
+	Private cNameCli    := ''
+	Private lMsErroAuto := .F.
+
+	//cIDIntMag   := jJsonPed['entity_id']
+	//cIDMagento  := jJsonPed['increment_id']
+	cIDIntMag	  := jJsonPed['id']
+	cIDMagento	  := jJsonPed['externalId']
+
+	// Se existir endereÁo, chama a funÁ„o para criar o cliente caso n„o existir.
+	If jJsonPed:HasProperty('customer') .and. jJsonPed:HasProperty('shippingAddress') .or. jJsonPed:HasProperty('billingAddress')
+		cCriaCli := fClientePneusM(jJsonPed,.T.,@cNameCli)
+		If !Empty(Alltrim(cCriaCli))
+			lGeraPed    := .F.
+			cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + ' - ' + cCriaCli
+		EndIf
+	Else
+		cCriaCli := 'Nao veio Endereco de entrega para o pedido'
+		If !Empty(Alltrim(cCriaCli))
+			lGeraPed    := .F.
+			cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + ' - ' + cCriaCli
+		EndIf
+	EndIf
+
+	// Verifica se o pedido ja nao foi gerado anteriormente
+	If fGravaIDZS3('CHECA','','',cIDIntMag)
+		cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + ' - Esse pedido ja foi importado e gerado no Protheus. Pedido ' + SC5->C5_NUM + ' na filial ' + SC5->C5_FILIAL
+		lGeraPed := .F.
+
+		// Chama o envio de atualizacao para o magento
+		fAtualizaPegMg()
+
+	EndIf
+
+	// Montagem dos itens para venda em cada filial
+	If ValType(jJsonPed['items']) == 'A'
+		For nItem := 1 to Len(jJsonPed['items'])
+
+			// Identificacao da filial de venda de acordo com os registros de sources
+			//nFil := aScan(aSources,{|x| Alltrim(x[2]) = Alltrim(jJsonPed['items'][nItem]['sku']) .and. x[3] = jJsonPed['items'][nItem]['qty_ordered'] })
+			//If nFil > 0
+			cFilVnd := '03' //aSources[nFil][1]
+			//EndIf
+
+			If !Empty(Alltrim(cFilVnd))
+				nFil := aScan(aItPV,{|x| Alltrim(x[1]) == Alltrim(cFilVnd) })
+
+				If nFil <= 0
+					aAdd(aItPV,{Alltrim(cFilVnd),{}})
+					nFil := Len(aItPV)
+				EndIf
+
+				aAdd(aItPV[nFil][2],{   jJsonPed['items'][nItem]['skuId'],;
+					jJsonPed['items'][nItem]['qty'],;
+					jJsonPed['items'][nItem]['salePrice'],;
+					})
+
+				// Valor unitario multiplicado pela quantidade
+				nValMerc += aItPV[nFil][2][Len(aItPV[nFil][2])][3] * aItPV[nFil][2][Len(aItPV[nFil][2])][2]
+
+			Else
+				lGeraPed    := .F.
+				cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + " - Item do pedido veio sem indentificao da origem (source)."
+
+			EndIf
+
+		Next nItem
+	Else
+		lGeraPed    := .F.
+		cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + " - Pedido veio sem itens."
+	EndIf
+
+	// Passa por cada filial identificada para gerar os pedidos
+	For nFil := 1 to Len(aItPV)
+
+		// Posiciona na filial de faturamento
+		If aItPV[nFil][1] <> cFilAnt
+			cFilAnt := aItPV[nFil][1]
+		EndIf
+
+		// Reseta variaveis
+		aItemPV     := {}
+		aEstSol     := {}
+		cItem       := ''
+		cCodTransp  := ''
+		aIdTransp   := {}
+		cIdTransp   := ''
+		nValTransp  := 0
+		cAliasQry   := ''
+		cQuery      := ''
+		cMsgInterna := ''
+
+		/////   CABECALHO DO PEDIDO
+
+		If lGeraPed
+			cNameCli := Alltrim(SA1->A1_NOME)
+		EndIf
+
+/*
+		// Procura a transportadora
+		If jJsonPed:HasProperty("extension_attributes")
+			If jJsonPed['extension_attributes']:HasProperty("shipping_assignments")
+				If jJsonPed['extension_attributes']['shipping_assignments'][1]:HasProperty("shipping")
+					If jJsonPed['extension_attributes']['shipping_assignments'][1]['shipping']:HasProperty("method")
+
+						// TAG method - "method": "megleo_delivery_Expresso Leomar_44.914.992/0024-24"
+						aIdTransp := StrTokArr(jJsonPed['extension_attributes']['shipping_assignments'][1]['shipping']["method"],'_')
+
+						// Quarta posicao o CNPJ
+						If Len(aIdTransp) >= 4 .and. !Empty(Alltrim(aIdTransp[4]))
+							fRetiraPont(@aIdTransp[4])
+
+							If Len(aIdTransp[4]) = 14
+
+								cIdTransp := 'CNPJ'
+
+								aAreasBkp := {SA4->(GetArea())}
+								DbSelectArea('SA4')
+								SA4->(DbSetOrder(3))
+								If SA4->(DbSeek(xFilial("SA4")+aIdTransp[4]))
+									cCodTransp := SA4->A4_COD
+									U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' - Tentativa por CNPJ - Identificado codigo ' + cCodTransp + ' da transportadora: ' + jJsonPed['extension_attributes']['shipping_assignments'][1]['shipping']["method"])
+								EndIf
+								// Restaura areas, muito importante
+								AEval(aAreasBkp, {|area| RestArea(area)})
+
+								If Empty(Alltrim(cCodTransp))
+									U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' - Tentativa por CNPJ - N√£o identificado transportadora no cadastro: ' + jJsonPed['extension_attributes']['shipping_assignments'][1]['shipping']["method"])
+								EndIf
+							EndIf
+						EndIf
+					EndIf
+				EndIf
+			EndIf
+		EndIf
+
+		/// Metodo antigo e temporario, de pegar a transportadora pelo nome
+		If Empty(Alltrim(cCodTransp)) .and. Empty(Alltrim(cIdTransp)) // Se tiver procurado por CNPJ, n√£o procura por nome por seguran√ßa
+			If jJsonPed:HasProperty("shipping_description")
+				If 'FORMAS DE ENTREGA' $ Upper(Alltrim(jJsonPed['shipping_description']))
+
+					// Transforma o formato de nome enviado em identificadores
+					aIdTransp := StrTokArr(SubStr(jJsonPed['shipping_description'],At('-',jJsonPed['shipping_description'])+1, ( At('-',jJsonPed['shipping_description'],At('-',jJsonPed['shipping_description'])+1) - At('-',jJsonPed['shipping_description']) )-1 ),' ')
+
+					// Apenas se conseguiu identificar algo
+					If Len(aIdTransp) > 0
+
+						cIdTransp := 'NOME'
+
+						// Passa por todos deixando em maisculo
+						For nIdTrp := 1 to Len(aIdTransp)
+							aIdTransp[nIdTrp] := Upper(NoAcento(Alltrim(aIdTransp[nIdTrp])))
+						Next nIdTrp
+
+						// Busca o estado da filial de faturamento para melhor identificacao da transportadora
+						aDadosSM0   := FWSM0Util():GetSM0Data(cEmpAnt,cFilAnt,{'M0_ESTENT'})
+						cEstFil     := aDadosSM0[1][2]
+
+						// Faz a query para tentar identificar
+						cAliasQry := GetNextAlias()
+						cQuery := " SELECT SA4.A4_COD "
+						cQuery += " FROM " + RetSqlName("SA4") + " SA4 "
+						cQuery += " WHERE SA4.D_E_L_E_T_ = ' ' "
+						cQuery += " AND SA4.A4_FILIAL = '" + xFilial("SA4") + "' "
+						cQuery += " AND SA4.A4_MSBLQL <> '1' "
+						For nIdTrp := 1 to Len(aIdTransp)
+							cQuery += " AND UPPER(SA4.A4_NOME) LIKE '%" + aIdTransp[nIdTrp] + "%' "
+						Next nIdTrp
+						cQuery += " ORDER BY ( CASE WHEN SA4.A4_EST = '" + cEstFil + "' THEN 1 ELSE 2 END ) ASC " // Ordena pelo estado igual da filial
+						DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+						If  (cAliasQry)->(!Eof())
+							cCodTransp := (cAliasQry)->A4_COD
+							U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' - Tentativa por Nome - Identificado codigo ' + cCodTransp + ' da transportadora: ' + jJsonPed['shipping_description'])
+						EndIf
+						(cAliasQry)->(DbCloseArea())
+
+						If Empty(Alltrim(cCodTransp))
+							U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' - Tentativa por Nome - N√£o identificado transportadora no cadastro: ' + jJsonPed['shipping_description'])
+						EndIf
+
+					EndIf
+				EndIf
+			EndIf
+		EndIf
+
+		// Mensagem interna
+		If ValType(jJsonPed['shipping_description']) <> 'U'
+			cMsgInterna := Alltrim(NoAcento(DecodeUTF8(jJsonPed['shipping_description'])))
+		EndIf
+		If cIdTransp == 'CNPJ'
+			If Len(aIdTransp) >= 4
+				If Empty(Alltrim(cCodTransp))
+					cMsgInterna += Iif(Empty(Alltrim(cMsgInterna)),'',', ') + ' MegLeo - CNPJ ' + aIdTransp[4] + ' da transportadora ' + Alltrim(aIdTransp[3]) + ' nao cadastrada '
+				EndIf
+			EndIf
+		EndIf
+*/
+		// Definicao de transportadora padrao
+		If Empty(Alltrim(cCodTransp))
+			cCodTransp  := SuperGetMv("PM_TRPPAD",.F.,'')
+			U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' - Transportadora padrao - Consultado parametro PM_TRPPAD: ' + cCodTransp)
+		EndIf
+
+		// Valor do transporte
+		If !Empty(Alltrim(cCodTransp))
+			If jJsonPed:HasProperty("totalFreight")
+				nValTransp  := jJsonPed['totalFreight']
+				// Solicitado por Thiago Hanna que o valor de frete seja composto no valor da mercadoria demonstrado em alertas
+				nValMerc    += nValTransp
+			EndIf
+		EndIf
+
+		// Valor Desconto
+		If !Empty(Alltrim(cCodTransp))
+			If jJsonPed:HasProperty("totalDiscount")
+				nValDesc  := jJsonPed['totalDiscount']
+			EndIf
+		EndIf
+
+		// Monta o cabecalho do pedido
+		aCabPV := {}
+
+		aAdd(aCabPV,{"C5_FILIAL" 			,cFilAnt      							,Nil})
+		aAdd(aCabPV,{"C5_TIPO"   			,"N"          							,Nil})
+		aAdd(aCabPV,{"C5_CLIENTE"			,SA1->A1_COD  							,Nil})
+		aAdd(aCabPV,{"C5_LOJACLI"			,SA1->A1_LOJA 							,Nil})
+		aAdd(aCabPV,{"C5_CLIENT" 			,SA1->A1_COD  							,Nil})
+		aAdd(aCabPV,{"C5_LOJAENT"			,SA1->A1_LOJA 							,Nil})
+		aAdd(aCabPV,{"C5_TIPOCLI"			,SA1->A1_TIPO 							,Nil})
+		aAdd(aCabPV,{"C5_CEP"    			,SA1->A1_CEP  							,Nil})
+		aAdd(aCabPV,{"C5_CONDPAG"			,SuperGetMv("PM_CNDPAD",.F.,'099')		,Nil})
+		aAdd(aCabPV,{"C5_PROPRI" 			,'1'         							,Nil})
+		aAdd(aCabPV,{"C5_EMISSAO"			,dDataBase   							,Nil})
+		aAdd(aCabPV,{"C5_DTPROGM"			,dDataBase   							,Nil})
+		aAdd(aCabPV,{"C5_INCISS" 			,"N"         							,Nil})
+		aAdd(aCabPV,{"C5_TIPLIB" 			,"2"         							,Nil})
+		aAdd(aCabPV,{"C5_MOEDA"  			,1           							,Nil})
+		aAdd(aCabPV,{"C5_VEND1"  			,' '         							,Nil})
+		aAdd(aCabPV,{"C5_TXMOEDA"			,1           							,Nil})
+		aAdd(aCabPV,{"C5_TPCARGA"			,'1'         							,Nil})
+		aAdd(aCabPV,{"C5_TABELA" 			,'MG1'       							,Nil})
+		If !Empty(Alltrim(cCodTransp))
+			aAdd(aCabPV,{"C5_TRANSP"    , cCodTransp   , Nil})
+			aAdd(aCabPV,{"C5_FRETE"     , nValTransp   , Nil})
+		EndIf
+		If !Empty(Alltrim(cMsgInterna))
+			aAdd(aCabPV,{"C5_MSGINT" , cMsgInterna , Nil})
+		EndIf
+
+		// Ordena os campos
+		aCabPV := FWVetByDic(aCabPV,'SC5')
+
+		//Monta itens do pedido
+		For nItem := 1 To Len(aItPV[nFil][2])
+
+			aLinhaItem  := {}
+			aEstAtual   := {}
+			nQtdVen     := aItPV[nFil][2][nItem][2]
+
+			// localiza informacoes do produto
+			DbSelectArea("SB1")
+			SB1->(DbSetOrder(1))
+			//If SB1->(DbSeek(xFilial("SB1") + Padr(aItPV[nFil][2][nItem][1],TamSx3("B1_COD")[1]) ))
+			If SB1->(DbSeek(xFilial("SB1") + Padr('812857',TamSx3("B1_COD")[1]) ))
+
+				// Identifica os almoxarifados com saldo para atender a venda
+				aEstAtual		:= fFindAlm(cFilAnt,Alltrim(SB1->B1_COD))
+
+				// funcao para pegar TES Inteligente de movimentacoes com regra da Atria/PneusM
+				cCodTes			:= sFTes(SA1->A1_COD,SA1->A1_LOJA,SB1->B1_COD)
+
+				//Caso nao exista TES Inteligente
+				If Empty(cCodTes)
+					cCodTes		:= Iif(Empty(SB1->B1_TS),"574",SB1->B1_TS)
+				EndIf
+
+				// Passa por cada almoxarifado para tentar inserir no pedido
+				For nAlm := 1 to Len(aEstAtual)
+
+					// Se ja atendeu toda quantidade, sai do loop
+					If nQtdVen <= 0
+						Exit
+					EndIf
+
+					// Faz o calculo da quantidade necessaria
+					If aEstAtual[nAlm][3] >= aItPV[nFil][2][nItem][2]
+						nQtdVen := aItPV[nFil][2][nItem][2]
+					Else
+						nQtdVen := aEstAtual[nAlm][3]
+					EndIf
+
+					If nQtdVen > 0
+
+						aItPV[nFil][2][nItem][2] -= nQtdVen
+
+						cItem   := Soma1(StrZero(Len(aItemPV),2))
+
+						aAdd(aLinhaItem,{"C6_ITEM"   		,cItem                    		,Nil})
+						aAdd(aLinhaItem,{"C6_PRODUTO"		,Alltrim(SB1->B1_COD)     		,Nil})
+						aAdd(aLinhaItem,{"C6_DESCRI" 		,Alltrim(SB1->B1_DESC)    		,Nil})
+						aAdd(aLinhaItem,{"C6_UM"     		,SB1->B1_UM               		,Nil})
+						aAdd(aLinhaItem,{"C6_QTDVEN" 		,nQtdVen                  		,Nil})
+						aAdd(aLinhaItem,{"C6_PRCVEN" 		,aItPV[nFil][2][nItem][3] 		,Nil})
+						aAdd(aLinhaItem,{"C6_PRUNIT" 		,aItPV[nFil][2][nItem][3] 		,Nil})
+						aAdd(aLinhaItem,{"C6_LOCAL"  		,aEstAtual[nAlm][2]       		,Nil})
+						aAdd(aLinhaItem,{"C6_CLI"    		,SA1->A1_COD              		,nil})
+						aAdd(aLinhaItem,{"C6_LOJA"   		,SA1->A1_LOJA             		,Nil})
+						aAdd(aLinhaItem,{"C6_ENTREG" 		,Daysum(Date(), 1)        		,Nil})
+						aAdd(aLinhaItem,{"C6_SUGENTR"		,Daysum(Date(), 1)        		,Nil})
+						AAdd(aLinhaItem,{"C6_QTDLIB" 		, nQtdVen                 		,Nil})
+						AAdd(aLinhaItem,{"C6_CC"     		,'9999999'                		,Nil})
+						AAdd(aLinhaItem,{"C6_TES"    		,cCodTes                  		,Nil})
+						/*
+						If aItPV[nFil][2][nItem][6] > 0
+							AAdd(aLinhaItem,{"C6_DESCONT"   ,aItPV[nFil][2][nItem][6]		,Nil})
+						EndIf
+						*/
+						// Ordena os campos
+						aLinhaItem := FWVetByDic(aLinhaItem,'SC6')
+						AAdd(aItemPV,AClone(aLinhaItem))
+
+					EndIf
+
+				Next nAlm
+
+				// Se sobrou quantidade sem saldo, adiciona a linha sem liberacao
+				If aItPV[nFil][2][nItem][2] > 0
+
+					// Adiciona a linha para gerar solicitacao no final
+					aAdd(aEstSol,{SB1->B1_COD,aItPV[nFil][2][nItem][3]})
+
+					cItem   := Soma1(StrZero(Len(aItemPV),2))
+					nQtdVen := aItPV[nFil][2][nItem][2]
+					aItPV[nFil][2][nItem][2] -= nQtdVen
+
+					aAdd(aLinhaItem,{"C6_ITEM"   ,cItem                     ,Nil})
+					aAdd(aLinhaItem,{"C6_PRODUTO",Alltrim(SB1->B1_COD)      ,Nil})
+					aAdd(aLinhaItem,{"C6_DESCRI" ,Alltrim(SB1->B1_DESC)     ,Nil})
+					aAdd(aLinhaItem,{"C6_UM"     ,SB1->B1_UM                ,Nil})
+					aAdd(aLinhaItem,{"C6_QTDVEN" ,nQtdVen                   ,Nil})
+					aAdd(aLinhaItem,{"C6_PRCVEN" ,aItPV[nFil][2][nItem][3]  ,Nil})
+					aAdd(aLinhaItem,{"C6_PRUNIT" ,aItPV[nFil][2][nItem][3]  ,Nil})
+					aAdd(aLinhaItem,{"C6_LOCAL"  ,'01'                      ,Nil})
+					aAdd(aLinhaItem,{"C6_CLI"    ,SA1->A1_COD               ,nil})
+					aAdd(aLinhaItem,{"C6_LOJA"   ,SA1->A1_LOJA              ,Nil})
+					aAdd(aLinhaItem,{"C6_ENTREG" ,Daysum(Date(), 1)         ,Nil})
+					aAdd(aLinhaItem,{"C6_SUGENTR",Daysum(Date(), 1)         ,Nil})
+					AAdd(aLinhaItem,{"C6_QTDLIB" , 0                        ,Nil})
+					AAdd(aLinhaItem,{"C6_CC"     ,'9999999'                 ,Nil})
+					AAdd(aLinhaItem,{"C6_TES"    ,cCodTes                   ,Nil})
+					/*
+					If aItPV[nFil][2][nItem][6] > 0
+						AAdd(aLinhaItem,{"C6_DESCONT"    ,aItPV[nFil][2][nItem][6]                   ,Nil})
+					EndIf
+					*/
+
+					// Ordena os campos
+					aLinhaItem := FWVetByDic(aLinhaItem,'SC6')
+					AAdd(aItemPV,AClone(aLinhaItem))
+
+				EndIF
+
+			Else
+				lGeraPed    := .F.
+				cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + " -  Produto com SKU " + aItPV[nFil][2][nItem][2] + " nao encontrado na base SB1"
+
+			Endif
+
+		Next nItem
+
+		// EXECAUTO Mata410
+
+		If lGeraPed
+			lMsErroAuto := .F.
+
+			If Len(aCabPv) > 0 .And. Len(aItemPV) > 0
+
+				MSExecAuto({|x,y,z|Mata410(x,y,z)}, aCabPV, aItemPV, 3) //adiciona pedido de vendas
+
+				If lMsErroAuto
+					cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Pneus M - Pedido ' + cIDMagento + " -  Filial " + cFilAnt + " Erro na insercao do pedido de venda no sistema. Texto: " + MostraErro("c:\temp")
+				Else
+					U_LogPsInt('Pneus M - Pedido ' + cIDMagento + ' -  Gerado pedido ' + SC5->C5_NUM)
+
+					// Grava o ID na tabela de vinculo
+					fGravaIDZS3('SAVE',SC5->C5_FILIAL,SC5->C5_NUM,cIDIntMag)
+
+					// Chama o envio de atualizacao para o magento
+					fAtualizaPegMg()
+
+					// Adiciona para depois enviar por e-mail
+					aAdd(aPedidos,{SC5->C5_FILIAL,SC5->C5_NUM,Len(aItemPV)})
+
+					// Chama funcao de geracao de pedido na Atria e aviso
+					If Len(aEstSol) > 0
+						aEstSol := fPmEstAtria(aEstSol,SC5->C5_FILIAL,SC5->C5_NUM)
+						// Se conseguiu gerar, salva para enviar
+						For nAlm := 1 to Len(aEstSol)
+							aAdd(aSolEfet,aEstSol[nAlm])
+						Next nAlm
+					EndIf
+				EndIf
+			EndIf
+		EndIf
+
+	Next nFil
+
+	// Restaura filial
+	If cFilBkp <> cFilAnt
+		cFilAnt := cFilBkp
+	EndIf
+
+	// Faz gravacao de log
+	If !Empty(Alltrim(cMsgValid))
+		U_LogPsInt(cMsgValid)
+	EndIf
+
+	// Monta um e-mail de alerta
+	If !Empty(Alltrim(cMsgValid))
+		cMailTit := 'PNEUS M - ERRO EM GERACAO DE VENDA - Pedido ' + Alltrim(cIDMagento) + ' para cliente ' + cNameCli
+		cMailMsg += 'Ol√°, o cliente ' + cNameCli + ' esta tentando realizar uma compra no E-commerce PneusM mas o sistema nao esta conseguindo importar a venda.' + CR + CR
+		cMailMsg += ' Valor total das mercadorias: R$ ' + Transform(nValMerc,"@E 999,999,999.99") + " . " + CR + CR
+		cMailMsg += ' Motivo: ' + CR
+		cMailMsg += cMsgValid
+		PmSndMai(aSolEfet,cMailMsg,cMailTit)
+	Else
+		cMailTit := 'PNEUS M - Venda Realizada - Pedido ' + Alltrim(cIDMagento) + ' para cliente ' + cNameCli
+		cMailMsg += 'Ola, acaba de ser gerado os pedidos abaixo no ERP Protheus para faturamento da solicitacao ' + cIDMagento + ' do cliente ' + cNameCli + '.' + CR + CR
+		cMailMsg += ' Valor total das mercadorias: R$ ' + Transform(nValMerc,"@E 999,999,999.99") + " . " + CR + CR
+		For nItem := 1 to Len(aPedidos)
+			cMailMsg += ' Filial ' + aPedidos[nItem][1] + ' - Numero pedido ' + aPedidos[nItem][2] + ' com ' + cValToChar(aPedidos[nItem][3]) + ' produto(s).' + CR + CR
+		Next nItem
+		cMailMsg += ' Favor dar andamento na separacao e faturamento da mercadoria para envio imediato.'
+		PmSndMai(aSolEfet,cMailMsg,cMailTit)
+	EndIf
+
+Return()
+
+// Funcao para montar os dados de estoque 
+User Function SldGub(cCodFil,cCodPrd,cTipBsc,cDestino)
+
+	Local cEmpBkp       := cEmpAnt
+	Local cFilBkp       := cFilAnt
+	Local cAliasQry 	:= "" as character
+	Local cQuery 		:= "" as character
+	Local oSaldo        := JsonObject():New()
+	Local nSaldo        := 0
+	Local aFilUse       := {}
+	Local nFil          := 1
+	Local cAlmUse       := ''
+
+	Default cCodFil 	:= cFilAnt
+	Default cCodPrd     := ''
+	Default cTipBsc     := 'CONSUMIDORA'
+	Default cDestino    := 'GUBEE'
+
+	If cTipBsc = 'CONSUMIDORA'
+
+		DbSelectArea("ZB4")
+		// Adiciona a propria filial como utiliza√ß√£o de 100% do estoque
+		aFilUse       := {{cEmpAnt,cCodFil,'*',100}}
+
+		// Passa para ver se tem consulta de estoque de outras filiais
+		ZB4->(DbSetOrder(1))
+		If ZB4->(DbSeek(xFilial("ZB4",cCodFil)+Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1])))
+			While ZB4->(!Eof()) .and. ZB4->ZB4_FILIAL = xFilial("ZB4",cCodFil) .and. ZB4->ZB4_BSCPRD = Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1])
+
+				// Evita que seja considerado registro duplicado e causar problema de saldos
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = Alltrim(ZB4->ZB4_BSCEMP) .and. Alltrim(x[2]) = Alltrim(ZB4->ZB4_BSCFIL) .and. ( Alltrim(x[3]) = Alltrim(ZB4->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{ZB4->ZB4_BSCEMP,ZB4->ZB4_BSCFIL,ZB4->ZB4_BSCALM,ZB4->ZB4_PEREST})
+				EndIf
+
+				ZB4->(DbSkip())
+			EndDo
+		EndIf
+
+	Else
+
+		cAliasQry := GetNextAlias()
+		cQuery := " SELECT ZB4.ZB4_FILIAL, ZB4.ZB4_BSCALM, ZB4.ZB4_PEREST "
+		cQuery += " FROM ZB4100 ZB4 " // Chumbado porque vai estar posicionado em outra empresa
+		cQuery += " WHERE ZB4.ZB4_BSCEMP = '" + cEmpAnt + "' "
+		cQuery += " AND ZB4.ZB4_BSCFIL = '" + cFilAnt + "' "
+		cQuery += " AND ZB4.ZB4_BSCPRD = '" + Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1]) + "' "
+		cQuery += " AND ZB4.D_E_L_E_T_ = ' '  "
+		cQuery := ChangeQuery( cQuery )
+		DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+		If  (cAliasQry)->( ! Eof() )
+
+			While (cAliasQry)->( ! Eof() )
+
+				// Adiciona o estoque da filial da PneusM como inteiro
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = '10' .and. Alltrim(x[2]) = Alltrim((cAliasQry)->ZB4_FILIAL) .and. ( Alltrim(x[3]) = Alltrim((cAliasQry)->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{'10',(cAliasQry)->ZB4_FILIAL,'*',100})
+				EndIf
+
+				// Adiciona o estoque dessa filial no envio
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = cEmpAnt .and. Alltrim(x[2]) = cFilAnt .and. ( Alltrim(x[3]) = Alltrim((cAliasQry)->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{cEmpAnt,cFilAnt,(cAliasQry)->ZB4_BSCALM,(cAliasQry)->ZB4_PEREST})
+				EndIf
+
+				(cAliasQry)->(DbSkip())
+			EndDo
+		EndIf
+		(cAliasQry)->(DbCloseArea())
+
+	EndIf
+
+	For nFil := 1 to Len(aFilUse)
+
+		If aFilUse[nFil][1] <> cEmpAnt
+			cEmpAnt := aFilUse[nFil][1]
+		EndIf
+		If aFilUse[nFil][2] <> cFilAnt
+			cFilAnt := aFilUse[nFil][2]
+		EndIf
+
+		cAlmUse   := SuperGetMv("AT_ALMPM",.f.,'',cFilAnt)
+
+		cAliasQry := GetNextAlias()
+		cQuery := " SELECT SUM(SB2.B2_QATU-SB2.B2_RESERVA) SALDO "
+		cQuery += " FROM SB2" + cEmpAnt + "0 SB2 "
+		cQuery += " WHERE SB2.B2_FILIAL = '" + xFilial("SB2",cFilAnt) + "' "
+		cQuery += " AND SB2.B2_COD = '" + Alltrim(cCodPrd) + "' "
+		If !Empty(Alltrim(aFilUse[nFil][3])) .and. Alltrim(aFilUse[nFil][3]) <> '*'
+			cQuery += " AND SB2.B2_LOCAL = '" + aFilUse[nFil][3] + "' "
+		Endif
+		If !Empty(Alltrim(cAlmUse))
+			cQuery += " AND SB2.B2_LOCAL IN " + FormatIn(cAlmUse,';')
+		Endif
+		cQuery += " AND SB2.B2_QATU-SB2.B2_RESERVA > 0 "
+		cQuery += " AND SB2.D_E_L_E_T_ = ' '  "
+		cQuery += " GROUP BY SB2.B2_COD "
+		cQuery := ChangeQuery( cQuery )
+		DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+		If  (cAliasQry)->( ! Eof() )
+			nSaldo += NoRound( ( (cAliasQry)->SALDO * aFilUse[nFil][4] ) / 100 , 0)
+		EndIf
+		(cAliasQry)->(DbCloseArea())
+
+	Next nFil
+
+	// Monta a estrutura
+	oSaldo['sku']           := cCodPrd
+	oSaldo['source_code']   := SuperGetMv("PM_IDMGTS",.F.,'XX',cCodFil)
+	oSaldo['quantity']      := nSaldo
+	oSaldo['status']        := Iif(nSaldo>1,1,0)
+
+	// Retorna backups
+	If cEmpBkp <> cEmpAnt
+		cEmpAnt := cEmpBkp
+	EndIf
+	If cFilBkp <> cFilAnt
+		cFilAnt := cFilBkp
+	EndIf
+
+	If cDestino = 'GUBEE'
+		Return nSaldo
+	Else
+		Return {oSaldo}
+	EndIf
+
+Return
+
+//FunÁ„o para incluir ou alterar cliente
+Static Function fClientePneusM(jCliente,lVenda,cNomeCliente)
+
+	Local oModel            := FwLoadModel('CRMA980')
+	Local oModelCliente     := oModel:GetModel('SA1MASTER')
+	Local aAreas            := {CC2->(GetArea())}
+	Local aDados            := {}
+	Local aEnder            := {}
+	Local aBodys            := {}
+	Local aSA1              := {}
+	Local cValido           := ''
+	Local nAux              := 1
+	Local nAux2             := 1
+	Local nPos              := 0
+	Local xConteudo
+	Local cEst              := ''
+	Local cCGC              := ''
+	Local cIE               := ''
+	Local cTipPes           := ''
+	Local cCEP              := ''
+	Local lExist            := .F.
+	Local aCodLoj           := {}
+
+	Private lMsErroAuto     := .F.
+	Private lMsHelpAuto     := .F.
+	Private lAutoErrNoFile  := .T.
+	Private l030Auto        := .T.
+	Private INCLUI          := .T.
+	Private ALTERA          := .T.
+
+	Default lVenda          := .F.
+	Default cNomeCliente    := ''
+
+	//email
+	If jCliente['customer']:HasProperty('email')
+		xConteudo := SubStr(Alltrim(jCliente['customer']['email']),1,TamSx3("A1_EMAIL")[1])
+		aAdd(aDados,{'A1_EMAIL',xConteudo})
+	EndIf
+
+	//nome
+	If jCliente['customer']:HasProperty('name')
+		xConteudo		:= SubStr(Alltrim(jCliente['customer']['name']),1,TamSx3("A1_NOME")[1])
+		// tratamento de digitos especiais
+		xConteudo		:= Upper(Alltrim(NoAcento(DecodeUTF8(xConteudo))))
+		cNomeCliente	:= xConteudo
+		aAdd(aDados,{'A1_NOME',xConteudo})
+
+		xConteudo 		:= SubStr(Alltrim(jCliente['customer']['name']),1,TamSx3("A1_NREDUZ")[1])
+		aAdd(aDados,{'A1_NREDUZ',xConteudo})
+	Else
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Cliente sem nome preenchido'
+	EndIf
+
+	//CGC
+	If jCliente['customer']:HasProperty('documents')
+
+		If ValType(jCliente['customer']['documents']) == 'A'
+
+			xConteudo := Alltrim(jCliente['customer']['documents'][1]['number'])
+			fRetiraPont(@xConteudo)
+			aAdd(aDados,{'A1_CGC',xConteudo})
+
+			If Alltrim(jCliente['customer']['documents'][1]['type']) == 'CPF'
+				xConteudo := 'F'
+			Else
+				xConteudo := 'J'
+			Endif
+
+			fRetiraPont(@xConteudo)
+			aAdd(aDados,{'A1_PESSOA',xConteudo})
+
+		Endif
+	Endif
+
+	//DDD e Telefone
+	If jCliente['customer']:HasProperty('phones')
+
+		If ValType(jCliente['customer']['phones']) == 'A'
+
+			xConteudo := jCliente['customer']['phones'][1]['ddd']
+			xConteudo := PadL(Alltrim(cValtoChar(xConteudo)),TamSx3("A1_DDD")[1], '0')
+
+			aAdd(aDados,{'A1_DDD',xConteudo})
+
+			xConteudo := Alltrim(jCliente['customer']['phones'][1]['number'])
+
+			fRetiraPont(@xConteudo)
+			aAdd(aDados,{'A1_TEL',xConteudo})
+
+		Endif
+	EndIf
+
+	DbSelectArea("CC2")
+	CC2->(DbSetOrder(4)) // CC2_FILIAL + CC2_EST + CC2_MUN
+
+	//Adiciona uma linha
+	aAdd(aEnder,{})
+
+	//ENDERECO DE ENVIO - SHIPPING - PAIS
+	If jCliente['shippingAddress']:hasProperty('country')
+		xConteudo := '105'
+		aAdd(aEnder[Len(aEnder)],{'A1_PAIS',xConteudo})
+		xConteudo := '01058'
+		aAdd(aEnder[Len(aEnder)],{'A1_CODPAIS',xConteudo})
+	EndIf
+
+	//CEP
+	If jCliente['shippingAddress']:hasProperty('postCode')
+		xConteudo := Alltrim(jCliente['shippingAddress']['postCode'])
+		fRetiraPont(@xConteudo)
+		aAdd(aEnder[Len(aEnder)],{'A1_CEP',xConteudo})
+	EndIf
+
+	//Estado
+	If jCliente['shippingAddress']:hasProperty('region')
+		xConteudo := Alltrim(Upper(jCliente['shippingAddress']['region']))
+		aAdd(aEnder[Len(aEnder)],{'A1_EST',xConteudo})
+		cEst    := xConteudo
+	Else
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificar tag REGION no shipping_address'
+	EndIf
+
+	//Cidade - codmun CC2
+	If jCliente['shippingAddress']:hasProperty('city')
+		CC2->(DbGoTop())
+		xConteudo := Upper(NoAcento(DecodeUTF8(jCliente['shippingAddress']['city'])))
+
+		If CC2->(DbSeek(xFilial("CC2")+cEst+Padr(xConteudo,TamSx3("CC2_MUN")[1])))
+			aAdd(aEnder[Len(aEnder)],{'A1_COD_MUN',Alltrim(CC2->CC2_CODMUN)})
+			aAdd(aEnder[Len(aEnder)],{'A1_MUN',Alltrim(CC2->CC2_MUN)})
+			aAdd(aEnder[Len(aEnder)],{'A1_IBGE',fCodigoEstado(cEst)+Alltrim(CC2->CC2_CODMUN)})
+		Else
+			cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificar o municipio no ERP. Estado ' + cEst + ' / Cidade ' + Padr(xConteudo,TamSx3("CC2_MUN")[1])
+		EndIf
+	Else
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificado tag CITY no addresses'
+	EndIf
+
+	//Rua - Endereco
+	If jCliente['shippingAddress']:hasProperty('street')
+		xConteudo := ''
+		xConteudo +=  Alltrim(NoAcento(DecodeUTF8(jCliente['shippingAddress']['street'])))
+		aAdd(aEnder[Len(aEnder)],{'A1_END',xConteudo})
+	EndIf
+
+	//Complemento
+	If jCliente['shippingAddress']:hasProperty('complement')
+		xConteudo := ''
+		xConteudo +=  Alltrim(NoAcento(DecodeUTF8(jCliente['shippingAddress']['complement'])))
+		aAdd(aEnder[Len(aEnder)],{'A1_COMPLEM',xConteudo})
+	EndIf
+
+	//Rua - Bairro
+	If jCliente['shippingAddress']:hasProperty('neighborhood')
+		xConteudo := ''
+		xConteudo +=  Alltrim(NoAcento(DecodeUTF8(jCliente['shippingAddress']['neighborhood'])))
+		aAdd(aEnder[Len(aEnder)],{'A1_BAIRRO',xConteudo})
+	EndIf
+
+	//ENDERECO DE COBRANCA - BILLING - CEP
+	If jCliente['billingAddress']:hasProperty('postcode')
+		xConteudo := Alltrim(jCliente['billingAddress']['postcode'])
+		fRetiraPont(@xConteudo)
+		aAdd(aEnder[Len(aEnder)],{'A1_CEPC',xConteudo})
+	EndIf
+
+	//Estado
+	If jCliente['billingAddress']:hasProperty('region')
+		xConteudo := Alltrim(Upper(jCliente['billingAddress']['region']))
+		aAdd(aEnder[Len(aEnder)],{'A1_ESTC',xConteudo})
+		cEst    := xConteudo
+	Else
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificar tag REGION no billingAddress'
+	EndIf
+
+	//Cidade - codmun CC2
+	If jCliente['billingAddress']:hasProperty('city')
+		CC2->(DbGoTop())
+		xConteudo := Upper(NoAcento(DecodeUTF8(jCliente['billingAddress']['city'])))
+
+		If CC2->(DbSeek(xFilial("CC2")+cEst+Padr(xConteudo,TamSx3("CC2_MUN")[1])))
+			aAdd(aEnder[Len(aEnder)],{'A1_COD_MUN',Alltrim(CC2->CC2_CODMUN)})
+			aAdd(aEnder[Len(aEnder)],{'A1_MUN',Alltrim(CC2->CC2_MUN)})
+			aAdd(aEnder[Len(aEnder)],{'A1_IBGE',fCodigoEstado(cEst)+Alltrim(CC2->CC2_CODMUN)})
+		Else
+			cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificar o municipio no ERP. Estado ' + cEst + ' / Cidade ' + Padr(xConteudo,TamSx3("CC2_MUN")[1])
+		EndIf
+	Else
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Nao foi possivel identificado tag CITY no addresses'
+	EndIf
+
+	//Rua - Endereco
+	If jCliente['billingAddress']:hasProperty('street')
+		xConteudo := ''
+		xConteudo +=  Alltrim(NoAcento(DecodeUTF8(jCliente['billingAddress']['street'])))
+		aAdd(aEnder[Len(aEnder)],{'A1_ENDCOB',xConteudo})
+	EndIf
+
+	//Rua - Bairro
+	If jCliente['billingAddress']:hasProperty('neighborhood')
+		xConteudo := ''
+		xConteudo +=  Alltrim(NoAcento(DecodeUTF8(jCliente['billingAddress']['neighborhood'])))
+		aAdd(aEnder[Len(aEnder)],{'A1_BAIRROC',xConteudo})
+	EndIf
+
+// Ultimas validacoes
+	If Len(aEnder) <= 0
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Cliente sem endereco cadastrados'
+	EndIf
+	nPos := fFindPos(aDados,'A1_CGC')
+	If nPos
+		cCGC := aDados[nPos][2]
+	EndIf
+	If Empty(Alltrim(cCGC))
+		cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Cliente sem CNPJ/CPF preenchido'
+	EndIf
+
+// Apenas se tiver sido validado
+	If Empty(Alltrim(cValido))
+
+		DbSelectArea("SA1")
+		SA1->(DbSetOrder(3))
+
+		// Reseta variaveis
+		cCGC    := ''
+		cIE     := ''
+		cCEP    := ''
+		nPos    := 0
+		lExist  := .F.
+		aSA1    := {}
+
+		nPos := fFindPos(aDados,'A1_CGC')
+		If nPos
+			cCGC := aDados[nPos][2]
+		EndIf
+		nPos := fFindPos(aDados,'A1_INSCR')
+		If nPos
+			cIE := aDados[nPos][2]
+		EndIf
+		cTipPes := Iif(Len(cCGC)=14,'J','F')
+		nPos := fFindPos(aEnder[nAux],'A1_CEP')
+		If nPos
+			cCEP := aEnder[nAux][nPos][2]
+		EndIf
+
+		// Tenta identificar se o cliente ja existe ou nao
+		SA1->(DbGoTop())
+		If SA1->(DbSeek(xFilial("SA1")+cCGC))
+			While SA1->(!Eof()) .and. SA1->A1_FILIAL = xFilial("SA1") .and. Alltrim(SA1->A1_CGC) == Alltrim(cCGC)
+				If !Empty(Alltrim(cIE))
+					If Alltrim(cIE) == Alltrim(SA1->A1_INSCR)
+						lExist := .T.
+						Exit
+					EndIf
+				Else
+					If Empty(Alltrim(SA1->A1_INSCR))
+						If Alltrim(SA1->A1_CEP) == Alltrim(cCEP)
+							lExist := .T.
+							Exit
+						EndIf
+					EndIf
+				EndIf
+
+				SA1->(DbSkip())
+			EndDo
+		EndIf
+
+		If !lExist
+
+			AAdd(aSA1, {'A1_FILIAL'		,xFilial("SA1")				, Nil})
+			AAdd(aSA1, {'A1_TIPO'		,'F' 						, Nil})
+			AAdd(aSA1, {'A1_PESSOA'		,cTipPes 					, Nil})
+			AAdd(aSA1, {'A1_CGC'		,cCGC 						, Nil})
+			AAdd(aSA1, {'A1_SATIV1'		,'A1000 ' 					, Nil}) // Consumidor Pessoa Fisica
+			AAdd(aSA1, {'A1_SATIV4'		,'SG0007' 					, Nil}) // Grupo Segmento Consumo
+			AAdd(aSA1, {'A1_SATIV5'		,'S00002' 					, Nil}) // Consumidor Pessoa Fisica
+			AAdd(aSA1, {'A1_NATUREZ'	,'101' 						, Nil})
+			AAdd(aSA1, {'A1_TPFRET'		,'C' 						, Nil})
+			AAdd(aSA1, {'A1_RISCO'		,'A' 						, Nil})
+			AAdd(aSA1, {'A1_TRANSP'		,'000001' 					, Nil})
+			AAdd(aSA1, {'A1_CONTRIB'	,'2' 						, Nil})
+			AAdd(aSA1, {'A1_BLOQCAD'	,'1' 						, Nil})
+			AAdd(aSA1, {'A1_MSBLQL'		,'2' 						, Nil})
+			AAdd(aSA1, {'A1_OBSMEMO'	,'Importado de E-commerce'	, Nil})
+			AAdd(aSA1, {'A1_INSCR'		, cIE 						, Nil})
+
+			AAdd(aSA1, {'A1_NREDUZ'		,Iif(fFindPos(aDados,'A1_NREDUZ') 			> 0		,aDados[fFindPos(aDados,'A1_NREDUZ')][2],                                            	Space(TamSx3("A1_NREDUZ")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_NOME'		,Iif(fFindPos(aDados,'A1_NOME') 	    	> 0		,aDados[fFindPos(aDados,'A1_NOME')][2],                                              	Space(TamSx3("A1_NOME")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_EMAIL'		,Iif(fFindPos(aDados,'A1_EMAIL') 			> 0		,aDados[fFindPos(aDados,'A1_EMAIL')][2],                                             	Space(TamSx3("A1_EMAIL")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_DDD'		,Iif(fFindPos(aEnder[nAux],'A1_DDD') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_DDD')][2],                                   	Iif(fFindPos(aDados,'A1_DDD') > 0, aDados[fFindPos(aDados,'A1_DDD')][2], Space(TamSx3("A1_DDD")[1])) ) , Nil})
+			AAdd(aSA1, {'A1_TEL'		,Iif(fFindPos(aEnder[nAux],'A1_TEL') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_TEL')][2],                                   	Iif(fFindPos(aDados,'A1_TEL') > 0, aDados[fFindPos(aDados,'A1_TEL')][2], Space(TamSx3("A1_TEL")[1])) ) , Nil})
+			AAdd(aSA1, {'A1_PAIS'		,Iif(fFindPos(aEnder[nAux],'A1_PAIS') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_PAIS')][2],                                  	Space(TamSx3("A1_PAIS")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_CODPAIS'	,Iif(fFindPos(aEnder[nAux],'A1_CODPAIS') 	> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_CODPAIS')][2],                               	Space(TamSx3("A1_CODPAIS")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_EST'		,Iif(fFindPos(aEnder[nAux],'A1_EST') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_EST')][2],                                   	Space(TamSx3("A1_EST")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_ESTC'		,Iif(fFindPos(aEnder[nAux],'A1_ESTC') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_ESTC')][2],                                  	Space(TamSx3("A1_ESTC")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_COD_MUN'	,Iif(fFindPos(aEnder[nAux],'A1_COD_MUN') 	> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_COD_MUN')][2],                               	Space(TamSx3("A1_COD_MUN")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_MUN'		,Iif(fFindPos(aEnder[nAux],'A1_MUN') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_MUN')][2],                                   	Space(TamSx3("A1_MUN")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_MUNC'		,Iif(fFindPos(aEnder[nAux],'A1_MUNC') 		> 0		,SubStr(aEnder[nAux][fFindPos(aEnder[nAux],'A1_MUNC')][2],1,TamSx3("A1_MUNC")[1]),  	Space(TamSx3("A1_MUNC")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_END'		,Iif(fFindPos(aEnder[nAux],'A1_END') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_END')][2],                                   	Space(TamSx3("A1_END")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_ENDCOB'		,Iif(fFindPos(aEnder[nAux],'A1_ENDCOB') 	> 0		,SubStr(aEnder[nAux][fFindPos(aEnder[nAux],'A1_ENDCOB')][2],1,TamSx3("A1_ENDCOB")[1]),	Space(TamSx3("A1_ENDCOB")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_COMPLEM'	,Iif(fFindPos(aEnder[nAux],'A1_COMPLEM') 	> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_COMPLEM')][2],                               	Space(TamSx3("A1_COMPLEM")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_CEP'		,Iif(fFindPos(aEnder[nAux],'A1_CEP') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_CEP')][2],                                   	Space(TamSx3("A1_CEP")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_CEPC'		,Iif(fFindPos(aEnder[nAux],'A1_CEPC') 		> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_CEPC')][2],                                  	Space(TamSx3("A1_CEPC")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_BAIRRO'		,Iif(fFindPos(aEnder[nAux],'A1_BAIRRO') 	> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_BAIRRO')][2],                                 	Space(TamSx3("A1_BAIRRO")[1]) ) , Nil})
+			AAdd(aSA1, {'A1_BAIRROC'	,Iif(fFindPos(aEnder[nAux],'A1_BAIRROC') 	> 0		,aEnder[nAux][fFindPos(aEnder[nAux],'A1_BAIRROC')][2],                                	Space(TamSx3("A1_BAIRROC")[1]) ) , Nil})
+
+			aAdd(aBodys,aSA1)
+
+		EndIf
+
+		// Se tiver lista para incluir, passa para a integracao
+		For nAux := 1 To Len(aBodys)
+
+			oModel:SetOperation(3)
+			oModel:Activate()
+
+			lMsErroAuto     := .F.
+			lMsHelpAuto     := .F.
+			lAutoErrNoFile  := .T.
+			aCodLoj         := NextCliente( aBodys[nAux][fFindPos(aBodys[nAux],'A1_CGC')][2], Iif(fFindPos(aBodys[nAux],'A1_INSCR')>0,aBodys[nAux][fFindPos(aBodys[nAux],'A1_INSCR')][2],'') )
+
+			If aCodLoj[1]
+				aAdd(aBodys[nAux],{'A1_COD',    aCodLoj[2] , Nil})
+				aAdd(aBodys[nAux],{'A1_LOJA',   aCodLoj[3] , Nil})
+
+				// Ordena os campos
+				aBodys[nAux] := FWVetByDic(aBodys[nAux],'SA1')
+
+				For nAux2 := 1 to Len(aBodys[nAux])
+					If !oModelCliente:SetValue(aBodys[nAux][nAux2][1], aBodys[nAux][nAux2][2])
+						cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Problema: ' + oModel:GetErrorMessage()[4] + " / " + oModel:GetErrorMessage()[5] + " / " + oModel:GetErrorMessage()[6]
+					EndIf
+				Next nAux2
+
+				If oModel:VldData()
+					If oModel:CommitData()
+						//Confirma o sequencial do cliente
+						ConfirmSX8()
+					Else
+						cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Problema na insercao do cliente na base'
+					EndIf
+				Else
+					cValido += Iif(Empty(Alltrim(cValido)),'',';') + 'Problema na insercao do cliente na base. Problema: ' + oModel:GetErrorMessage()[4] + " / " + oModel:GetErrorMessage()[5] + " / " + oModel:GetErrorMessage()[6]
+				EndIf
+
+			EndIf
+
+		Next nAux
+
+	EndIf
+
+	AEval(aAreas, {|area| RestArea(area)})
+
+	If !Empty(Alltrim(cValido))
+		U_LogPsInt("Pneus M - Erro ao tentar incluir cliente: " + cValido)
+		U_LogPsInt("Pneus M - Json: " + FWJsonSerialize(jCliente, .F., .F., .T.))
+	EndIf
+
+Return (cValido)
+
+//FunÁ„o para remover pontuaÁıes
+Static Function fRetiraPont(xConteudo)
+
+	Default xConteudo := ''
+
+	xConteudo := Alltrim(xConteudo)
+	xConteudo := Replace(xConteudo,'.','')
+	xConteudo := Replace(xConteudo,',','')
+	xConteudo := Replace(xConteudo,'-','')
+	xConteudo := Replace(xConteudo,'/','')
+	xConteudo := Replace(xConteudo,'(','')
+	xConteudo := Replace(xConteudo,')','')
+
+Return
+
+//FunÁ„o para gravar a ID caso j· n„o exista. 
+Static Function fGravaIDZS3(cMetodo,cFilPed,cNumPed,cIDEcom)
+
+	Local lExist    := .F.
+	Local lReturn   := .F.
+	Local cPedExist := ''
+
+	DbSelectArea("ZS3")
+	ZS3->(DbSetOrder(1))
+
+	If cMetodo = 'SAVE'
+		lExist := ZS3->(DbSeek(xFilial("ZS3")+'SC5'+Padr(cFilPed+'|'+cNumPed,TamSx3("ZS3_CHAVE")[1])))
+		If RecLock("ZS3",!lExist)
+			Replace ZS3->ZS3_FILIAL With xFilial("ZS3")
+			Replace ZS3->ZS3_TABELA With 'SC5'
+			Replace ZS3->ZS3_CHAVE  With cFilPed+'|'+cNumPed
+			Replace ZS3->ZS3_STATUS With 'S'
+			Replace ZS3->ZS3_IDSALE With cValToChar(cIDEcom)
+			ZS3->(MsUnlock())
+		EndIf
+	Else
+
+		// Verifica se o ID ja esta incluido
+		cPedExist   := U_PsSeekID('SC5',cIDEcom,2)
+
+		If !Empty(Alltrim(cPedExist))
+			lReturn := .T.
+
+			// Ajusta a chave
+			cPedExist := StrTran(cPedExist,'|','')
+
+			// Posiciona para usar no envio de atualiza√ß√£o para o magento
+			DbSelectArea("SC5")
+			SC5->(DbSetOrder(1))
+			SC5->(DbSeek(cPedExist))
+
+		EndIf
+	EndIf
+
+Return lReturn
+
+//Verifica se foi preenchido
+Static Function fFindPos(aArray,cCampo)
+	Local nPos := 0
+
+	nPos := aScan(aArray,{|x| Alltrim(x[1]) = Alltrim(cCampo) })
+
+Return nPos
+
+//Valida o CNPJ/CPF e retorna o codigo e loja do cliente
+Static Function NextCliente(cCGC,cIE)
+
+	Local lCNPJ         := Len(cCGC) == 14 As Logical
+	Local cLojaTemp     := StrZero(1,TamSx3("A1_LOJA")[1]) As Character
+	Local cRaizCNPJ     := SubStr(cCGC, 1, 8) As Character
+	Local aRetorno      := {}
+	Local cCodigo       as character
+	Local cLoja         as character
+	Local lExistSA1     := .F.
+
+	SA1->(DBSetOrder(3)) //FILIAL + (CPF/CNPJ)
+	lExistSA1 := SA1->(MsSeek(FwXFilial('SA1') + cCGC))
+
+	// Faz validacoes para casos de pessoa juridica
+	If lCNPJ
+
+		If lExistSA1
+			aAdd(aRetorno,.F.)
+			aAdd(aRetorno,'')
+			aAdd(aRetorno,'')
+		Else
+
+			cLojaTemp := StrZero(Val(SubStr(cCGC, 9, 4)), GetSX3Cache('A1_LOJA', 'X3_TAMANHO'))
+
+			SA1->(DBSetOrder(3))
+			If SA1->(MsSeek(FwXFilial('SA1') + cRaizCNPJ))
+
+				cCodigo := SA1->A1_COD
+
+				SA1->(DBSetOrder(1)) //FILIAL + COD + LOJA
+				If SA1->(MsSeek(FwXFilial('SA1') + cCodigo))
+					While SA1->(!Eof()) .and. SA1->A1_FILIAL = xFilial('SA1') .and. SA1->A1_COD = cCodigo
+						cLojaTemp := Soma1(cLojaTemp)
+
+						SA1->(DBSkip())
+					EndDo
+				EndIf
+
+				cLoja := cLojaTemp
+
+			EndIf
+
+			If !Empty(Alltrim(cCodigo)) .and. !Empty(Alltrim(cLoja))
+				aAdd(aRetorno,.T.)
+				aAdd(aRetorno,cCodigo)
+				aAdd(aRetorno,cLoja)
+			EndIf
+
+		EndIf
+
+	Else
+
+		SA1->(DBSetOrder(3))
+		If SA1->(MsSeek(FwXFilial('SA1') + cCGC))
+
+			cCodigo := SA1->A1_COD
+
+			SA1->(DbGoTop())
+			SA1->(DBSetOrder(1)) //FILIAL + COD + LOJA
+			If SA1->(MsSeek(FwXFilial('SA1') + cCodigo))
+				While SA1->(!Eof()) .and. SA1->A1_FILIAL = xFilial('SA1') .and. SA1->A1_COD = cCodigo
+					cLojaTemp := Soma1(SA1->A1_LOJA)
+					SA1->(DBSkip())
+				EndDo
+			EndIf
+			cLoja := cLojaTemp
+
+		EndIf
+
+		If !Empty(Alltrim(cCodigo)) .and. !Empty(Alltrim(cLoja))
+			aAdd(aRetorno,.T.)
+			aAdd(aRetorno,cCodigo)
+			aAdd(aRetorno,cLoja)
+		EndIf
+
+	EndIf
+
+	If Len(aRetorno) <= 0
+		aAdd(aRetorno,.T.)
+		aAdd(aRetorno,GetSxeNum("SA1","A1_COD"))
+		aAdd(aRetorno,StrZero(1,TamSx3("A1_LOJA")[1]))
+	EndIf
+
+Return aRetorno
+
+//chama a integraÁ„o de atualizaÁ„o de pedido
+Static Function fAtualizaPegMg()
+	Local oIntegracao   as object
+	Local nStatus       := 0
+
+	oIntegracao := Nil
+	oIntegracao := BasePsIntegra():New(.T.,"000029")
+	If  oIntegracao:GeraRequisicao(,,) // Faz a integracao usando o registro posicionado.
+		nStatus := 0 // OK
+	Else
+		nStatus := -1 // Erro
+	EndIf
+	FreeObj(oIntegracao)
+
+Return
+
+//Avisa estoque empresa 01
+Static Function fFindAlm(cCodFil,cCodProd)
+
+	Local cAlmUse   := SuperGetMv("AT_ALMPM",.f.,'',cCodFil)
+	Local aEstoque  := {}
+	Local cQuery    := ""
+	Local cAliasQry := GetNextAlias()
+
+	cQuery := " SELECT SB2.B2_FILIAL, SB2.B2_LOCAL, "
+	cQuery += " SB2.B2_QATU - SB2.B2_RESERVA - SB2.B2_QACLASS - SB2.B2_QTNP AS SALDOSB2 " + CRLF
+	cQuery += " FROM " + RetSqlName("SB2") + " SB2 " + CRLF
+	cQuery += " WHERE SB2.D_E_L_E_T_ = ' ' " + CRLF
+	cQuery += " AND SB2.B2_FILIAL = '" + xFilial("SB2",cCodFil) + "' " + CRLF
+	cQuery += " AND SB2.B2_COD = '" + cCodProd + "' " + CRLF
+	If !Empty(Alltrim(cAlmUse))
+		cQuery += " AND SB2.B2_LOCAL IN " + FormatIn(cAlmUse,';')
+	Endif
+	cQuery += " ORDER BY (SB2.B2_QATU - SB2.B2_RESERVA - SB2.B2_QACLASS - SB2.B2_QTNP) DESC "
+	DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+	If  (cAliasQry)->(!Eof())
+		While  (cAliasQry)->(!Eof())
+
+			aAdd(aEstoque,{(cAliasQry)->B2_FILIAL,;
+				(cAliasQry)->B2_LOCAL,;
+				(cAliasQry)->SALDOSB2;
+				})
+
+			(cAliasQry)->(DbSkip())
+		EndDo
+	EndIf
+	(cAliasQry)->(DbCloseArea())
+
+Return aEstoque
+
+//fonte atria
+Static Function sFTes(cCodCli,cLojCli,cCodPrd)
+
+	Local cTesRet   := ""
+	Local _ni       := 0
+	Local nUsado    := 0
+	Local aAreaOld  := GetArea()
+	Private aCols   := {}
+	Private aHeader := {}
+
+	aHeader := {}
+	nUsado := 0
+
+	DbSelectArea('SX3')
+	SX3->(DbSetOrder(1))
+	SX3->(DbSeek('SC6'))
+	While !EOF() .And. X3_ARQUIVO == 'SC6'
+		If X3Uso(SX3->X3_USADO) .And. cNivel >= X3_NIVEL
+			nUsado++
+			aAdd(aHeader,{ TRIM(X3_TITULO), X3_CAMPO, X3_PICTURE,;
+				X3_TAMANHO, X3_DECIMAL, AllTrim(X3_VALID),;
+				X3_USADO, X3_TIPO, X3_ARQUIVO } )
+		EndIf
+		SX3->(DbSkip())
+	EndDo
+
+	aAdd(aCols,Array(nUsado+1))
+	For _ni:=1 To nUsado
+		aCols[Len(aCols),_ni] := FieldGet(FieldPos(aHeader[_ni,2]))
+	Next
+	aCols[Len(aCols),nUsado+1]:=.F.
+
+	n := len(aCols)
+	//Nata Prospera 31/05/2024 solicitado pelo Cristian do fiscal
+	//*********************************-MATESINT-******************************
+	cTesRet     := MaTesInt(2,"F ",cCodCli,cLojCli,"C",cCodPrd,"C6_TES")
+	//*************************************************************************
+	RestArea(aAreaOld)
+
+Return cTesRet
+
+//Retorna codigo do estado para o A1_IBGE
+Static Function fCodigoEstado(cUF)
+
+	Local cSiglaEst := ''
+
+	Default cUF     := ''
+
+	Do Case
+	Case SubStr(cUF,1,2) == 'AC'
+		cSiglaEst := '12'
+	Case SubStr(cUF,1,2) == 'AL'
+		cSiglaEst := '27'
+	Case SubStr(cUF,1,2) == 'AM'
+		cSiglaEst := '13'
+	Case SubStr(cUF,1,2) == 'AP'
+		cSiglaEst := '16'
+	Case SubStr(cUF,1,2) == 'BA'
+		cSiglaEst := '29'
+	Case SubStr(cUF,1,2) == 'CE'
+		cSiglaEst := '23'
+	Case SubStr(cUF,1,2) == 'DF'
+		cSiglaEst := '53'
+	Case SubStr(cUF,1,2) == 'ES'
+		cSiglaEst := '32'
+	Case SubStr(cUF,1,2) == 'GO'
+		cSiglaEst := '52'
+	Case SubStr(cUF,1,2) == 'MA'
+		cSiglaEst := '21'
+	Case SubStr(cUF,1,2) == 'MG'
+		cSiglaEst := '31'
+	Case SubStr(cUF,1,2) == 'MS'
+		cSiglaEst := '50'
+	Case SubStr(cUF,1,2) == 'MT'
+		cSiglaEst := '51'
+	Case SubStr(cUF,1,2) == 'PA'
+		cSiglaEst := '15'
+	Case SubStr(cUF,1,2) == 'PB'
+		cSiglaEst := '25'
+	Case SubStr(cUF,1,2) == 'PE'
+		cSiglaEst := '26'
+	Case SubStr(cUF,1,2) == 'PI'
+		cSiglaEst := '22'
+	Case SubStr(cUF,1,2) == 'PR'
+		cSiglaEst := '41'
+	Case SubStr(cUF,1,2) == 'RJ'
+		cSiglaEst := '33'
+	Case SubStr(cUF,1,2) == 'RN'
+		cSiglaEst := '24'
+	Case SubStr(cUF,1,2) == 'RO'
+		cSiglaEst := '11'
+	Case SubStr(cUF,1,2) == 'RR'
+		cSiglaEst := '14'
+	Case SubStr(cUF,1,2) == 'RS'
+		cSiglaEst := '43'
+	Case SubStr(cUF,1,2) == 'SC'
+		cSiglaEst := '42'
+	Case SubStr(cUF,1,2) == 'SE'
+		cSiglaEst := '28'
+	Case SubStr(cUF,1,2) == 'SP'
+		cSiglaEst := '35'
+	Case SubStr(cUF,1,2) == 'TO'
+		cSiglaEst := '17'
+	EndCase
+
+Return (cSiglaEst)
+
+//avisa estoque
+Static Function PmSndMai(aEstGer,cMensagem,cTitulo)
+
+	Local oMail , oMessage
+	Local cPara         := SuperGetMv("AT_MAILPM",.f.,'')
+	Local nFil          := 1
+	Local nItem         := 1
+	Local lRet          := .T.
+	Local cMsg          := ''
+	Local cSubject      := ''
+	Local cSMTPServer   := SuperGetMv("MV_RELSERV",.f.,'')
+	Local cSMTPUser     := SuperGetMv("MV_RELACNT",.f.,'')
+	Local cSMTPPass     := SuperGetMv("MV_RELPSW",.f.,'')
+	Local cMailFrom     := SuperGetMv("MV_RELACNT",.f.,'')
+	Local nPort         := 587
+	Local lUseAuth      := .T.
+	Local cCopia        := ''
+	Local cMailError    := ""
+	Local nErro, nErroAuth
+	Local cDescPrd      := ''
+	Default aEstGer     := {}
+	Default cMensagem   := ''
+	Default cTitulo     := ''
+
+	If Len(aEstGer) <= 0 .and. Empty(Alltrim(cMensagem)) .and. Empty(Alltrim(cTitulo))
+		Return
+	EndIf
+
+	If Empty(Alltrim(cPara))
+		Return
+	EndIf
+
+	If !Empty(Alltrim(cTitulo)) .and. !Empty(Alltrim(cMensagem))
+		cSubject    := cTitulo
+		cMsg        := cMensagem
+	EndIf
+
+	If Len(aEstGer) > 0
+
+		// Acrescenta no titulo
+		cSubject += ' - UTILIZANDO ESTOQUE ATRIA '
+
+		cMsg +=  CR + CR
+		cMsg += ' Informa√ß√£o de pedidos gerados da Atria para abastecimento da PneusM para atender essa venda: ' + CR
+		For nFil := 1 to Len(aEstGer)
+
+			If aEstGer[nFil][1] <> 'SEM'
+				cMsg += ' Itens solicitados para empresa/filial ' + aEstGer[nFil][1] + ': ' + CR + CR
+			Else
+				cMsg += ' Itens solicitados que N√ÉO foi possivel solicitar, por n√£o haver configura√ß√£o de origem de estoque: ' + CR + CR
+			EndIf
+			cMsg += ' STATUS: ' + CR + Alltrim(aEstGer[nFil][2]) + '.' + CR + CR
+
+			For nItem := 1 to Len(aEstGer[nFil][3])
+
+				// Reseta variaveis
+				cDescPrd := ''
+				cDescPrd := Alltrim(Posicione("SB1",1,xFilial("SB1")+Padr(aEstGer[nFil][3][nItem][1],TamSx3("B1_COD")[1]),'B1_DESC'))
+
+				cMsg += ' Produto ' + aEstGer[nFil][3][nItem][1] + ' - ' + cDescPrd + ' na quantidade ' + cValToChar(aEstGer[nFil][3][nItem][2]) + Iif(nItem<Len(aEstGer[nFil][3]),' | ','') + CR
+
+			Next nItem
+
+		Next nFil
+
+	EndIf
+
+	//Faz a conex√£o com o eMail
+	oMail := TMailManager():New()
+	oMail:setUseSSL( .T. ) // Usa SSL na conexao, contas do GMAIL usam SSL.
+	oMail:SetUseTLS( .T. )
+	oMail:Init( '', cSMTPServer , cSMTPUser, cSMTPPass, 0, nPort )
+	oMail:SetSmtpTimeOut( 30 )
+	nErro := oMail:SmtpConnect()
+
+	If lUseAuth
+		nErroAuth := 0
+		ErroAuth := oMail:SmtpAuth(cSMTPUser , cSMTPPass)
+
+		If nErroAuth <> 0
+			cMailError := oMail:GetErrorString(nErroAuth)
+			cMailError := Iif(Empty(cMailError), '***Unknown Error***', cMailError)
+			lRet := .F.
+		EndIf
+	EndIf
+
+	//Se houve algum outro erro
+	If nErro <> 0
+		cMailError := oMail:GetErrorString(nErro)
+		cMailError := Iif(Empty(cMailError), '***Unknown Error***', cMailError)
+		oMail:SMTPDisconnect()
+		lRet := .F.
+	EndIf
+	If lRet
+		oMessage := TMailMessage():New()
+		oMessage:Clear()
+		oMessage:cFrom := cMailFrom
+		oMessage:cTo := cPara
+		If !Empty(cCopia)
+			oMessage:cCc := cCopia
+		EndIf
+		oMessage:cSubject := cSubject
+		oMessage:cBody := cMsg
+
+		nErro := oMessage:Send( oMail )
+		If nErro <> 0
+			cMailError := oMail:GetErrorString(nErro)
+			cMailError := Iif(Empty(cMailError), '***Unknown Error***', cMailError)
+			lRet := .F.
+		EndIf
+		oMail:SMTPDisconnect()
+	EndIf
+
+Return lRet
