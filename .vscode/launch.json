@@ -45,6 +45,13 @@
 		},
 		{
 			"label": "xxx"
+		},
+		{
+			"label": "u_PSAUX001"
+		},
+		{
+			"args": [],
+			"label": "u_Static Function fGrava"
 		}
 	],
 	"lastProgramExecuted": "sigamdi",

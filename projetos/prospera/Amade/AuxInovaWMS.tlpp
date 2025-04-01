@@ -1,0 +1,62 @@
+#include 'totvs.ch'
+#INCLUDE "TBICONN.CH"
+#include "Fileio.ch"
+#INCLUDE "protheus.ch"
+
+/*/{Protheus.doc} 
+Código auxiliar para integração com o WebService da INOVATECH - WMS
+@type user function
+@author Tiengo
+@since 20/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PSstsWMS()
+
+	Local lOKRequest		:= ParamIXB[1]
+	Local cJSonRecebido		:= ParamIXB[4]
+	Local jTrataResp    	:= JsonObject():New() // Carrega o Json Vazio
+
+	//Caso o request de integracao tenha sido com sucesso.
+	If lOKRequest
+
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			fZS3(jTrataResp)
+
+		EndIf
+	EndIf
+
+Return()
+
+//Grava o STATUS do WMS
+Static Function fZS3(jJsonRet)
+
+	Local cId		:= ""
+	Local cStatus	:= ""
+
+	cId 	:= jJsonRet[1]:GetJSonObject('Id')
+	cStatus := jJsonRet[1]:GetJSonObject('Status')
+
+	If ! Empty(cStatus)
+
+		RecLock("ZS3",.F.)
+
+		ZS3->ZS3_STTINT := cStatus
+
+		ZS3->(MSUnLock())
+	Endif
+
+Return()
