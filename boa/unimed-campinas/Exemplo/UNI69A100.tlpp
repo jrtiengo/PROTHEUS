@@ -1,0 +1,1019 @@
+using namespace tlpp.regex
+#include "tlpp-core.th"
+#include "tlpp-rest.th"
+
+
+//Get para retornar o fornecedor 
+@Get(endpoint="/appfluig/fornecedor/:filial/:cgc")
+user function UNI69FOR()
+	Local oPath := oRest:getPathParamsRequest()
+	Local xFilial := oPath["filial"]
+	Local cCgc := oPath["cgc"]
+	Local cQuery  := ""
+	Local cAlias  := ""
+	Local oFornecedor
+	Local oRet
+	Local aFornece := {}
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	// caso n„o seja um cnpj valido eu retorno um erro
+	if ! len(cCgc) == 14
+		oRest:setStatusCode(400)
+		return oRest:setResponse("{'error':'CNPJ invalido'}")
+	endif
+	cQuery := "SELECT A2_NOME, A2_BAIRRO, A2_COD, A2_LOJA , A2_EST , A2_END , A2_MUN , A2_CEP , A2_CGC , S_T_A_M_P_ STAMP FROM SA2010 WHERE A2_CGC = '"+cCgc+"'  AND A2_FILIAL = '"+xFilial+"' "
+	cQuery +="  and D_E_L_E_T_ = ' '  and A2_MSBLQL ='2' "
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->A2_NOME)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Fornecedor n„o encontrado'}")
+	endif
+	while !  (cAlias)->(eof())
+		oFornecedor := JsonObject():new()
+		oFornecedor['nome'] := alltrim((cAlias)->A2_NOME)
+		oFornecedor['codigo'] := alltrim((cAlias)->A2_COD)
+		oFornecedor['loja'] := alltrim((cAlias)->A2_LOJA)
+		oFornecedor['uf'] := alltrim((cAlias)->A2_EST)
+		oFornecedor['endereco'] := alltrim((cAlias)->A2_END)
+		oFornecedor['bairro'] := alltrim((cAlias)->A2_BAIRRO)
+		oFornecedor['cidade'] := alltrim((cAlias)->A2_MUN)
+		oFornecedor['cep'] := alltrim((cAlias)->A2_CEP)
+		oFornecedor['cgc'] := alltrim((cAlias)->A2_CGC)
+		oFornecedor['stamp'] := (cAlias)->STAMP
+		aadd(aFornece, oFornecedor)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet := JsonObject():new()
+	oRet:set(aFornece)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+/*
+ IntegraÁ„o Consulta Grupos de AprovaÁ„o
+*/
+	@Get("/appfluig/aprovadores")
+user function UNI69SAL()
+	Local oPath := oRest:getPathParamsRequest()
+
+	Local jHeader := oRest:getHeaderRequest()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aAprovadores := {}
+	Local oAprovador
+	Local cRet
+	Local oheader := JsonObject():new()
+
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+
+	if ( !jHeader:hasProperty('custo') .or. empty(jHeader['custo']) .or. !jHeader:hasProperty('valor') .or. empty(jHeader['valor']) .or. !jHeader:hasProperty('user') .or. empty(jHeader['user']) )
+		oRest:setStatusCode(400)
+		return oRest:setResponse("{'error':'Parametros n„o informados'}")
+	endif
+
+	cQuery := " select  u.USR_EMAIL Email_User , u.USR_NOME Nome_User , AL_USER Cod_USER ,AL_COD GRUPO, AL_DESC Descri , AL_ITEM Item , AL_APROV Cod_Aprovador ,a.USR_EMAIL Email_Aprovador,  a.USR_NOME Nome_Aprovador, DHL_DESCRI Perfil ,DHL_LIMMIN Minino , DHL_LIMMAX Maximo  "
+	cQuery += " from SAL010 SAL "
+	cQuery += " inner join sys_usr a on (AL_APROV = a.USR_ID and a.d_e_l_e_t_=' ' and  a.USR_MSBLQL ='2')  "
+	cQuery += " inner join sys_usr u on (AL_USER = u.USR_ID and u.d_e_l_e_t_=' ' and  u.USR_MSBLQL ='2')  "
+	cQuery += " inner join DHL010 DHL on (AL_PERFIL = DHL_COD and DHL.d_e_l_e_t_=' ') "
+	cQuery += " inner join DBL010 DBL on (DBL.d_e_l_e_t_=' ' and DBL_GRUPO = AL_COD ) "
+	cQuery += " where SAL.d_e_l_e_t_=' ' and al_msblql ='2' and DBL_CC='"+jHeader['custo']+"' "
+	cQuery += " and u.USR_EMAIL = '"+jHeader['user']+"' "
+	cQuery += " and DHL_LIMMIN <= '"+jHeader['valor']+"' "
+	cQuery += " and DHL_LIMMAX >= '"+jHeader['valor']+"' and AL_XDOCTIT ='1' and AL_XDOCPRJ='1' "
+	cQuery += " order by 4,3 "
+
+	cAlias := mpsysopenquery(cQuery)
+
+	if select (cAlias) == 0 .or. empty((cAlias)->Email_User)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse('{"error":"Aprovador n„o encontrado"}')
+	endif
+	while !  (cAlias)->(eof())
+		oAprovador := JsonObject():new()
+		oAprovador['Email_User'] := alltrim((cAlias)->Email_User)
+		oAprovador['Nome_User'] := alltrim((cAlias)->Nome_User)
+		oAprovador['Cod_User'] := alltrim((cAlias)->Cod_USER)
+		oAprovador['Grupo'] := alltrim((cAlias)->GRUPO)
+		oAprovador['Descri'] := alltrim((cAlias)->Descri)
+		oAprovador['Item'] := alltrim((cAlias)->Item)
+		oAprovador['Cod_Aprovador'] := alltrim((cAlias)->Cod_Aprovador)
+		oAprovador['Email_Aprovador'] := alltrim((cAlias)->Email_Aprovador)
+		oAprovador['Nome_Aprovador'] := alltrim((cAlias)->Nome_Aprovador)
+		oAprovador['Perfil'] := alltrim((cAlias)->Perfil)
+		oAprovador['Minino'] := alltrim(str((cAlias)->Minino))
+		oAprovador['Maximo'] := alltrim(str((cAlias)->Maximo))
+
+		aadd(aAprovadores, oAprovador)
+		freeobj(oAprovador)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aAprovadores)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+// Endpoint para consulta de naturezas financeiras 
+	@Get("/appfluig/natureza")
+user function UNI69ED()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aNatureza := {}
+	Local oNatureza
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+
+	cQuery := "select ED_CODIGO , ED_DESCRIC , ED_CREDIT , ED_DEBITO  from SED010 where d_e_l_e_t_=' ' and ED_MSBLQL='2'"
+	cAlias := mpsysopenquery(cQuery)
+
+	if select (cAlias) == 0 .or. empty((cAlias)->ED_CODIGO)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Natureza n„o encontrada'}")
+	endif
+	while !  (cAlias)->(eof())
+		oNatureza := JsonObject():new()
+		oNatureza['Codigo'] := alltrim((cAlias)->ED_CODIGO)
+		oNatureza['Descricao'] := alltrim((cAlias)->ED_DESCRIC)
+		oNatureza['Credito'] := alltrim((cAlias)->ED_CREDIT)
+		oNatureza['Debito'] := alltrim((cAlias)->ED_DEBITO)
+		aadd(aNatureza, oNatureza)
+		freeobj(oNatureza)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aNatureza)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+// endpoint para consulta de centro de custo tabela CTT
+	@Get("/appfluig/centrocusto")
+user function UNI69CTT()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aCentroCusto := {}
+	Local oCentroCusto
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	cQuery := "select CTT_CUSTO , CTT_CLASSE , CTT_NORMAL , CTT_DESC01   from CTT010 where d_e_l_e_t_ = ' ' and CTT_BLOQ = '2' "
+	cAlias := mpsysopenquery(cQuery)
+
+	if select (cAlias) == 0 .or. empty((cAlias)->CTT_CUSTO)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Centro de Custo n„o encontrado'}")
+	endif
+	while !  (cAlias)->(eof())
+		oCentroCusto := JsonObject():new()
+		oCentroCusto['Custo'] := alltrim((cAlias)->CTT_CUSTO)
+		oCentroCusto['Classe'] := alltrim((cAlias)->CTT_CLASSE)
+		oCentroCusto['Normal'] := alltrim((cAlias)->CTT_NORMAL)
+		oCentroCusto['Descricao'] := alltrim((cAlias)->CTT_DESC01)
+		aadd(aCentroCusto, oCentroCusto)
+		freeobj(oCentroCusto)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aCentroCusto)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+// endpoint para consulta de filias do sistema 
+
+	@Get("/appfluig/filial")
+user function UNI69FIL()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aFilial := {}
+	Local oFilial
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+	cQuery := "select m0_codigo , m0_codfil , m0_filial , m0_cgc from SYS_COMPANY where d_e_l_e_t_ = ' ' "
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->M0_FILIAL)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Filial n„o encontrada'}")
+	endif
+	while !  (cAlias)->(eof())
+		oFilial := JsonObject():new()
+		oFilial['Filial'] := alltrim((cAlias)->M0_FILIAL)
+		oFilial['Codigo'] := alltrim((cAlias)->M0_CODFIL)
+		oFilial['Nome'] := alltrim((cAlias)->M0_FILIAL)
+		oFilial['Cnpj'] := alltrim((cAlias)->M0_CGC)
+		aadd(aFilial, oFilial)
+		freeobj(oFilial)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aFilial)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+
+// endpoint para o controle de condiÁ„o de pagamento 
+
+
+	@Get("/appfluig/condicao")
+user function UNI69CON()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aCondicao := {}
+	Local oCondicao
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+	cQuery := "select e4_filial , e4_codigo , e4_tipo , e4_cond , E4_DESCRI from SE4010 where  d_e_l_e_t_=' '"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->E4_FILIAL)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'CondiÁ„o de pagamento n„o encontrada'}")
+	endif
+	while !  (cAlias)->(eof())
+		oCondicao := JsonObject():new()
+		oCondicao['Filial'] := alltrim((cAlias)->E4_FILIAL)
+		oCondicao['Codigo'] := alltrim((cAlias)->E4_CODIGO)
+		oCondicao['Tipo'] := alltrim((cAlias)->E4_TIPO)
+		oCondicao['Condicao'] := alltrim((cAlias)->E4_COND)
+		oCondicao['Descricao'] := alltrim((cAlias)->E4_DESCRI)
+		aadd(aCondicao, oCondicao)
+		freeobj(oCondicao)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aCondicao)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+
+// end point paginado do cadastro de produtos  com possibilidade de filtro por descriÁ„o
+
+	@Get("/appfluig/produto")
+
+User Function Function UNI69PRO()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aProduto := {}
+	Local oProduto
+	Local cRet
+	Local lDesc := .t.
+	Local nTm := 100
+	Local oheader := JsonObject():new()
+	Local jHeader := oRest:getQueryRequest()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	if !jHeader:hasProperty('descricao') .or. empty(jHeader['descricao'])
+		lDesc := .f.
+	endif
+	if !jHeader:hasProperty('pag') .or. empty(jHeader['pag'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"parametro de pag obrigatorio"}')
+	endif
+
+	nPagina := val(jHeader['pag'])
+	if nPagina <= 0
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"pagina deve ser maior que 0"}')
+	endif
+
+	cQuery := "SELECT B1_COD Codigo , B1_DESC Descricao , b1_tipo Tipo , B1_UM UM , B1_POSIPI NCM FROM SB1010 WHERE d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and B1_DESC like '%"+jHeader['descricao']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina -1)))+" ROWS FETCH NEXT "+alltrim(STR(nTm))+" ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	oRet['data']:={}
+	if select (cAlias) == 0 .or. empty((cAlias)->Codigo)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Produto n„o encontrado'}")
+	endif
+	while !  (cAlias)->(eof())
+		oProduto := JsonObject():new()
+		oProduto['Codigo'] := alltrim((cAlias)->Codigo)
+		oProduto['Descricao'] := alltrim((cAlias)->Descricao)
+		oProduto['Tipo'] := alltrim((cAlias)->Tipo)
+		oProduto['UM'] := alltrim((cAlias)->UM)
+		oProduto['NCM'] := alltrim((cAlias)->NCM)
+		aadd(oRet['data'], oProduto)
+		freeobj(oProduto)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+
+	// verifico se tem mais paginas
+
+	cQuery := "SELECT B1_COD Codigo , B1_DESC Descricao , b1_tipo Tipo , B1_UM UM , B1_POSIPI NCM FROM SB1010 WHERE d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and B1_DESC like '%"+jHeader['descricao']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina)))+" ROWS FETCH NEXT 1 ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->Codigo)
+		oRet['hasnext'] := .f.
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+	else
+		oRet['hasnext'] := .t.
+		(cAlias)->(dbclosearea())
+	endif
+
+
+
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+// endpoint 2 de fornecedor , o fornecedor pode ser conultado por pagina e por nome 
+
+	@Get("/appfluig/fornecedor2")
+user function UNI69FOR2()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aFornece := {}
+	Local oFornecedor
+	Local cRet
+	Local lDesc := .t.
+	Local nTm := 100
+	Local oheader := JsonObject():new()
+	Local jHeader :=  oRest:getQueryRequest()
+	Local lCgc := .f.
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	if !jHeader:hasProperty('nome')
+		lDesc := .f.
+	elseif  empty(jHeader['nome'])
+		lDesc := .f.
+	endif
+	if !jHeader:hasProperty('cnpj')
+		lCgc := .f.
+	elseif  empty(jHeader['cnpj'])
+		lCgc := .f.
+	endif
+
+	if !jHeader:hasProperty('pag') .or. empty(jHeader['pag'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"parametro de pag obrigatorio"}')
+	endif
+
+	nPagina := val(jHeader['pag'])
+	if nPagina <= 0
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"pagina deve ser maior que 0"}')
+	endif
+
+	cQuery := "SELECT A2_NOME, A2_BAIRRO, A2_COD, A2_LOJA , A2_EST , A2_END , A2_MUN , A2_CEP , A2_CGC , S_T_A_M_P_  stamp , nvl(F72_TPCHV,' ') F72_TPCHV, nvl(F72_CHVPIX,' ') F72_CHVPIX  , A2_BANCO ,A2_AGENCIA ,A2_NUMCON  FROM SA2010 SA2 "
+	cQuery += " left Join F72010 F72 on (A2_COD = F72_COD and A2_LOJA = F72_LOJA and F72.D_E_L_E_T_=' ')
+	cQuery += "	WHERE SA2.d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and A2_NOME like '%"+jHeader['nome']+"%' "
+	endif
+	if lCgc
+		cQuery += " and A2_CGC like '%"+jHeader['cnpj']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina -1)))+" ROWS FETCH NEXT "+alltrim(STR(nTm))+" ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->A2_NOME)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Fornecedor n„o encontrado'}")
+	endif
+	oRet['data']:={}
+	while !  (cAlias)->(eof())
+		oFornecedor := JsonObject():new()
+		oFornecedor['nome'] := alltrim((cAlias)->A2_NOME)
+		oFornecedor['codigo'] := alltrim((cAlias)->A2_COD)
+		oFornecedor['loja'] := alltrim((cAlias)->A2_LOJA)
+		oFornecedor['uf'] := alltrim((cAlias)->A2_EST)
+		oFornecedor['endereco'] := alltrim((cAlias)->A2_END)
+		oFornecedor['bairro'] := alltrim((cAlias)->A2_BAIRRO)
+		oFornecedor['cidade'] := alltrim((cAlias)->A2_MUN)
+		oFornecedor['cep'] := alltrim((cAlias)->A2_CEP)
+		oFornecedor['cgc'] := alltrim((cAlias)->A2_CGC)
+		oFornecedor['stamp'] := (cAlias)->STAMP
+		oFornecedor['banco'] := alltrim((cAlias)->A2_BANCO)
+		oFornecedor['agencia'] := alltrim((cAlias)->A2_AGENCIA)
+		oFornecedor['conta'] := alltrim((cAlias)->A2_NUMCON)
+		oFornecedor['tpchv'] := alltrim((cAlias)->F72_TPCHV)
+		oFornecedor['chvpix'] := alltrim((cAlias)->F72_CHVPIX)
+		//aadd(aFornece, oFornecedor)
+		aadd(oRet['data'], oFornecedor)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+
+	// verifico se tem mais paginas
+
+	cQuery := "SELECT A2_NOME, A2_BAIRRO, A2_COD, A2_LOJA , A2_EST , A2_END , A2_MUN , A2_CEP , A2_CGC , S_T_A_M_P_ STAMP FROM SA2010 WHERE d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and A2_NOME like '%"+jHeader['nome']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina)))+" ROWS FETCH NEXT 1 ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->A2_NOME)
+		oRet['hasnext'] := .f.
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+	else
+		oRet['hasnext'] := .t.
+		(cAlias)->(dbclosearea())
+	endif
+
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+// endpoint de indices de reajuste 
+	@Get("/appfluig/indice")
+user function UNI69IND()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aIndice := {}
+	Local oIndice
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	cQuery := "select CN6_CODIGO Codigo , CN6_DESCRI Descricao , CN6_TIPO Tipo , CN6_ATUCAU Atl_Calcao , CN6_FONTE Fonte from CN6010 where d_e_l_e_t_=' ' "
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->Codigo)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Indice n„o encontrado'}")
+	endif
+	while !  (cAlias)->(eof())
+		oIndice := JsonObject():new()
+		oIndice['Codigo'] := alltrim((cAlias)->Codigo)
+		oIndice['Descricao'] := alltrim((cAlias)->Descricao)
+		oIndice['Tipo'] := alltrim((cAlias)->Tipo)
+		oIndice['Atl_Calcao'] := alltrim((cAlias)->Atl_Calcao)
+		oIndice['Fonte'] := alltrim((cAlias)->Fonte)
+		aadd(aIndice, oIndice)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aIndice)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+// endpoint do tipo de contrato , nesse endpoint os campos que tem lista de opÁıes s„o retornados com a opÁ„o da lista 
+
+	@Get("/appfluig/tipocontrato")
+user function UNI69CONTR()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aContrato := {}
+	Local oContrato
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	cQuery:="select CN1_CODIGO Codigo , CN1_DESCRI Descricao , CN1_ESPCTR Esp_Ctr , "
+	cQuery+=" CN1_CTRFIX Ctr_Fixo , CN1_TPSFIX Tps_Fixo,  CN1_VLRPRV Previsao_Fin , CN1_CROFIS Cronog_Fis , "
+	cQuery+=" CN1_CROCTB Cronog_Cont , CN1_TPMULT Multa_Bonif , CN1_MULMAN Mult_Manual , CN1_PRDALT Dias_Aviso , "
+	cQuery+=" CN1_INTEGR Integ_PIMS , CN1_MEDAUT Med_Automat , CN1_MEDEVE Med_Eventual , CN1_TPLMT Tp_Limite,  "
+	cQuery+=" CN1_LMTMED Limite_Med , CN1_CREALM Realinha_Med , CN1_CREAJM Reajusta_Med , CN1_CTRMED tIp_Ctrl_Med , "
+	cQuery+=" CN1_CTRAPR Ctrl_Aprov , CN1_GRPSIT Grp_Apr_Sit ,  CN1_ALINSS Aliq_INSS , CN1_ALCCTR Alc_Contrat , "
+	cQuery+=" CN1_ALQTIR Aliq_IR , CN1_GRPAPR Grp_Apr_Med , CN1_ALQPIS Aliq_PIS , CN1_ALCOFI Aliq_COFINS , "
+	cQuery+=" CN1_CTRDOC Ctr_Dt_Doc  ,CN1_ALCSLL Aliq_CSLL , CN1_SLDMED Consumo_Sld , CN1_RECORR Recorrente  "
+	cQuery+=" from CN1010 where d_e_l_e_t_=' ' "
+
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->Codigo)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Tipo de contrato n„o encontrado'}")
+	endif
+	while !  (cAlias)->(eof())
+		oContrato := JsonObject():new()
+		oContrato['Codigo'] := alltrim((cAlias)->Codigo)
+		oContrato['Descricao'] := alltrim((cAlias)->Descricao)
+		oContrato['Esp_Ctr'] := IIF((cAlias)->Esp_Ctr == '1','Compra','Venda')
+		oContrato['Ctr_Fixo'] := IIF((cAlias)->Ctr_Fixo == '1','Sim','N„o')
+		oContrato['Tps_Fixo'] := IIF((cAlias)->Tps_Fixo == '1','Por Produto','Por Agrupador')
+		oContrato['Previsao_Fin'] := IIF((cAlias)->Previsao_Fin == '1','Sim','N„o')
+		oContrato['Cronog_Fis'] := IIF((cAlias)->Cronog_Fis == '1','Sim','N„o')
+		oContrato['Cronog_Cont'] := IIF((cAlias)->Cronog_Cont == '1','Sim','N„o')
+		oContrato['Multa_Bonif'] := IIF((cAlias)->Multa_Bonif == '1','Recebimento','MediÁ„o')
+		//1=N„o permite;2=Multas;3=BonificaÁıes;4=Ambos "},
+		oContrato['Mult_Manual'] := IIF((cAlias)->Mult_Manual == '1','N„o permite',IIF((cAlias)->Mult_Manual == '2','Multas',IIF((cAlias)->Mult_Manual == '3','BonificaÁıes','Ambos')))
+		oContrato['Dias_Aviso'] := alltrim((cAlias)->Dias_Aviso)
+		oContrato['Integ_PIMS'] := IIF((cAlias)->Integ_PIMS == '1','Sim','N„o')
+		oContrato['Med_Automat'] := IIF((cAlias)->Med_Automat == '1','Sim','N„o')
+		oContrato['Med_Eventual'] := IIF((cAlias)->Med_Eventual == '1','Sim','N„o')
+		oContrato['Tp_Limite'] := IIF((cAlias)->Tp_Limite == '1','Financeiro','FÌsico')
+		oContrato['Limite_Med'] := alltrim((cAlias)->Limite_Med)
+		oContrato['Realinha_Med'] := IIF((cAlias)->Realinha_Med == '1','Sim','N„o')
+		oContrato['Reajusta_Med'] := IIF((cAlias)->Reajusta_Med == '1','Sim','N„o')
+		oContrato['tIp_Ctrl_Med'] := alltrim((cAlias)->tIp_Ctrl_Med)
+		oContrato['Ctrl_Aprov'] := IIF((cAlias)->Ctrl_Aprov == '1','Sim','N„o')
+		oContrato['Grp_Apr_Sit'] := alltrim((cAlias)->Grp_Apr_Sit)
+		oContrato['Aliq_INSS'] := alltrim((cAlias)->Aliq_INSS)
+		oContrato['Alc_Contrat'] := iif((cAlias)->Alc_Contrat == '0','Todos',iif((cAlias)->Alc_Contrat == '1','Documento',iif((cAlias)->Alc_Contrat == '2','Ent. Contabil','Sem AprovaÁ„o')))
+		oContrato['Aliq_IR'] := alltrim((cAlias)->Aliq_IR)
+		oContrato['Grp_Apr_Med'] := alltrim((cAlias)->Grp_Apr_Med)
+		oContrato['Aliq_PIS'] := alltrim((cAlias)->Aliq_PIS)
+		oContrato['Aliq_COFINS'] := alltrim((cAlias)->Aliq_COFINS)
+		oContrato['Ctr_Dt_Doc'] := alltrim((cAlias)->Ctr_Dt_Doc)
+		oContrato['Aliq_CSLL'] := alltrim((cAlias)->Aliq_CSLL)
+		oContrato['Consumo_Sld'] := alltrim((cAlias)->Consumo_Sld)
+		oContrato['Recorrente'] := alltrim((cAlias)->Recorrente)
+
+
+		aadd(aContrato, oContrato)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+	oRet:set(aContrato)
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+	@post("/appfluig/Bloqueio")
+user function UNI69BLQ()
+	cJson := oRest:GetBodyRequest()
+	Local cMsg := ''
+	Local jHeader :=oRest:getHeaderRequest()
+	Local oheader := JsonObject():new()
+	Local cFil :=' '
+	Local cJson := oRest:GetBodyRequest()
+	Local oBody := JsonObject():new()
+	oBody:fromJson(UPPER(cJson))
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+	if !jHeader:hasProperty('filial') .or. empty(jHeader['filial'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"Filial n„o informada"}')
+	endif
+	cFil := jHeader['filial']
+
+	// valida atributos do body
+	if !oBody:hasProperty('DATA') .or. empty(oBody['DATA'])  .or. !oBody:hasProperty('OPERACAO') .or. empty(oBody['OPERACAO']) .or. !oBody:hasProperty('CENTRO_CUSTO') .or. empty(oBody['CENTRO_CUSTO']) .or. !oBody:hasProperty('ITEM_CONTAB') .or. empty(oBody['ITEM_CONTAB']) .or.  !oBody:hasProperty('VALOR') .or. empty(oBody['VALOR'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"Um ou mais par‚metros n„o foram informados "}')
+	endif
+	rpcSetEnv('01',cFil)
+
+	cChaveAkd := getNextAlias()
+	_jLcto := oBody
+	_jLcto['DATA'] := ctod(_jLcto['DATA'])
+
+	pcoIniLan( '900002'/*, .T.*/ )
+	lRet := PcoVldLan( '900002', '01', 'FLUIG',,,,@cMsg )
+	if lRet 
+		lRet := PCODETLAN( '900002', '01', 'FLUIG' ,.t. )
+	endif 
+	
+	PcoFinLan( '900002' )
+	if !lRet
+		cMsg:= strtran(cMsg,chr(13)+chr(10),' ')
+		cMsg := strtran(cMsg,'"',' ')
+		cMsg := strtran(cMsg,"'",' ')
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"'+cMsg+'"}')
+	else
+		oRest:setStatusCode(200)
+		return oRest:setResponse('{"success":"LanÁamento efetuado com sucesso"}')
+	endif
+	rpcclearenv()
+return
+
+
+// endpoint para  a consulta de conta orÁament·ia 
+
+	@Get("/appfluig/contaorcamentaria")
+
+/*/{Protheus.doc} UNIA69CO
+@Description End point para retornar a conta orÁament·ria 
+@Type		 Funcion 
+@Author 	 Sperb 
+@Since  	 21/01/2025
+/*/
+User Function UNIA69CO()
+
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local aConta := {}
+	Local oConta
+	Local cRet
+	Local oheader := JsonObject():new()
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	cQuery :=" SELECT AK5_FILIAL , AK5_CODIGO , AK5_XOPER , AK5_CCUSTO , AK5_ITEM , AK5_CLVL FROM AK5010 WHERE D_E_L_E_T_ = ' ' "
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->AK5_CODIGO)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Conta OrÁament·ria n„o encontrada'}")
+	endif
+	oRet['data']:={}
+	while !  (cAlias)->(eof())
+		oConta := JsonObject():new()
+		oConta['Filial'] := alltrim((cAlias)->AK5_FILIAL)
+		oConta['Codigo'] := alltrim((cAlias)->AK5_CODIGO)
+		oConta['Operacao'] := alltrim((cAlias)->AK5_XOPER)
+		oConta['Centro_Custo'] := alltrim((cAlias)->AK5_CCUSTO)
+		oConta['Item'] := alltrim((cAlias)->AK5_ITEM)
+		oConta['Classe_Valor'] := alltrim((cAlias)->AK5_CLVL)
+		aadd(oRet['data'], oConta)
+		freeobj(oConta)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+	@post("/appfluig/contrato")
+
+/*/{Protheus.doc} UNI
+@Description 
+@Type		 
+@Author 	 
+@Since  	 27/01/2025
+/*/
+User Function UNI69PIC()
+	Local cJson := oRest:GetBodyRequest()
+	Local aHeader := oRest:getHeaderRequest()
+	Local oheader := JsonObject():new()
+	Local cRet := ''
+	Local oRet := JsonObject():new()
+	Local oBody := JsonObject():new()
+	Local cFil := ''
+
+
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	if !aHeader:hasProperty('filial') .or. empty(aHeader['filial'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"Filial n„o informada"}')
+	endif
+	if !aHeader:hasProperty('idflui') .or. empty(aHeader['idflui'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"ID do contrato no fluig n„o informado"}')
+	endif
+
+
+	cFil := aHeader['filial']
+	cIdFluig := aHeader['idflui']
+	if empty(cJson)
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"Corpo da requisiÁ„o n„o informado"}')
+	endif
+
+	oBody:fromJson(lower(cJson))
+	if ZZP->(DbSeek(alltrim(cFil)+alltrim(cIdFluig)))
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"Contrato j· incluido na fila"}')
+	endif
+
+	DbSelectArea('ZZP')
+	ZZP->(Reclock("ZZP",.t.))
+	ZZP->ZZP_FILIAL := cFil
+	ZZP->ZZP_IDFLUI := cIdFluig
+	ZZP->ZZP_BODY := cJson
+	ZZP->ZZP_STATUS := '1'
+	ZZP->ZZP_DATA := date()
+	ZZP->(MsUnlock())
+
+
+	oRest:setStatusCode(201)
+	oRet["sucesso"] := "Contrato incluido na fila com sucesso"
+	cRet := oRet:toJSON()
+	freeobj(oRet)
+
+	freeobj(oBody)
+
+Return orest:setResponse(cRet)
+
+
+	@Get("/appfluig/cliente")
+user function UNI69CLI()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local oCliente
+	Local cRet
+	Local lDesc := .t.
+	Local nTm := 100
+	Local oheader := JsonObject():new()
+	Local jHeader :=  oRest:getQueryRequest()
+	Local lCgc := .f.
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+	if !jHeader:hasProperty('nome')
+		lDesc := .f.
+	elseif  empty(jHeader['nome'])
+		lDesc := .f.
+	endif
+	if !jHeader:hasProperty('cnpj')
+		lCgc := .f.
+	elseif  empty(jHeader['cnpj'])
+		lCgc := .f.
+	endif
+
+	if !jHeader:hasProperty('pag') .or. empty(jHeader['pag'])
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"parametro de pag obrigatorio"}')
+	endif
+
+	nPagina := val(jHeader['pag'])
+	if nPagina <= 0
+		oRest:setStatusCode(400)
+		return oRest:setResponse('{"error":"pagina deve ser maior que 0"}')
+	endif
+
+	cQuery := "SELECT A1_NOME, A1_BAIRRO, A1_COD, A1_LOJA , A1_EST , A1_END , A1_MUN , A1_CEP , A1_CGC , S_T_A_M_P_  stamp  FROM SA1010 SA1 "
+	cQuery += "	WHERE SA1.d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and A1_NOME like '%"+jHeader['nome']+"%' "
+	endif
+	if lCgc
+		cQuery += " and A1_CGC like '%"+jHeader['cnpj']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina -1)))+" ROWS FETCH NEXT "+alltrim(STR(nTm))+" ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->A1_NOME)
+
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+
+		oRest:setStatusCode(404)
+		return oRest:setResponse("{'error':'Fornecedor n„o encontrado'}")
+	endif
+	oRet['data']:={}
+	while !  (cAlias)->(eof())
+		oCliente := JsonObject():new()
+		oCliente['nome'] := alltrim((cAlias)->A1_NOME)
+		oCliente['codigo'] := alltrim((cAlias)->A1_COD)
+		oCliente['loja'] := alltrim((cAlias)->A1_LOJA)
+		oCliente['uf'] := alltrim((cAlias)->A1_EST)
+		oCliente['endereco'] := alltrim((cAlias)->A1_END)
+		oCliente['bairro'] := alltrim((cAlias)->A1_BAIRRO)
+		oCliente['cidade'] := alltrim((cAlias)->A1_MUN)
+		oCliente['cep'] := alltrim((cAlias)->A1_CEP)
+		oCliente['cgc'] := alltrim((cAlias)->A1_CGC)
+		oCliente['stamp'] := (cAlias)->STAMP
+
+		//aadd(aFornece, oFornecedor)
+		aadd(oRet['data'], oCliente)
+		(cAlias)->(dbskip())
+	enddo
+	(cAlias)->(dbclosearea())
+
+	// verifico se tem mais paginas
+
+	cQuery := "SELECT A1_NOME, A1_BAIRRO, A1_COD, A1_LOJA , A1_EST , A1_END , A1_MUN , A1_CEP , A1_CGC , S_T_A_M_P_  stamp  FROM SA1010 SA1 "
+	cQuery += "	WHERE SA1.d_e_l_e_t_ = ' ' "
+	if lDesc
+		cQuery += " and A1_NOME like '%"+jHeader['nome']+"%' "
+	endif
+	if lCgc
+		cQuery += " and A1_CGC like '%"+jHeader['cnpj']+"%' "
+	endif
+	cQuery += " OFFSET "+alltrim(STR(nTm*(nPagina)))+" ROWS FETCH NEXT 1 ROWS ONLY"
+	cAlias := mpsysopenquery(cQuery)
+	if select (cAlias) == 0 .or. empty((cAlias)->A1_NOME)
+		oRet['hasnext'] := .f.
+		if select(cAlias) > 0
+			(cAlias)->(dbclosearea())
+		endif
+	else
+		oRet['hasnext'] := .t.
+		(cAlias)->(dbclosearea())
+	endif
+
+	cRet := oRet:toJSON()
+	oRest:setStatusCode(200)
+	freeobj(oRet)
+return oRest:setResponse(cRet)
+
+	// par‚metros, Filial e numero do contrato
+	@Get("/appfluig/contrato")
+user function UNI69GCO()
+	Local cQuery := ""
+	Local cAlias := ""
+	Local oRet := JsonObject():new()
+	Local oContrato := JsonObject():new()
+	Local oheader := JsonObject():new()
+	Local jHeader :=  oRest:getQueryRequest()
+
+	oheader:fromJson('{"Content-Type":"application/json"}')
+	oRest:SETHEADERRESPONSE(oheader)
+
+
+	cQuery :=" "
+
+
+return  oRest:setResponse('{"error":"teste"}')
+
+// Tabela ZZP para o controle do bloqueio 
+/*
+ZZP_FILIAL  Filial do Contrato 
+ZZP_IDFLUI  ID do Contrato no Fluig c 20
+ZZP_DATA  Data do Bloqueio D
+ZZP_CO    Codigo da OperaÁ„o  c10 
+ZZP_CCUSTO  Centro de Custo c  16
+ZZP_ITCTB  Item Contabil c 16
+ZZP_CLVL  Classe de Valor c 16
+ZZP_VALOR  Valor do Bloqueio n 15,2
+
+dData   := dDataBase
+cCo     := eval({||ConPad1(, , , 'AK5' ),AK5->AK5_CODIGO})
+cOper   := AK5->AK5_XOPER
+cCCusto := eval({||ConPad1(, , , 'CTT' ),CTT->CTT_CUSTO})
+cItCtb  := eval({||ConPad1(, , , 'CTD' ),CTD->CTD_ITEM})
+cClVl   := eval({||ConPad1(, , , 'CTH' ),CTH->CTH_CLVL})
+
+/*
+select CN1_CODIGO Codigo , CN1_DESCRI Descricao , CN1_ESPCTR Esp_Ctr , CN1_CTRFIX Ctr_Fixo , CN1_TPSFIX Tps_Fixo,  CN1_VLRPRV Previsao_Fin , CN1_CROFIS Cronog_Fis , CN1_CROCTB Cronog_Cont , CN1_TPMULT Multa_Bonif , CN1_MULMAN Mult_Manual , CN1_PRDALT Dias_Aviso , CN1_INTEGR Integ_PIMS , CN1_MEDAUT Med_Automat , CN1_MEDEVE Med_Eventual , CN1_TPLMT Tp_Limite,  CN1_LMTMED Limite_Med , CN1_CREALM Realinha_Med , CN1_CREAJM Reajusta_Med , CN1_CTRMED tIp_Ctrl_Med , CN1_CTRAPR Ctrl_Aprov , CN1_GRPSIT Grp_Apr_Sit ,  CN1_ALINSS Aliq_INSS , CN1_ALCCTR Alc_Contrat , CN1_ALQTIR Aliq_IR , CN1_GRPAPR Grp_Apr_Med , CN1_ALQPIS Aliq_PIS , CN1_ALCOFI Aliq_COFINS , CN1_CTRDOC Ctr_Dt_Doc  ,CN1_ALCSLL Aliq_CSLL , CN1_SLDMED Consumo_Sld , CN1_RECORR Recorrente  from protheus_dev.CN1010 where d_e_l_e_t_=' ' 
+
+
+[[
+{"X3_CAMPO":"CN1_FILIAL","X3_TITULO":"Filial","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_CODIGO","X3_TITULO":"Codigo","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_DESCRI","X3_TITULO":"Descricao ","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_ESPCTR","X3_TITULO":"Esp. Contrat","X3_TIPO":"C","X3_CBOX":"1=Compra;2=Venda"},
+{"X3_CAMPO":"CN1_CTRFIX","X3_TITULO":"Ctr. Fixo ","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao;3=Semi-Fixo "},
+{"X3_CAMPO":"CN1_TPSFIX","X3_TITULO":"Semi-Fixo ","X3_TIPO":"C","X3_CBOX":"1=Por Produto;2=Por Agrupador "},
+{"X3_CAMPO":"CN1_VLRPRV","X3_TITULO":"Previsao Fin","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao "},
+{"X3_CAMPO":"CN1_CROFIS","X3_TITULO":"Cronog. Fis.","X3_TIPO":"C","X3_CBOX":"1=Sim;2=N„o "},
+{"X3_CAMPO":"CN1_CROCTB","X3_TITULO":"Cronog. Cont","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao "},
+{"X3_CAMPO":"CN1_TPMULT","X3_TITULO":"Multa/Bonif.","X3_TIPO":"C","X3_CBOX":"1=Recebimento;2=MediÁ„o "},
+{"X3_CAMPO":"CN1_MULMAN","X3_TITULO":"Mult. manual","X3_TIPO":"C","X3_CBOX":"1=N„o permite;2=Multas;3=BonificaÁıes;4=Ambos "},
+{"X3_CAMPO":"CN1_PRDALT","X3_TITULO":"Dias / Aviso","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_INTEGR","X3_TITULO":"Integ. PIMS ","X3_TIPO":"L","X3_CBOX":""},
+{"X3_CAMPO":"CN1_MEDAUT","X3_TITULO":"Med. Automat","X3_TIPO":"C","X3_CBOX":"1=Sim;2=N„o "},
+{"X3_CAMPO":"CN1_MEDEVE","X3_TITULO":"Med Eventual","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao "},
+{"X3_CAMPO":"CN1_TPLMT ","X3_TITULO":"Tp. Limite","X3_TIPO":"C","X3_CBOX":"1=Financeiro;2=FÌsico "},
+{"X3_CAMPO":"CN1_LMTMED","X3_TITULO":"Limite Med. ","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_CREALM","X3_TITULO":"Realinha Med","X3_TIPO":"C","X3_CBOX":"1=Sim;2=N„o "},
+{"X3_CAMPO":"CN1_CREAJM","X3_TITULO":"Reajusta Med","X3_TIPO":"C","X3_CBOX":"1=Sim;2=N„o "},
+{"X3_CAMPO":"CN1_CTRMED","X3_TITULO":"tIp.Ctrl.Med","X3_TIPO":"C","X3_CBOX":"1=Pedido;2=Duplicata"},
+{"X3_CAMPO":"CN1_CTRAPR","X3_TITULO":"Ctrl. Aprov.","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao "},
+{"X3_CAMPO":"CN1_GRPSIT","X3_TITULO":"Grp.Apr Sit ","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_DGRSIT","X3_TITULO":"Desc.Apr Sit","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_ALINSS","X3_TITULO":"Aliq. INSS","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_ALCCTR","X3_TITULO":"Alc. Contrat","X3_TIPO":"C","X3_CBOX":"0=Todos;1=Documento;2=Ent. Contabil;3=Sem AprovaÁ„o "},
+{"X3_CAMPO":"CN1_ALQTIR","X3_TITULO":"Aliq. IR","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_GRPAPR","X3_TITULO":"Grp. Apr Med","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_ALQPIS","X3_TITULO":"Aliq. PIS ","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_DESCAP","X3_TITULO":"Desc.Apr Med","X3_TIPO":"C","X3_CBOX":""},
+{"X3_CAMPO":"CN1_ALCOFI","X3_TITULO":"Aliq. COFINS","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_CTRDOC","X3_TITULO":"Ctr. Dt.Doc.","X3_TIPO":"C","X3_CBOX":"1=Sim;2=Nao "},
+{"X3_CAMPO":"CN1_ALCSLL","X3_TITULO":"Aliq. CSLL","X3_TIPO":"N","X3_CBOX":""},
+{"X3_CAMPO":"CN1_SLDMED","X3_TITULO":"Consumo Sld ","X3_TIPO":"C","X3_CBOX":"1=Encerramento;2=Inclusao "},
+{"X3_CAMPO":"CN1_RECORR","X3_TITULO":"Recorrente","X3_TIPO":"L","X3_CBOX":""}
+]
+
+Tabela(SX2)
+X2_NOME	X2_UNICO	X2_SYSOBJ
+Contas OrÁament·rias	AK5_FILIAL+AK5_CODIGO	
+
+
+
+Indices(SIX)
+Ordem	Chave	DescriÁ„o	NickName
+1	AK5_FILIAL+AK5_CODIGO	Conta	
+2	AK5_FILIAL+AK5_DESCRI+AK5_CODIGO	Descricao + Conta	
+3	AK5_FILIAL+AK5_COSUP	C.O.Superior	
+
+
+
+
+
+Campos(SX3)
+X3_CAMPO	X3_TITULO	X3_DESCRIC	HELP Campo	X3_TIPO	X3_TAMANHO	X3_DECIMAL	X3_PICTURE	X3_VALID	X3_RELACAO	X3_F3	X3_TRIGGER	X3_BROWSE	X3_VISUAL	X3_CONTEXT	X3_CBOX	X3_WHEN	X3_INIBRW	X3_GRPSXG	X3_FOLDER	X3_CONDSQL	X3_CHKSQL	X3_AGRUP	X3_POSLGT	X3_MODAL
+AK5_FILIAL	Filial	Filial do Sistema		C	2	0						Sim	Altera	Virtual				033					1	2
+AK5_CODIGO	Conta	Cod. Conta Orcamentaria	Codigo da Conta Orcamentaria.	C	12	0		PCO010Cta()			S	Sim	Altera	Virtual				013					1	1
+AK5_DESCRI	Descricao	Descricao do C.O.	Descricao da Conta Orcamentaria.	C	60	0	@!					Sim	Altera	Virtual									1	1
+AK5_TIPO	Tipo	Tipo de Conta Orcament.	Especifica o Tipo da Conta Orcamentaria, que poder· ser: - SintÈtica: Contas totalizadoras das Contas AnalÌticas. - AnalÌtica: Contas que recebem os valores dos lanÁamentos orÁamentarios.	C	1	0		Pertence("12")				Sim	Altera	Virtual	1=Sintetica;2=Analitica								1	1
+AK5_PREVIE	Preview Cod.	Preview do Codigo	Preview da conta orcamentaria de acordo com a mascara informada. Exemplo: CO 101001 com mascara informanda 1 digito na seq.1 - 2 na seq. 2 - 3 na seq. 3 com separador (.) sera exibido da seguinte forma - 1.01.001	C	25	0			If(Inclui, PCORETCO(M->AK5_CODIGO,M->AK5_MASC), PCORETCO(AK5->AK5_CODIGO,AK5->AK5_MASC) )			Sim	Vizualiza	Virtual			PCORETCO(AK5->AK5_CODIGO,AK5->AK5_MASC)						1	2
+AK5_DEBCRE	Cond. Normal	Condic‰o Normal da Conta	Indica a classificaÁ„o da conta orcamentaria : 1-Receita 2-Despesa	C	1	0						Sim	Altera	Real	1=Receita;2=Despesa								1	2
+AK5_MASC	Cod. Mascara	Codigo da Mascara	Codigo da Mascara utilizada para visualizaÁ„o do cÛdigo da conta orÁamentaria nas consultas e relatÛrios.	C	3	0	@!			CTM	S	Sim	Altera	Real									1	2
+AK5_DTINC	Dt. Inclusao	Data de Inclusao do CO	Data de inclusao da conta orÁamentaria.	D	8	0			MSDATE()			Sim	Altera	Real									1	2
+AK5_DTINI	Inicio Vig.	Inicio da Vigencia	Data de inicio da vigencia da conta orÁamentaria.	D	8	0			CTOD("01/01/80")			Sim	Altera	Real									1	2
+AK5_COSUP	C.O.Superior	Conta Orcament. Superior.	Indica qual È a Conta OrÁamentaria superior ao que est· sendo cadastrado (dentro da hierarquia de Contas OrÁamentarias). A Conta superior ser· utilizada para calcular os valores dos saldos nas Contas Orlamentarias sintÈticas superiores. Este campo n„o precisar· ser preenchido quando n„o existirem Contas sintÈticas no Plano de Contas OrÁamentarias).	C	12	0		PcoVldCta(M->AK5_COSUP,M->AK5_CODIGO)		AK5		Sim	Altera	Real				013					1	2
+AK5_MSBLQL	Bloqueado?	Registro bloqueado	Indica se a Conta est· ou n„o bloqueada para os orÁamento/lanÁamentos.	C	1	0			"2"			Nao	Altera	Real	1=Sim;2=Nùo								1	2
+
+
+
+
+Relacionamentos(SX9)
+X9_CDOM - Tabela Destino	X9_EXPDOM - Express„o Origem	X9_EXPCDOM - Express„o Destino
+AM8	AK5_CODIGO	AM8_CO
+AMK	AK5_CODIGO	AMK_CO
+CTM	AK5_MASC	CTM_CODIGO
+AK5	AK5_CODIGO	AK5_COSUP
+ALN	AK5_CODIGO	ALN_CO
+ALX	AK5_CODIGO	ALX_CO
+AK3	AK5_CODIGO	AK3_CO
+AK3	AK5_COSUP	AK3_PAI
+AMV	AK5_CODIGO	AMV_CODCON
+G6A	AK5_CODIGO	G6A_CODCO
+ALO	AK5_CODIGO	ALO_CO
+AM9	AK5_CODIGO	AM9_CO
+AK2	AK5_CODIGO	AK2_CO
+AKD	AK5_CODIGO	AKD_CO
+ALJ	AK5_CODIGO	ALJ_CO
+ALJ	AK5_CODIGO	ALJ_COSUP
+ALP	AK5_CODIGO	ALP_CO
+AMJ	AK5_CODIGO	AMJ_CO
+AKC	AK5_CODIGO	AKC_CO
+AKI	AK5_CODIGO	AKI_CO
+AKD	AK5_CODIGO	AKD_COSUP

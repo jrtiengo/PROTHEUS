@@ -3,10 +3,15 @@
 #Include 'TopConn.ch'
 
 /*/{Protheus.doc} User Function SF1140I
-   Responsável por atualizar as informações do cabeçalho de um Pré-Documento de Entrada e seus anexos.
+   Responsável por atualizar as informações do cabeçalho de um Pré-Documento de Entrada.
+   0=NE; Não enviado ao WMS
+   1=NP; enviado, mas não processo
+   2=P; processado
+   3=ER; processado com erros
+   4=NA nao envia ao WMS                                    
    @type Function
-   @since 23/10/2024
-   @author user
+   @since 01/04/2025
+   @author tiengo
 /*/
 
 User Function SF1140I()
@@ -18,7 +23,7 @@ User Function SF1140I()
 
 		If RecLock("SF1",.F.)
 
-			SF1->F1_ZSTSWMS := "1"
+			SF1->F1_ZSTSWMS := "0"
 
 			SF1->(MSUnLock())
 		Endif
@@ -26,10 +31,30 @@ User Function SF1140I()
 
 Return()
 
-/*
-Se retornado um valor logico Falso (.F.), este P.E. nao deixa excluir a Pre-Nota. 
-Se retornado .T. é confirmada a exclusão da Pre-Nota de Entrada.
-*/
+/*/{Protheus.doc} User Function A140Exc
+   Validar Status da Prenota
+   @type Function
+   @since 01/04/2025
+   @author tiengo
+   @Return 
+   		Se retornado um valor logico Falso (.F.), este P.E. nao deixa excluir a Pre-Nota. 
+		Se retornado .T. é confirmada a exclusão da Pre-Nota de Entrada.
+/*/
+
+User Function A140ALT()
+
+	Local lRet := .T.	as logical
+
+	If ! IsBlind()
+
+		If SF1->F1_ZSTSWMS == "1"
+			lRet := .F.
+
+			FWAlertWarning("Entrar em contato com a Logistica(WMS)", "Pre-nota ainda em processamento pelo WMS")
+		Endif
+	Endif
+
+Return()
 User Function A140Exc()
 
 	Local lRet := .T.   as logical
@@ -45,11 +70,19 @@ User Function A140Exc()
 
 Return(lRet)
 
+/*/{Protheus.doc} User Function MT140COR
+   Adicionar novas cores para projeto WMS
+   @type Function
+   @since 01/04/2025
+   @author tiengo
+/*/
+
 User Function MT140COR()
 
 	Local aNewCores := {}   as array
 	Local nX        := 0    as numeric
 
+	aAdd(aNewCores,{'F1_ZSTSWMS=="0"'   ,'BR_PRETO_0' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="1"'   ,'BR_PRETO_1' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="2"'   ,'BR_PRETO_2' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="3"'   ,'BR_PRETO_3' })
@@ -62,11 +95,25 @@ User Function MT140COR()
 
 Return(aNewCores)
 
+/*/{Protheus.doc} User Function MTA140MNU
+   Adicionar botão para alterar se envia ou não ao WMS
+   @type Function
+   @since 01/04/2025
+   @author tiengo
+/*/
+
 User Function MTA140MNU
 
 	aAdd(aRotina,{OemToAnsi("Altera Envio WMS"), "U_PSAUX001", 0 , 02, 0, nil})
 
 Return()
+
+/*/{Protheus.doc} User Function PSAUX001
+   Montagem Tela para alterar STATUS
+   @type Function
+   @since 01/04/2025
+   @author tiengo
+/*/
 
 User Function PSAUX001
 
@@ -79,14 +126,14 @@ User Function PSAUX001
 	Private oButton1        := NIL                          as object
 	Private oButton2        := NIL                          as object
 
-	If FWSX6Util():ExistsParam("PS_USTATUS")
-		cParam := GetMV("PS_USTATUS")
+	If FWSX6Util():ExistsParam("PS_USTWMSE")
+		cParam := GetMV("PS_USTWMSE")
 	Else
-		cParam := SuperGetMV("PS_USTATUS", .F., "000000")
+		cParam := SuperGetMV("PS_USTWMSE", .F., "000000")
 	Endif
 
 	if ! __cUserID $ cParam
-        FWAlertSuccess("Usuário sem acesso!", "Integração WMS!")
+		FWAlertError("Usuário sem acesso!", "Integração WMS!")
 		Return()
 	Endif
 
@@ -103,17 +150,21 @@ Return()
 
 Static Function fGrava()
 
-	If RecLock("SF1",.F.)
+	//So permite alterar, se ainda não foi enviado ao WMS
+	If SF1->F1_ZSTSWMS == '0'
+		
+		If RecLock("SF1",.F.)
+			If ! Empty(cComboBo1) .And. cComboBo1 == '2'
+				SF1->F1_ZSTSWMS := "4"
+			Else
+				SF1->F1_ZSTSWMS := "1"
+			Endif
+			SF1->(MSUnLock())
 
-		If ! Empty(cComboBo1) .And. cComboBo1 == '2'
-			SF1->F1_ZSTSWMS := "4"
-		Else
-			SF1->F1_ZSTSWMS := "1"
-		Endif
-
-		SF1->(MSUnLock())
-
-		FWAlertSuccess("Registro gravado com sucesso!", "Integração WMS!")
+			FWAlertSuccess("Registro gravado com sucesso!", "Integração WMS!")
+		End
+	Else 
+		FWAlertError("Nao e possivel alterar, Prenota - ja enviada ao WMS!", "Integração WMS!")
 	Endif
 
 Return()

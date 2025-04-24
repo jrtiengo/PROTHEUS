@@ -1,10 +1,14 @@
-#include "totvs.ch"
+#include "TOTVS.ch"
 
 User Function teste()
 
-Local cParam := ""
+Local cTeste	:= ""
 
-// Adjusted code to prevent '-Standard Price Book' from passing through u_PSIntNoSPace
-&(Iif(SC5->(IsDeleted()),'Cancelado',Iif(Empty(Alltrim(Posicione("ZS4",1,xFilial("ZS4")+"SC5"+SC5->C5_FILIAL+"|"+SC5->C5_NUM,"ZS4_IDSALES"))),'Orçamento','Pedido')))
+//nCalc := 3 * 3 * 3 / 1000000
 
-Return
+//&(Round(SB5->B5_ALTURLC*SB5->B5_LARGLC*SB5->B5_COMPRLC/1000000,2))                                                                                                                                                                                              
+
+
+cTeste := PadL('000016042', 10, '0')  
+
+Return(nCalc)

@@ -8,7 +8,8 @@
 			"program": "${command:AskForProgramName}",
 			"isMultiSession": true,
 			"enableTableSync": true,
-			"smartclientUrl": "http://localhost:7201"
+			"smartclientUrl": "http://localhost:7211",
+			"enableMultiThread": true
 		},
 		{
 			"type": "totvs_language_debug",
@@ -54,8 +55,29 @@
 		},
 		{
 			"label": "u_copiaSE1"
+		},
+		{
+			"args": [
+				"99",
+				"01"
+			],
+			"label": "u_UPDSZL"
+		},
+		{
+			"args": [],
+			"label": "u_UPDSZL"
+		},
+		{
+			"args": [],
+			"label": "u_teste"
+		},
+		{
+			"label": "U_PSINTMON"
+		},
+		{
+			"label": "7"
 		}
 	],
-	"lastProgramExecuted": "u_copiaSE1",
+	"lastProgramExecuted": "u_teste",
 	"lastProgramArguments": []
 }

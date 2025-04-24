@@ -1,0 +1,1086 @@
+#Include "TOTVS.ch"
+#Include "Protheus.ch"
+#Include "TopConn.ch"
+#Include "dbTree.ch"
+#Include "RwMake.ch"
+#Include "tlpp-core.th"
+
+#Define cTitApp "Monitor de LOGs"
+#Define Enter Chr(13) + Chr(10)
+
+
+//======================================================
+/*/{Protheus.doc} CtrlLOG
+Classe para gerar Controle de LOGs
+@type class
+@version V 1.00
+@author Edson Hornberger
+@since 07/11/2023
+/*/
+CLASS CtrlLOG
+
+	PUBLIC DATA oJSONLog  as Json
+	PUBLIC DATA cAliasLog as Character
+	PUBLIC DATA cErrLog   as Character
+
+	PUBLIC METHOD New() CONSTRUCTOR
+	PUBLIC METHOD SetTab(cAlias)
+	PUBLIC METHOD AddItem(oJSON)
+	PUBLIC METHOD GetError()
+	PUBLIC METHOD ViewLog(cApi, cId, cRotina)
+
+ENDCLASS
+//======================================================
+
+//======================================================
+/*/{Protheus.doc} CtrlLOG::New
+Método de criação da Classe
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 07/11/2023
+@return variant, Self do objeto
+/*/
+METHOD New() Class CtrlLOG
+
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		::oJSONLog  := Nil
+		::cAliasLog := ""
+		::cErrLog   := ""
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+Return Self
+//======================================================
+
+
+//======================================================
+/*/{Protheus.doc} CtrlLOG::SetTab
+Método de informar o Alias da Tabela de LOG
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 07/11/2023
+@param cAlias, character, Alias da Tabela de LOG
+@return logical, Retorna verdadeiro se Alias Ok
+/*/
+METHOD SetTab(cAlias) Class CtrlLOG
+
+	Local lRet   := .T.                as Logical
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		If ChkFile(cAlias)
+
+			Self:cAliasLog := cAlias
+			Self:cErrLog   := "[INFO] - Ok" + Enter
+
+		Else
+
+			Self:cErrLog   := "[ERROR] - Tabela informada não existe!" + Enter
+			lRet := .F.
+			Conout(Self:cErrLog)
+
+		EndIf
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+Return lRet
+//======================================================
+
+
+//======================================================
+/*/{Protheus.doc} CtrlLOG::AddItem
+Método para inclusão de um LOG na Tabela
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 07/11/2023
+@param oJSONLog, object, JSON com dados a serem gravados
+@return logical, Retorna verdadeiro se gravou os dados
+/*/
+METHOD AddItem(oJSONLog) Class CtrlLOG
+
+	Local cSchema    := ""                 as Character
+	Local lRet       := .T.                as Logical
+	Local cAliasRed  := ""                 as Character
+	Local oValidJson := Nil                as Object
+	Local cMsgErr    := ""                 as character
+	Local oError     := ErrorClass():New() as Object
+	Local xValor     := Nil                as Variant
+	Local cTypeVal   := ""                 as Character
+
+	TRY
+
+		If Left(Self:cAliasLog, 1) = "S"
+
+			cAliasRed := SubStr(Self:cAliasLog, 2, 2)
+
+		Else
+
+			cAliasRed := Self:cAliasLog
+
+		EndIf
+
+		cSchema := '{'																											 + Enter
+		cSchema += '    "title": "SchemaLOG",'																					 + Enter
+		cSchema += '    "description": "Valida JSON de LOG de Integracoes",'													 + Enter
+		cSchema += '    "type": "object",'																						 + Enter
+		cSchema += '    "properties": {'																						 + Enter
+		cSchema += '        "status": {'																						 + Enter
+		cSchema += '            "description": "Status do Registro",'															 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "idinteg": {'																						 + Enter
+		cSchema += '            "description":"ID de Integracao",'																 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "nomapi": {'																						 + Enter
+		cSchema += '            "description": "Nome da API",'																	 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "rotina": {'																						 + Enter
+		cSchema += '            "description": "Nome da Rotina",'																 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "tabela": {'																						 + Enter
+		cSchema += '            "description": "Tabela do Registro",'														     + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "recno": {'								    														 + Enter
+		cSchema += '            "description": "RecNO do Registro",'															 + Enter
+		cSchema += '            "type": "integer"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "data": {'																							 + Enter
+		cSchema += '            "description": "Data do Registro",'																 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "hora": {'																							 + Enter
+		cSchema += '            "description": "Hora do Registro",'																 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "msgresp": {'																						 + Enter
+		cSchema += '            "description": "Mensagem de Resposta da API",'													 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "msgerr": {'																						 + Enter
+		cSchema += '            "description": "Mensagem de Erro da API",'														 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "jsonbod": {'																						 + Enter
+		cSchema += '            "description": "JSON enviado/recebido",'														 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        },'																									 + Enter
+		cSchema += '        "jsonret": {'																						 + Enter
+		cSchema += '            "description": "JSON de resposta enviado/recebido",'											 + Enter
+		cSchema += '            "type": "string"'																				 + Enter
+		cSchema += '        }'																									 + Enter
+		cSchema += '    },'																										 + Enter
+		cSchema += '    "requerid": ["status", "idinteg", "nomapi", "tabela", "recno", "data", "hora", "msgresp", "jsonbod"]'    + Enter
+		cSchema += '}'																											 + Enter
+
+		If Empty(Self:cAliasLog)
+
+			lRet := .F.
+			Self:cErrLog   := "[ERROR] - Não foi informada a Tabela de LOG!" + Enter
+
+		Else
+
+			oValidJson := VldSchJSON():New()
+			If oValidJson:SetTextSch(cSchema, @cMsgErr)
+
+				lRet := oValidJson:ValidJson(oJSONLog, @cMsgErr)
+
+			Else
+
+				lRet := .F.
+				Self:cErrLog += cMsgErr + Enter
+				Conout(self:cErrLog)
+
+			EndIf
+
+			If lRet
+
+				cNUM := BuscaSeq()
+				Begin Transaction
+
+					dbSelectArea(Self:cAliasLog)
+					If RecLock(Self:cAliasLog, .T.)
+
+						&(cAliasRed + "_FILIAL")  := xFILIAL(Self:cAliasLog)
+						&(cAliasRed + "_CODREF")  := cNUM
+						&(cAliasRed + "_STATUS")  := oJSONLog["status"]
+						&(cAliasRed + "_IDINTEG") := oJSONLog["idinteg"]
+						&(cAliasRed + "_NOMAPI")  := oJSONLog["nomapi"]
+						&(cAliasRed + "_TABELA")  := oJSONLog["tabela"]
+						&(cAliasRed + "_RECNO")   := oJSONLog["recno"]
+						&(cAliasRed + "_DATA")    := SToD(oJSONLog["data"])
+						&(cAliasRed + "_HORA")    := oJSONLog["hora"]
+						&(cAliasRed + "_MSGRESP") := oJSONLog["msgresp"]
+						oJSONLog:GetJsonValue("jsonbod", @xValor, @cTypeVal)
+						If cTypeVal = "C"
+							&(cAliasRed + "_JSONBOD") := oJSONLog["jsonbod"]
+						Else
+							&(cAliasRed + "_JSONBOD") := oJSONLog["jsonbod"]:ToJSON()
+						EndIf
+
+						If oJSONLog:HasProperty("rotina")
+
+							&(cAliasRed + "_ROTINA") := oJSONLog["rotina"]
+
+						EndIf
+
+						If oJSONLog:HasProperty("msgerr")
+
+							&(cAliasRed + "_MSGERR") := oJSONLog["msgerr"]
+
+						EndIf
+
+						If oJSONLog:HasProperty("jsonret")
+
+							oJSONLog:GetJsonValue("jsonret", @xValor, @cTypeVal)
+							If cTypeVal = "C"
+								&(cAliasRed + "_JSONRET") := oJSONLog["jsonret"]
+							Else
+								&(cAliasRed + "_JSONRET") := oJSONLog["jsonret"]:ToJSON()
+							EndIf
+
+						EndIf
+
+						MsUnlock()
+
+						Self:cErrLog := "[INFO] - Registro gravado"
+
+					EndIf
+
+				End Transaction
+
+			Else
+
+				lRet := .F.
+				Self:cErrLog += cMsgErr
+				Conout(Self:cErrLog)
+
+			EndIf
+
+		EndIf
+
+	CATCH oError
+
+		lRet := .F.
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+Return lRet
+//======================================================
+
+
+//======================================================
+/*/{Protheus.doc} CtrlLOG::GetError
+Método que retorna mensagens de Erro
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 07/11/2023
+@return character, Mensagem de Erro
+/*/
+METHOD GetError() Class CtrlLOG
+
+	Local cRet   := ""                 as Character
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		If !Empty(Self:cErrLog)
+
+			cRet := Self:cErrLog
+
+		EndIf
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+Return cRet
+//======================================================
+
+
+/*/{Protheus.doc} CtrlLOG::ViewLog
+Método para visualização dos LOGs gravados
+@type method
+@version V 1.00
+@author Carla
+@since 17/11/2023
+@param cAlias, character, Alias com a Tabela
+@param cId, character, ID a ser retornado na Tela
+@param cRotina, character, Rotina que gerou o LOG
+@return logical, Verdadeiro se achou a ocorrência
+/*/
+METHOD ViewLog(cAlias, cId, cRotina, cTabela, nRec) Class CtrlLOG
+
+	Local aPosObj    := {}                                                          as Array
+	Local aObjects   := {}                                                          as Array
+	Local aSize      := MsAdvSize()                                                 as Array
+	Local aInfo      := {}                                                          as Array
+	Local oDlgLOG    := Nil                                                         as Object
+	Local oFwLayer   := Nil                                                         as Object
+	Local oWin01     := Nil                                                         as Object
+	Local oWin02     := Nil                                                         as Object
+	Local oWin03     := Nil                                                         as Object
+	Local oListBox1  := Nil                                                         as Object
+	Local nI         := 0                                                           as Numeric
+	Local aColumns   := {}                                                          as Array
+	Local aFieldMark := {}                                                          as Array
+	Local oFontLeg   := tFont():New("VERDANA",, 012,, .F.,,,,, .F., .F.)            as Object
+	Local oFontTrk   := tFont():New("ARIAL"  ,, 012,, .F.,,,,, .F., .F.)            as Object
+	Local oBmp       := Nil                                                         as Object
+	Local cID        := ""                                                          as Character
+	Local LogTab     := RetSqlName(AllTrim(cAlias))                                 as Character
+	Local lRet       := .T.                                                         as Logical
+	Local aCampos    := SZL->(dbStruct())                                           as Array
+	Local aArea      := GetArea()                                                   as Array
+	Local aAreaSZL   := SZL->(GetArea())                                            as Array
+	Local oError     := ErrorClass():New()                                          as Object
+	Local oTblTrb    := Nil                                                         as Object
+	Local LogVW      := GetNextAlias()                                              as Character
+
+	TRY
+
+		Iif(ValType(oTblTrb) != "U", oTblTrb:Delete(), Nil)
+		Iif(Select(LogVW) != 0, (LogVW)->(dbCloseArea()), Nil)
+
+		oTblTrb := FwTemporaryTable():New(LogVW)
+		oTblTrb:SetFields(aCampos)
+		oTblTrb:Create()
+
+		cQuery := "Select " + Enter
+
+		For nI := 1 To Len(aCampos)
+
+			cQuery += AllTrim(Upper(aCampos[nI][01])) + Iif(nI < Len(aCampos), ", ", " ") + Enter
+
+		Next nI
+
+		If cTabela = cAlias .And. nRec = 0
+
+			cQuery += " From " + LogTab + " "
+			cQuery += " Where
+			cQuery += "  and  ZL_TABELA = '" + cAlias + "' "
+			cQuery += "  and  ZL_RECNO = 0 "
+			cQuery += "  and  ZL_IDINTEG != '' "
+			cQuery += "  and  D_E_L_E_T_ = ' ' "
+			cQuery += " Order by ZL_DATA, ZL_HORA, ZL_IDINTEG "
+
+		ElseIf Empty(AllTrim(cID)) .And. nRec > 0
+
+			cQuery += " From " + LogTab + " "
+			cQuery += " Where ZL_ROTINA = '" + cRotina + "' "
+			cQuery += "  and  ZL_TABELA = '" + cTabela + "' "
+			cQuery += "  and  ZL_RECNO = " + cValToChar(nRec) + " "
+			cQuery += "  and  D_E_L_E_T_ = ' ' "
+			cQuery += " Order by ZL_DATA, ZL_HORA, ZL_IDINTEG "
+
+		Else
+
+			cQuery += " From " + LogTab + " "
+			cQuery += " Where ZL_ROTINA = '" + cRotina + "' "
+			cQuery += "  and  ((ZL_TABELA = '" + cTabela + "' "
+			cQuery += "  and  ZL_IDINTEG= '" + cId + "') "
+			cQuery += "  or (ZL_TABELA = '" + cTabela + "' "
+			cQuery += "  and ZL_RECNO = " + cValTochar(nRec) + ")) "
+			cQuery += "  and  D_E_L_E_T_ = ' ' "
+			cQuery += " Order by ZL_DATA, ZL_HORA, ZL_IDINTEG "
+
+		EndIf
+
+		cQuery := ChangeQuery(cQuery)
+		SqlToTrb(cQuery, aCampos, LogVW)
+		dbSelectArea(LogVW)
+		(LogVW)->(dbGoTop())
+
+		// Montagem da Tela do Monitor
+		aInfo 	 := {aSize[1], aSize[2], aSize[3], aSize[4], 3, 3}
+		aObjects := {}
+		AAdd(aObjects, {100, 050, .T., .F., .F.})
+		AAdd(aObjects, {100, 100, .T., .T., .F.})
+
+		aPosObj    := MsObjSize(aInfo, aObjects, .T., .T.)
+		aPosObj[2][3] -= 14
+		nLinhaBut  := aPosObj[2][3] - 20
+		aColunaBut := {aPosObj[2][4] - 240, aPosObj[2][4] - 180, aPosObj[2][4] - 120, aPosObj[2][4] - 60}
+		aFieldMark := GetFieldStr(cQuery)
+
+		DEFINE MSDIALOG oDlgLOG TITLE cTitApp FROM aSize[7], 0 TO aSize[6], aSize[5] OF oMainWnd PIXEL
+
+		oDlgLOG:LESCCLOSE := .F.
+
+		oFwLayer := FwLayer():New()
+		oFwLayer:Init(oDlgLOG, .F.)
+
+		oFwLayer:AddCollumn("COL01", 20, .T.)
+		oFwLayer:AddCollumn("COL02", 80, .T.)
+
+		oFwLayer:AddWindow("COL01", "WIN01", "Ações"    , 070, .F., .F.,/*BACTION*/,/*CIDLINE*/,/*BGOTFOCUS*/)
+		oFwLayer:AddWindow("COL01", "WIN02", "Legenda"  , 030, .T., .F.,/*BACTION*/,/*CIDLINE*/,/*BGOTFOCUS*/)
+		oFwLayer:AddWindow("COL02", "WIN03", "LOGs"     , 100, .T., .F.,/*BACTION*/,/*CIDLINE*/,/*BGOTFOCUS*/)
+
+		oWin01 := oFwLayer:GetWinPanel('COL01', 'WIN01')
+		oWin02 := oFwLayer:GetWinPanel('COL01', 'WIN02')
+		oWin03 := oFwLayer:GetWinPanel('COL02', 'WIN03')
+
+		oListBox1 := FwBrowse():New(oWin03)
+		oListBox1:DisableConfig()
+		oListBox1:DisableSeek()
+		oListBox1:DisableFilter()
+		oListBox1:SetDataTable()
+		oListBox1:SetAlias(LogVW)
+		oListBox1:SetLocate()
+		oListBox1:SetUseFilter()
+
+		oListBox1:AddLegend( LogVW + "->ZL_STATUS = '0'"   , "qmt_no"          , "Erro Integração")
+		oListBox1:AddLegend( LogVW + "->ZL_STATUS = '1'"   , "qmt_ok"          , "Integração OK")
+
+		For nI := 1 to Len(aFieldMark)
+
+			If AllTrim(aCampos[nI, 01]) = "ZL_STATUS" .Or. AllTrim(aFieldMark[nI, 01]) = "ZWI_MARK"
+
+				Loop
+
+			EndIf
+
+			aAdd(aColumns, {;
+				aFieldMark[nI, 02],;                     	            // [n][01] Título da coluna
+			&("{ || (LogVW)->" + aFieldMark[nI, 01] + "}"),;        // [n][02] Code-Block de carga dos dados
+			aFieldMark[nI, 03],;                                    // [n][03] Tipo de dados
+			aFieldMark[nI, 06],;                      		        // [n][04] Máscara
+			Iif(aFieldMark[nI, 03] = "C", 1, Iif(aFieldMark[nI, 03] = "D", 0, Iif(aFieldMark[nI, 03] = "N", 2, 1))),;   // [n][05] Alinhamento (0=Centralizado, 1=Esquerda ou 2=Direita)
+			aFieldMark[nI, 04],;                                    // [n][06] Tamanho
+			aFieldMark[nI, 05],;                                    // [n][07] Decimal
+			.F.,;                            				        // [n][08] Indica se permite a edição
+			{|| },;                          				        // [n][09] Code-Block de validação da coluna após a edição
+			.F.,;                            				        // [n][10] Indica se exibe imagem
+			Iif(AllTrim(aFieldMark[nI,01]) = "ZL_CODREF", {|| CursorWait(), u_VerJson((LogVW)->ZL_CODREF, cRotina, oDlgLOG), CursorArrow()}, Nil),;            // [n][11] Code-Block de execução do duplo clique
+			"__ReadVar",;                    				        // [n][12] Variável a ser utilizada na edição (ReadVar)
+			{|| AlwaysTrue()},;              				        // [n][13] Code-Block de execução do clique no header
+			.F.,;                            				        // [n][14] Indica se a coluna está deletada
+			.T.,;                            				        // [n][15] Indica se a coluna será exibida nos detalhes do Browse
+			{},;                             				        // [n][16] Opções de carga dos dados (Ex: 1=Sim, 2=Não)
+			"ID" + cValToChar(nI)})                                 // [n][17] Id da coluna
+
+		Next nI
+
+		For nI := 1 To Len(aColumns)
+
+			oListBox1:AddColumn(aColumns[nI])
+
+		Next nI
+
+		@ 002,005 BITMAP oBmp RESNAME "qmt_no"  SIZE 08,08 NOBORDER OF oWin02 ADJUST PIXEL
+		@ 012,005 BITMAP oBmp RESNAME "qmt_ok"  SIZE 08,08 NOBORDER OF oWin02 ADJUST PIXEL
+
+		@ 003,020 SAY "Erro Integração" OF oWin02 PIXEL FONT oFontLeg
+		@ 013,020 SAY "Integração OK"   OF oWin02 PIXEL FONT oFontLeg
+
+		oTrcMenu := tTrackMenu():New(oWin01, 00, 00, oWin01:nWidth - 10, oWin01:nHeight - 10, {|o, cID| DefFunct(o, cId, oDlgLOG, oListBox1, LogVW)}, 035, "#FFFFFF", "#C0C0C0", "#57A2EE", "#2BD0F7", oFontTrk, "#000000")
+
+		oTrcMenu:Add("ID001", "Ver LOG" , "selectall_mdi"   ,)
+		oTrcMenu:Add("ID002", "Sair"    , "ngbioalerta_03"  ,)
+		oTrcMenu:Align	:= CONTROL_ALIGN_ALLCLIENT
+
+		oListBox1:Activate()
+		oListBox1:Refresh(.T.)
+		oDlgLOG:Activate(,,, .T.)
+
+		Iif(ValType(oTblTrb) != "U", oTblTrb:Delete(), Nil)
+		Iif(Select(LogVW) != 0, (LogVW)->(dbCloseArea()), Nil)
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	oListBox1:DeActivate()
+	FreeObj(oListBox1)
+	RestArea(aAreaSZL)
+	RestArea(aArea)
+
+Return lRet
+
+
+/*/{Protheus.doc} DefFunct
+Controla as Ações da Tela Principal
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 25/01/2024
+@param o, object, Objecto do tTrackMenu
+@param cId, character, ID do botão clicado
+@param oDlgLOG, object, Tela Principal
+@param oListBox1, object, Browse
+@param cMarca, character, Marca de Registro
+@param cAliasTRB, character, Tabela de Trabalho
+@param oSay, object, Objecto de Say de Mensagem
+/*/
+Static Function DefFunct(o, cId, oDlgLOG, oListBox1, LogVW)
+
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		Do Case
+			// Detalhes do LOG
+		Case cID = "ID001"
+
+			CursorWait()
+
+			U_VerJson((LogVW)->ZL_CODREF, (LogVW)->ZL_ROTINA, oDlgLOG)
+			oListBox1:Refresh(.T.)
+			oDlgLOG:Refresh()
+
+			CursorArrow()
+
+			// Fecha a tela
+		Case cID = "ID002"
+
+			oDlgLOG:End()
+
+		EndCase
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+Return()
+
+
+//=====================================================================================================================================*
+/*/{Protheus.doc} VerJson
+Monta tela para visualizar LOGs
+@type function
+@version V 1.00
+@author Carla
+@since 17/11/2023
+@param cCODREF, character, Verificar
+@param cRotina, character, Verificar
+/*/
+User Function VerJson(cCODREF, cRotina, oDlgLOG) // Cria/abre as tabelas
+
+	Local aCoors        := FWGetDialogSize(oMainWnd)                              as Array
+	Local oDlgJSON      := Nil                                                    as Object
+	Local oFWLayer      := Nil                                                    as Object
+	Local oPanelUp      := Nil                                                    as Object
+	Local oPnLeftDown   := Nil                                                    as Object
+	Local oPnRightDown  := Nil                                                    as Object
+	Local aButtons      := {}                                                     as Array
+	Local aGets         := {}                                                     as Array
+	Local i             := 0                                                      as Numeric
+	Local cXMLreq       := ''                                                     as Character
+	Local cXMLresp      := ''                                                     as Character
+	Local cTrans        := cRotina                                                as Character
+	Local oJson1Tree    := Nil                                                    as Object
+	Local jAux1         := Nil                                                    as Object
+	Local oJson2Tree    := Nil                                                    as Object
+	Local jAux2         := Nil                                                    as Object
+	Local oFntTree      := tFont()      :New('APTOS', , -12, .F., .F., , , , .F.) as Object
+	Local oError        := ErrorClass() :New()                                    as Object
+	Local aArea         := GetArea()                                              as Array
+	Local nPort         := 0                                                      as Numeric
+	Local cPathHTML     := GetTempPath()                                          as Character
+	Local oFile         := Nil                                                    as Object
+
+	Private oWebChannel := TWebChannel():New()                                    as Object
+	Private oHtml1Img   := Nil                                                    as Object
+	Private oHtml2Img   := Nil                                                    as Object
+
+
+	TRY
+
+		SZL->(DBSETORDER(1))
+
+		If SZL->(dbSeek(xFILIAL('SZL') + cCODREF))
+
+			cXMLreq  := StrTran(AllTrim(Iif(Left(SZL->ZL_JSONBOD, 1) = "{", StrTran(SZL->ZL_JSONBOD, "'", '|'), SZL->ZL_JSONBOD)), "[UTF8]", "") // XML enviado)
+			cXMLresp := StrTran(AllTrim(Iif(Left(SZL->ZL_JSONRET, 1) = "{", StrTran(SZL->ZL_JSONRET, "'", '|'), SZL->ZL_JSONRET)), "[UTF8]", "") // XML recebido
+
+		EndIf
+
+		// Criação da janela
+		oDlgJSON := TDialog():New()
+		oDlgJSON:nLeft	   := aCoors[1]
+		oDlgJSON:nTop	   := aCoors[2]
+		aCoors[3] := aCoors[3] - 50
+		aCoors[4] := aCoors[4] - 50
+		oDlgJSON:nHeight   := aCoors[3]
+		oDlgJSON:nWidth    := aCoors[4]
+		oDlgJSON:lCentered := .T.
+		oDlgJSON:lEscClose := .F.
+		oDlgJSON:oParent   := oDlgLOG
+		oDlgJSON:cCaption  := "LOG de Transação com o ERP"
+
+		oFWLayer := FWLayer():New() // Cria o conteiner onde seráo colocados os browses
+		oFWLayer:Init(oDlgJSON, .F.)
+
+		// Define Painel Superior com o numero do log e botáes
+		oFWLayer:AddLine('UP', 10, .F.) // LINHA COM 5% DA TELA
+		oFWLayer:AddCollumn('ALL', 100, .T., 'UP') // COluna com 100% do tamanho da tela
+		oPanelUp := oFWLayer:GetColPanel('ALL', 'UP')
+
+		aAdd(aGets, tSay():Create(oPanelUp))       // cria um label
+		i := Len(aGets)
+		aGets[i]:cCaption := "Transação:"
+		aGets[i]:nTop     := 10
+		aGets[i]:nLeft    := 20
+		aGets[i]:nWidth   := 70
+		aGets[i]:nHeight  := 20
+
+		aAdd(aGets, tGet():Create(oPanelUp))
+		i := Len(aGets)
+		aGets[i]:nLeft     := aGets[i - 1]:nLeft + aGets[i - 1]:nWidth + 20
+		aGets[i]:nTop      := aGets[i - 1]:nTop - 2
+		aGets[i]:nWidth    := 150
+		aGets[i]:nHeight   := aGets[i - 1]:nHeight
+		aGets[i]:cVariable := "cTrans"
+		aGets[i]:bSetGet   := {|u| If(PCount() > 0, cTrans := u, cTrans)}
+		aGets[i]:bWhen     := {|| .F.}
+
+		aAdd(aGets, tSay():Create(oPanelUp))       // cria um label
+		i := Len(aGets)
+		aGets[i]:cCaption := "XML Envio"
+		aGets[i]:nTop     := 60
+		aGets[i]:nLeft    := 20
+		aGets[i]:nWidth   := 100
+		aGets[i]:nHeight  := 20
+
+		aAdd(aGets, tSay():Create(oPanelUp))       // cria um label
+		i := Len(aGets)
+		aGets[i]:cCaption := "Seq:"
+		aGets[i]:nTop     := 10
+		aGets[i]:nLeft    := 320
+		aGets[i]:nWidth   := 50
+		aGets[i]:nHeight  := 20
+
+		aAdd(aGets, tGet():Create(oPanelUp))
+		i := Len(aGets)
+		aGets[i]:nLeft     := aGets[i - 1]:nLeft + aGets[i - 1]:nWidth + 5
+		aGets[i]:nTop      := aGets[i - 1]:nTop - 2
+		aGets[i]:nWidth    := 150
+		aGets[i]:nHeight   := aGets[i - 1]:nHeight
+		aGets[i]:cVariable := "cSeq"
+		aGets[i]:bSetGet   := {|u| If(PCount() > 0, cCODREF := u, cCODREF)}
+		aGets[i]:bWhen     := {|| .F.}
+
+		aAdd(aGets, tSay():Create(oPanelUp))       // cria um label
+		i := Len(aGets)
+		aGets[i]:cCaption := "XML Retorno"
+		aGets[i]:nTop     := 60
+		aGets[i]:nLeft    := 1270
+		aGets[i]:nWidth   := 70
+		aGets[i]:nHeight  := 20
+
+		aadd(aButtons, tButton():New(5, aCoors[4]/2 - 210, "Copiar JSON Req.", oPanelUp, {|| CopyToClipBoard(cXMLreq), FWAlertInfo("JSON copiado!", cTitApp)}, 50, 12,,, .F., .T., .F.,, .F.,,, .F.))
+		aadd(aButtons, tButton():New(5, aCoors[4]/2 - 150, "Copiar JSON Ret.", oPanelUp, {|| CopyToClipBoard(cXMLresp), FWAlertInfo("JSON copiado!", cTitApp)}, 50, 12,,, .F., .T., .F.,, .F.,,, .F.))
+		aadd(aButtons, tButton():New(5, aCoors[4]/2 - 90 , "Sair "           , oPanelUp, {|| oDlgJSON:End()}, 50, 12,,, .F., .T., .F.,, .F.,,, .F.))
+
+		// Define Paineis Inferiores com os XMLs
+		oFWLayer:AddLine('DOWN', 90 , .F.)            // LINHA COM 90% DA TELA
+
+		// painel com xml de envio
+		oFWLayer:AddCollumn('LEFT' , 50, .T., 'DOWN')// COluna com 50% da tamanho da tela
+		oPnLeftDown := oFWLayer:GetColPanel('LEFT', 'DOWN') // Pego o objeto do pedaáo esquerdo
+
+		nPort := oWebChannel:Connect()
+
+		If Left(cXMLreq, 6) = "<html>"
+
+			oFile := FwFileWriter():New(cPathHTML + "index1.html", .T.)
+			If File(cPathHTML + "index1.html")
+
+				FErase(cPathHTML + "index1.html")
+
+			EndIf
+
+			If oFile:Create()
+
+				oFile:Write(cXMLreq)
+				oFile:Close()
+				oHtml1Img := TWebEngine():New(oPnLeftDown, 0, 0, 100, 100)
+				oHtml1Img:bLoadFinished := {|self, cURL| .T.}
+				oHtml1Img:SetAsMain()
+				oHtml1Img:Align := CONTROL_ALIGN_ALLCLIENT
+				oHtml1Img:Navigate(cPathHTML + "index1.html")
+				oHtml1Img:Reload()
+
+			EndIf
+
+		ElseIf Left(cXMLreq, 1) = "{"
+
+			jAux1 := JsonObject():New()
+			jAux1:FromJSON(cXMLreq)
+			oJson1Tree := dbTree():New(5, 5, 1000, 1000, oPnLeftDown,,, .T., .F., oFntTree)//, PadR('Chave', 50) + ';' + PadR('Valor', 50))
+			oJson1Tree:Align := CONTROL_ALIGN_ALLCLIENT
+			U_xMakeTree(PadR("JSON Requisição", 150), jAux1, @oJson1Tree, "000", .T.)
+
+		Else
+
+			aAdd(aGets, TMultiGet():Create(oPnLeftDown))
+			i := Len(aGets)
+			aGets[i]:nLeft    := aGets[1]:nLeft
+			aGets[i]:nTop     := aGets[i - 1]:nTop + aGets[i - 1]:nHeight + 5
+			aGets[i]:nWidth   := (aCoors[4] / 2) - 30
+			aGets[i]:nHeight  := aCoors[3] - 150
+			aGets[i]:cVariable:= "cXMLreq"
+			aGets[i]:bSetGet  := {|u| If(PCount() > 0, cXMLresp := u, cXMLresp)}
+			aGets[i]:EnableVScroll(.T.)
+			aGets[i]:EnableHScroll(.T.)
+			aGets[i]:LWORDWRAP := .T.
+			aGets[i]:Align := CONTROL_ALIGN_ALLCLIENT
+
+		EndIf
+
+		//painel com xml de retorno
+		oFWLayer:AddCollumn('RIGHT', 50, .T.,'DOWN')// COluna com 100% da tamanho dela
+		oPnRightDown := oFWLayer:GetColPanel('RIGHT', 'DOWN') // Pego o objeto do pedaáo Direito
+
+		If Left(cXMLresp, 6) = "<html>"
+
+			oFile := FwFileWriter():New(cPathHTML + "index2.html", .T.)
+			If File(cPathHTML + "index2.html")
+
+				FErase(cPathHTML + "index2.html")
+
+			EndIf
+
+			If oFile:Create()
+
+				oFile:Write(cXMLresp)
+				oFile:Close()
+				oHtml2Img := TWebEngine():New(oPnRightDown, 0, 0, 100, 100)
+				oHtml2Img:bLoadFinished := {|self, cURL| .T.}
+				oHtml2Img:SetAsMain()
+				oHtml2Img:Align := CONTROL_ALIGN_ALLCLIENT
+				oHtml2Img:Navigate(cPathHTML + "index2.html")
+				oHtml2Img:Reload()
+
+			EndIf
+
+		ElseIf Left(cXMLresp, 1) = "{"
+
+			jAux2 := JsonObject():New()
+			jAux2:FromJSON(cXMLresp)
+			oJson2Tree := dbTree():New(5, 5, 1000, 1000, oPnRightDown,,, .T., .F., oFntTree)//, PadR('Chave', 50) + ';' + PadR('Valor', 50))
+			oJson2Tree:Align := CONTROL_ALIGN_ALLCLIENT
+			U_xMakeTree(PadR("JSON Retorno", 150), jAux2, @oJson2Tree, "000", .T.)
+
+		Else
+
+			aAdd(aGets, TMultiGet():Create(oPnRightDown))
+			i := Len(aGets)
+			aGets[i]:nLeft    := aGets[1]:nLeft
+			aGets[i]:nTop     := aGets[i - 1]:nTop + aGets[i - 1]:nHeight + 5
+			aGets[i]:nWidth   := (aCoors[4] / 2) - 30
+			aGets[i]:nHeight  := aCoors[3] - 150
+			aGets[i]:cVariable:= "cXMLresp"
+			aGets[i]:bSetGet  := {|u| If(PCount() > 0, cXMLresp := u, cXMLresp)}
+			aGets[i]:EnableVScroll(.T.)
+			aGets[i]:EnableHScroll(.T.)
+			aGets[i]:LWORDWRAP := .T.
+			aGets[i]:Align := CONTROL_ALIGN_ALLCLIENT
+
+		EndIf
+
+		oDlgJSON:Activate(,,, .T.)
+
+		If File(cPathHTML + "index1.html")
+
+			FErase(cPathHTML + "index1.html")
+
+		EndIf
+
+		If File(cPathHTML + "index2.html")
+
+			FErase(cPathHTML + "index2.html")
+
+		EndIf
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	RestArea(aArea)
+
+return
+
+/*/{Protheus.doc} BuscaSeq
+Busca Nr Sequencial para o campo ZL_CODREF
+@type function
+@author Carla Barbosa
+@since 23/01/2024
+/*/
+Static Function BuscaSeq()
+
+	Local cAliasTmp := GetNextAlias()     as Character
+	Local oError    := ErrorClass():New() as Object
+	Local aArea     := GetArea()          as Array
+	Local cQuery := "" as Character
+
+	TRY
+
+		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
+
+		cQuery := "SELECT " + Enter
+		If !TCGetDB() == 'ORACLE'
+			cQuery := " TOP 1 " + Enter
+		Endif
+		cQuery += " SZL.ZL_CODREF" + Enter
+		cQuery += "FROM" + Enter
+		cQuery += " " + RetSqlName("SZL") + " SZL" + Enter
+		cQuery += "WHERE" + Enter
+		cQuery += " SZL.ZL_FILIAL = '" + xFilial("SZL") + "' AND" + Enter
+		cQuery += " SZL.D_E_L_E_T_ = ' ' " + Enter
+		If TCGetDB() == 'ORACLE'
+			cQuery += " AND ROWNUM = 1 " + Enter
+		Endif
+		cQuery += "ORDER BY SZL.ZL_CODREF DESC"
+
+		cQuery := ChangeQuery(cQuery)
+		TcQuery cQuery New Alias (cAliasTmp)
+		dbSelectArea(cAliasTmp)
+		dbGoTop()
+
+		If (cAliasTmp)->(!EOF())
+
+			cTam := TamSx3("ZL_CODREF")[1]
+			nSeq := StrZero(Val((cAliasTmp)->ZL_CODREF) + 1, cTam)
+
+		Else
+
+			cTam := TamSx3("ZL_CODREF")[1]
+			nSeq := StrZero(Val("01"), cTam)
+
+		Endif
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	Iif(Select(cAliasTmp) > 0, (cAliasTmp)->(dbCloseArea()), Nil)
+	RestArea(aArea)
+
+Return nSeq
+
+
+/*/{Protheus.doc} GetFieldStr
+Função que gera Array com dados dos campos do Browse
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 25/01/2024
+@param cAliasTmp, character, Alias da Tabela do Browse
+@return array, Array com dados dos campos 
+/*/
+Static Function GetFieldStr(cQuery)
+
+	Local aCmps     := {}                 as Array
+	Local aAux      := {}                 as Array
+	Local nI        := 0                  as Numeric
+	Local aArea     := GetArea()          as Array
+	Local aAreaSX3  := SX3->(GetArea())   as Array
+	Local cAliasTmp := GetNextAlias()     as Character
+	Local oError    := ErrorClass():New() as Object
+
+	TRY
+
+		cQuery := ChangeQuery(cQuery)
+
+		TcQuery cQuery New Alias (cAliasTmp)
+		dbSelectArea(cAliasTmp)
+
+		aAux := (cAliasTmp)->(dbStruct())
+		SX3->(dbSetOrder(2))
+
+		For nI := 1 To Len(aAux)
+
+			If !(aAux[nI, 01] $ "_FILIAL") .And. !(aAux[nI, 01] $ "_JSONBOD") .And. !(aAux[nI, 01] $ "_JSONRET") .And. !(aAux[nI, 01] $ "_TABELA") .And. !(aAux[nI, 01] $ "_RECNO") .And. !(aAux[nI, 01] $ "D_E_L_E_T_") .And. !(aAux[nI, 01] $ "R_E_C_N_O_") .And. !(aAux[nI, 01] $ "R_E_C_D_E_L_")
+				SX3->(dbSeek(aAux[nI, 01]))
+				aAdd(aCmps, {aAux[nI, 01], AllTrim(SX3->X3_TITULO), aAux[nI, 02], aAux[nI, 03], aAux[nI, 04], AllTrim(SX3->X3_PICTURE)})
+			EndIf
+
+		Next nI
+
+		(cAliasTmp)->(dbCloseArea())
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	RestArea(aAreaSX3)
+	RestArea(aArea)
+
+Return aCmps
+
+
+/*/{Protheus.doc} xMakeTree
+Função para gerar árvore com JSON
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 30/06/2024
+@param cTitInicial, character, Título Inicial 
+@param jDados, json, JSON com dados
+@param oTreeVw, object, Object Árvore
+@param cNivel, character, Nível da Árvore
+@param lFinal, logical, Passar se é o final da quebra
+/*/
+User Function xMakeTree(cTitInicial, jDados, oTreeVw, cNivel, lFinal)
+
+	Local nI        := 0                  as Numeric
+	Local nX        := 0                  as Numeric
+	Local jAux      := Nil                as Object
+	Local aAux      := {}                 as Array
+	Local cAuxNivel := ""                 as Character
+	Local cAuxArray := ""                 as Character
+	Local oError    := ErrorClass():New() as Object
+	Local aArea     := GetArea()          as Array
+
+	TRY
+
+		If oTreeVw:IsEmpty() .AND. lFinal
+
+			Sleep(1000)
+			oTreeVw:BeginUpdate()
+			oTreeVw:AddTree(cTitInicial, .T., "orgimg16_mdi", "orgimg16_mdi",,, cNivel)
+
+		ElseIf !(oTreeVw:IsEmpty()) .AND. lFinal
+
+			Sleep(1000)
+			oTreeVw:DeleteAll()
+			oTreeVw:Reset()
+			oTreeVw:BeginUpdate()
+			oTreeVw:AddTree(cTitInicial, .T., "orgimg16_mdi", "orgimg16_mdi",,, cNivel)
+
+		EndIf
+
+		For nI := 1 To Len(jDados:GetNames())
+
+			cAuxNivel := U_xUltCargo(oTreeVw)
+			oTreeVw:TreeSeek(cNivel)
+
+			If ValType(jDados[jDados:GetNames()[nI]]) = "C"
+
+				oTreeVw:AddItem('"' + PadR(jDados:GetNames()[nI] + '": "' + jDados[jDados:GetNames()[nI]] + '"', 150), cAuxNivel, "pmsexpall_mdi", "pmsexpall_mdi",,, 2)
+
+			ElseIf ValType(jDados[jDados:GetNames()[nI]]) = "N" .Or. ValType(jDados[jDados:GetNames()[nI]]) = "L"
+
+				oTreeVw:AddItem('"' + PadR(jDados:GetNames()[nI] + '": ' + cValToChar(jDados[jDados:GetNames()[nI]]), 150), cAuxNivel, "pmsexpall_mdi", "pmsexpall_mdi",,, 2)
+
+			ElseIf ValType(jDados[jDados:GetNames()[nI]]) = "J"
+
+				oTreeVw:AddItem(PadR(jDados:GetNames()[nI], 150), cAuxNivel, "pmsmais_mdi", "pmsmenos_mdi",,, 2)
+				jAux := jDados[jDados:GetNames()[nI]]
+				U_xMakeTree("", jAux, @oTreeVw, cAuxNivel, .F.)
+				oTreeVw:EndTree()
+
+			ElseIf ValType(jDados[jDados:GetNames()[nI]]) = "A"
+
+				oTreeVw:AddItem(PadR(jDados:GetNames()[nI], 150), cAuxNivel, "pmsmais_mdi", "pmsmenos_mdi",,, 2)
+				aAux := jDados[jDados:GetNames()[nI]]
+				cAuxArray := cAuxNivel
+				For nX := 1 To Len(aAux)
+
+					cAuxNivel := U_xUltCargo(oTreeVw)
+					oTreeVw:TreeSeek(cAuxArray)
+					If ValType(aAux[nX]) = "C"
+						oTreeVw:AddItem(PadR("Item " + StrZero(nX, 3) + ": " + aAux[nX], 150), cAuxNivel, "pmsmais_mdi", "pmsmenos_mdi",,, 2)
+					Else
+						oTreeVw:AddItem(PadR("Item " + StrZero(nX, 3), 150), cAuxNivel, "pmsmais_mdi", "pmsmenos_mdi",,, 2)
+						jAux := aAux[nX]
+						U_xMakeTree("", jAux, @oTreeVw, cAuxNivel, .F.)
+					EndIf
+					oTreeVw:EndTree()
+
+				Next nX
+
+			EndIf
+
+		Next nI
+
+		If lFinal
+
+			oTreeVw:EndTree()
+			oTreeVw:EndUpdate()
+
+		EndIf
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	RestArea(aArea)
+
+Return
+
+
+/*/{Protheus.doc} xUltCargo
+Função para buscar Cargo da dbTree
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 30/06/2024
+@param oTreeVw, object, Object dbTree
+@return variant, Retorna o Cargo 
+/*/
+User Function xUltCargo(oTreeVw)
+
+	Local cRet   := ""                 as Character
+	Local cBusca := "000"              as Character
+	Local oError := ErrorClass():New() as Object
+	Local aArea  := GetArea()          as Array
+
+	TRY
+
+		While Empty(cRet)
+
+			If !oTreeVw:TreeSeek(cBusca)
+
+				cRet := cBusca
+
+			EndIf
+			cBusca := Soma1(cBusca)
+
+		EndDo
+
+	CATCH oError
+
+		ConOut("[ERROR] " + ProcName() + " (" + DToS(dDataBase) + " - " + Time() + ") - " + oError:Description)
+
+	ENDTRY
+
+	RestArea(aArea)
+
+Return cRet

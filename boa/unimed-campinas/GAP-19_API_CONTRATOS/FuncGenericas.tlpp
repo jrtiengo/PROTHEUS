@@ -1,0 +1,347 @@
+#Include "TOTVS.ch"
+#Include "TopConn.ch"
+#Include "TBIConn.ch"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+#Define cTitApp "Funções Genéricas"
+#Define Enter Chr(13) + Chr(10)
+
+/*/{Protheus.doc} PrepEnvironment
+FunÃ§Ã£o que prepara o Ambiente
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 05/06/2024
+@param cCNPJ, character, CNPJ da Empresa que serÃ¡ preparado o Ambiente
+@param cEmp, character, Se passar cÃ³digo da Empresa nÃ£o serÃ¡ necessÃ¡rio pesquisa na SM0
+@param cFil, character, Se passar a Filial da Empresa nÃ£o serÃ¡ necessÃ¡rio pesquisa na SM0
+@return logical, Verdadeiro se preparou o Ambiente 
+/*/
+User Function PrepEnvironment(cCNPJ as Character, cEmp as Character, cFil as Character) as Logical
+
+Local aArea  := GetArea()          as Array
+Local lRet   := .F.                as Logical
+Local oError := ErrorClass():New() as Object
+Default cEmp := ""
+Default cFil := ""
+
+TRY
+
+    // Se o CNPJ estiver vazio tenta conectar na Empresa 99 (Teste)
+    If Empty(cCNPJ)
+
+        RpcClearEnv()
+        RpcSetType(3)
+        lRet := RpcSetEnv("99", "01")
+
+    Else 
+
+        // Abre arquivo SM0
+        OpenSM0()
+        dbSelectArea("SM0")
+        dbSetOrder(1)
+        dbGoTop()
+
+        While SM0->(!EOF()) .And. !lRet
+
+            If AllTrim(SM0->M0_CGC) = AllTrim(cCNPJ)
+
+                cEmp := SM0->M0_CODIGO
+                cFil := SM0->M0_CODFIL
+                RpcClearEnv()
+                RpcSetType(3)
+                lRet := RpcSetEnv(cEmp, cFil)
+                ConOut("[PrepEnvironment] -> Empresa: " + cEmp + " Filial: " + cFil + ". " + DToC(Date()) + " - " + Time())
+                Exit
+
+            EndIf
+            SM0->(dbSkip())
+
+        EndDo
+
+    EndIf
+
+CATCH oError
+
+    ConOut("[ERROR] (" + DtoC(dDataBase) + " - " + Time() + ") - PrepEnvironment: " + oError:Description)
+
+ENDTRY
+
+FreeObj(oError)
+RestArea(aArea)
+
+Return lRet
+
+/*/{Protheus.doc} AnswerRest
+Função para padronização de JSON de retorno OK
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 19/10/2023
+@param jServiceResponse, json, JSON de retorno
+/*/
+User Function AnswerRest(jServiceResponse as Json)
+
+oRest:setKeyHeaderResponse("Content-Type", "application/json")
+
+If ( jServiceResponse["result"] )
+
+    oRest:setResponse( jServiceResponse[ "response" ] )
+
+Else
+
+    oRest:setFault(jServiceResponse[ "response" ]:toJson())
+
+Endif
+
+If ( jServiceResponse[ "statusCode" ] != Nil )
+
+    oRest:setStatusCode( jServiceResponse[ "statusCode" ] )
+
+Endif
+
+FreeObj(jServiceResponse)
+jServiceResponse := Nil
+
+Return
+
+
+/*/{Protheus.doc} AnswerErrorFormat
+Função para padronização de JSON de retorno ERRO
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 19/10/2023
+@param statusCode, numeric, Código do erro
+@param message, character, Mensagem do erro
+@param detailed, character, Detalhamento do erro
+@return json, jRet JSON montado
+/*/
+User Function AnswerErrorFormat(statusCode As Numeric, message As Character, detailed As Character) as Json
+
+Local cAux := ""                 as Character
+Local jAux := JsonObject():New() as JSON
+Local jRet := JsonObject():New() as JSON
+
+cAux := '{"success": ' + Iif(statusCode < 300 , 'true', 'false') + ', "code": ' + cValToChar(statusCode) + ', "message": "' + message + '", "detailedMessage": "' + detailed + '"}'
+jAux:FromJson(cAux)
+
+jRet["result"]          := Iif(statusCode < 300, .T., .F.)
+jRet["statusCode"]      := statusCode
+jRet["response"]        := jAux
+
+Return jRet
+
+
+/*/{Protheus.doc} TreatsData
+Função para tratar dados antes de passar para o MsExecAuto
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/08/2024
+@param cCampo, character, Campo
+@param xData, variant, Conteudo
+@param cOpc, character, R = Read(Recebendo JSON) e U = Upload(Enviando JSON)
+@return variant, Retorno tratado
+/*/
+User Function TreatsData(cCampo as Character, xData as Variant, cOpc as Character) as Variant
+
+Local xRet   := Nil                as Variant
+Local oError := ErrorClass():New() as Object
+
+TRY
+
+    If ValType(xData) = "U"
+
+        Do Case 
+            Case FwSX3Util():GetFieldType(cCampo) = "C"
+                xRet := ""
+
+            Case FwSX3Util():GetFieldType(cCampo) = "D"
+                xRet := CToD(" / / ")
+
+            Case FwSX3Util():GetFieldType(cCampo) = "N"
+                xRet := 0
+
+            Case FwSX3Util():GetFieldType(cCampo) = "L"
+                xRet := .F.
+
+            OtherWise
+                xRet := ""
+
+        EndCase
+
+        Return xRet
+
+    EndIf
+
+    Do Case 
+        Case FwSX3Util():GetFieldType(cCampo) = "C" .And. ValType(xData) = "C"
+            xData := AllTrim(xData)
+            xRet := AllTrim(Iif(cOpc = "R", DecodeUTF8(xData, "cp1252"), EncodeUTF8(xData, "cp1252")))
+
+        Case FwSX3Util():GetFieldType(cCampo) = "C" .And. ValType(xData) = "N"
+            xRet := cValToChar(xData)
+
+        Case FwSX3Util():GetFieldType(cCampo) = "D"
+            xData := AllTrim(xData)
+            xRet := Iif(cOpc = "R", CToD(xData), DToC(SToD(xData)))
+
+        Case FwSX3Util():GetFieldType(cCampo) = "N" .And. ValType(xData) != "N" .And. cOpc = "R"
+            xRet := Val(xData)
+
+        Case FwSX3Util():GetFieldType(cCampo) = "N" .And. cOpc = "U" .And. ValType(xData) != "N"
+            xRet := Val(xData)
+
+        Case FwSX3Util():GetFieldType(cCampo) = "L"
+            xRet := cValToChar(xData)
+
+        OtherWise
+            xRet := xData
+
+    EndCase
+
+CATCH oError
+
+    ConOut("[ERROR] (" + DToC(dDataBase) + " - " + Time() + " - " + oError:Description)
+
+ENDTRY
+
+Return xRet
+
+
+/*/{Protheus.doc} xValidDic
+Função para validar a chave enviada no JSON
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 05/08/2024
+@param cTabela, character, Tabela do Protheus
+@param cNameField, character, Campo da Tabela 
+@param cMsgErr, character, Mensagem de Erros
+@return logical, Verdadeiro se a chave está com a nomenclatura correta
+/*/
+User Function xValidDic(cTabela as Character, cNameField as Character, cMsgErr as Character) as Logical 
+
+Local lRet     := .T.                as Logical
+Local oError   := ErrorClass():New() as Object
+Local aArea    := GetArea()          as Array
+Local aAreaSX3 := SX3->(GetArea())   as Array
+
+TRY 
+
+    dbSelectArea("SX3")
+    SX3->(dbSetOrder(2))
+    If !SX3->(dbSeek(PadR(cNameField, 10)))
+
+        cMsgErr += "Chave " + cNameField + " informada nao existe no Dicionario de Dados - Tabela (" + cTabela + ")" + Enter
+        lRet    := .F. 
+
+    EndIf
+
+CATCH oError
+
+    lRet    := .F.
+    cMsgErr += oError:Description
+
+ENDTRY
+
+RestArea(aAreaSX3)
+RestArea(aArea)
+
+Return lRet
+
+
+/*/{Protheus.doc} AdminMsg
+Função para o montar o retorno de mensagens 
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 10/06/2024
+@param cMsgErr, character, Recebe a mensagem das funções
+@param lBlind, logical, Se está sendo executado sem interface
+@param oErrorDev, object, Objeto Erro da Funcao para verificar em qual linha ocorreu o erro
+@obs Verifica se apresenta tela ao usuário ou gera LOG no Console
+/*/
+User Function AdminMsg(cMsgErr as Character, lBlind as Logical, oErrorDev as Object)
+
+Local oError   := ErrorClass():New() as Object
+Local nTamLin  := 0                  as Numeric
+Local nPosLine := 0                  as Numeric
+Local cLinTxt  := ""                 as Character
+Local cLinha   := ""                 as Character
+Local nI       := 0                  as Numeric
+
+Default lBlind := .F.
+Default oErrorDev := Nil 
+
+TRY
+
+    If Empty(AllTrim(cMsgErr))
+
+        Return
+
+    EndIf
+
+    If ValType(oErrorDev) != "U"
+
+        For nI := 1 To MlCount(oErrorDev:ErrorStack)
+
+            cLinTxt := MemoLine(oErrorDev:ErrorStack,, nI)
+            nPosLine := At("line : ", cLinTxt)
+
+            If nPosLine > 0 
+                
+                nTamLIn := Len(cLinTxt)
+                cLinha := AllTrim(SubStr(cLinTxt, nPosLine + 7, At("[", cLinTxt, nPosLine + 7) - (nPosLine + 7)))
+                Exit
+
+            EndIf
+
+        Next nI
+
+    EndIf
+
+    If !lBlind
+
+        If !Empty(cLinha)
+
+            Aviso(cTitApp, cMsgErr + Enter + "Linha: " + cLinha, {"Ok"}, 3, "",,, .T.)
+
+        Else 
+
+            Aviso(cTitApp, cMsgErr , {"Ok"}, 3, "",,, .T.)
+
+        EndIf 
+
+    Else
+
+        If !Empty(cLinha)
+
+            ConOut("[ERROR] - " + DTOC(Date()) + " - " + Time() + " (xProcAdmin): " + cMsgErr + " - Linha: " + cLinha)
+
+        Else 
+
+            ConOut("[ERROR] - " + DTOC(Date()) + " - " + Time() + " (xProcAdmin): " + cMsgErr)
+
+        EndIf 
+
+    EndIf
+
+CATCH oError
+
+    If !lBlind
+
+        Aviso(cTitApp, "Erro de Developer! " + Enter + oError:Description, {"Ok"}, 3, "",,, .T.)
+
+    Else
+
+        ConOut("[ERROR] - " + DTOC(Date()) + " - " + Time() + " (xProcAdmin): " + "Erro de Developer! " + oError:Description)
+
+    EndIf
+
+ENDTRY
+
+Return

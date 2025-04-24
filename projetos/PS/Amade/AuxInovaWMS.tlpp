@@ -4,7 +4,7 @@
 #INCLUDE "protheus.ch"
 
 /*/{Protheus.doc} 
-CÃ³digo auxiliar para integraÃ§Ã£o com o WebService da INOVATECH - WMS
+WMS-INOVATECH - BUSCA RETORNO DOS ENVIO
 @type user function
 @author Tiengo
 @since 20/03/2025
@@ -14,9 +14,11 @@ CÃ³digo auxiliar para integraÃ§Ã£o com o WebService da INOVATECH - WMS
 
 User Function PSstsWMS()
 
-	Local lOKRequest		:= ParamIXB[1]
-	Local cJSonRecebido		:= ParamIXB[4]
-	Local jTrataResp    	:= JsonObject():New() // Carrega o Json Vazio
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nRegDet			:= 0
 
 	//Caso o request de integracao tenha sido com sucesso.
 	If lOKRequest
@@ -34,29 +36,689 @@ User Function PSstsWMS()
 			__cUserId := "000249"
 			cUserName := "tablet" //imptablet
 
-			fZS3(jTrataResp)
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nRegDet := 1 to Len(jTrataResp)
 
+				fZS3(jTrataResp[nRegDet], cMetodo)
+
+			Next nRegDet
 		EndIf
 	EndIf
 
 Return()
 
-//Grava o STATUS do WMS
-Static Function fZS3(jJsonRet)
+Static Function fZS3(jJsonRet, cMet)
 
-	Local cId		:= ""
-	Local cStatus	:= ""
+	Local nID		:= 0	as numeric
+	Local cStatus	:= ""	as character
 
-	cId 	:= jJsonRet[1]:GetJSonObject('Id')
-	cStatus := jJsonRet[1]:GetJSonObject('Status')
+	nID 			:= jJsonRet:GetJSonObject('Id')
+	cStatus 		:= jJsonRet:GetJSonObject('Status')
 
-	If ! Empty(cStatus)
+	//Se for um envio, ele limpa o campo ZS3_STTINT para caso for uma alteração, ele consiga entrar na fila do GET
+	If cMet == 'POST'
 
 		RecLock("ZS3",.F.)
 
-		ZS3->ZS3_STTINT := cStatus
+		ZS3->ZS3_STTINT		:= ""
+
+		ZS3->(MSUnLock())
+
+	Elseif nID > 0 .and. ! Empty(cStatus) .and. cMet == 'GET'
+
+		RecLock("ZS3",.F.)
+
+		ZS3->ZS3_STTINT		:= cStatus
 
 		ZS3->(MSUnLock())
 	Endif
+
+Return()
+
+//Atualiza o STATUS da prenota, para vincular ao WMS
+User Function PSSTSF1()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local cChave			:= FWxFilial("SF1")+SF1->F1_DOC+SF1->F1_SERIE+SF1->F1_FORNECE+SF1->F1_LOJA
+
+	//Caso o request de integracao tenha sido com sucesso.
+	If lOKRequest
+
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else 
+
+			If SF1->(MSSeek(cChave))
+
+				RecLock("SF1",.F.)
+
+				SF1->F1_ZSTSWMS		:= "1"
+
+				SF1->(MSUnLock())
+			Endif
+		Endif
+	Endif
+Return()
+
+/*/{Protheus.doc} 
+WMS-INOVATECH - BUSCA RETORNO CONFIRMACAO DE ENTRADA
+@type user function
+@author Tiengo
+@since 20/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PSConfEnt()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nRegDet			:= 0
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else 
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nRegDet := 1 to Len(jTrataResp)
+
+				fGravaF1(jTrataResp[nRegDet])
+
+			Next nRegDet
+
+		Endif
+	Endif
+
+Return()
+
+Static Function fGravaF1(jJsonRet)
+
+	Local cStatus	:= ""	as character
+
+	cStatus 		:= jJsonRet:GetJSonObject('Status')
+
+	If ! Empty(cStatus)
+
+		If cStatus == 'NP'
+
+			RecLock("SF1",.F.)
+
+			SF1->F1_ZSTSWMS := '2' //0=NE;1=NP;2=P;3=ER;4=NA                                                                                                         
+
+			SF1->(MSUnLock())
+
+		Elseif cStatus == 'ER'
+
+			RecLock("SF1",.F.)
+
+			SF1->F1_ZSTSWMS := '3'                                                                                                       
+
+			SF1->(MSUnLock())
+		Endif
+	Endif
+
+Return()
+
+/*/{Protheus.doc} 
+Monta o Array de Itens de entrada para o WMS
+@type user function
+@author Tiengo
+@since 20/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PSITENSENT(cInt)
+
+	Local aItensResp	:= {}		as array
+	Local cChave		:= FWxFilial("SD1")+SF1->F1_DOC+SF1->F1_SERIE+SF1->F1_FORNECE+SF1->F1_LOJA
+
+	DbSelectArea("SD1")
+	DbSetOrder(1) // D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
+
+	If SD1->(MSSeek(cChave))
+
+		While ! SD1->(Eof()) .and. cChave == FWxFilial("SD1")+SD1->D1_DOC+SD1->D1_SERIE+SD1->D1_FORNECE+SD1->D1_LOJA
+
+			aAdd(aItensResp,JsonObject():New() )
+
+			If cInt <> 'CE'
+				aItensResp[Len(aItensResp)]["DPIE_COD_DEPOSITO"]				:= 1
+				aItensResp[Len(aItensResp)]["DPIE_COD_DEPOSITANTE"]				:= 1
+				aItensResp[Len(aItensResp)]["DPIE_NUM_DOCUMENTO"]				:= Alltrim(SD1->D1_DOC)
+				aItensResp[Len(aItensResp)]["DPIE_SERIE_DOCUMENTO"]				:= Alltrim(SD1->D1_SERIE)
+				aItensResp[Len(aItensResp)]["DPIE_DATA_EMISSAO"]				:= SD1->D1_EMISSAO
+				aItensResp[Len(aItensResp)]["DPIE_PESO_ITEM"]					:= 0
+				aItensResp[Len(aItensResp)]["DPIE_VALOR_ITEM"]					:= SD1->D1_TOTAL
+				aItensResp[Len(aItensResp)]["DPIE_ICMS_ALIQUOTA"]				:= SD1->D1_PICM
+				aItensResp[Len(aItensResp)]["DPIE_COD_PRODUTO"]					:= Alltrim(SD1->D1_COD)
+				//aItensResp[Len(aItensResp)]["DPIE_LOTE"]						:= Alltrim(SD1->D1_LOTECTL)
+				aItensResp[Len(aItensResp)]["DPIE_COD_TIPO_ESTOQUE"]			:= 0
+				aItensResp[Len(aItensResp)]["DPIE_QTDE"]						:= SD1->D1_QUANT
+				//aItensResp[Len(aItensResp)]["DPIE_MOD_DOC"]					:= "string"
+				aItensResp[Len(aItensResp)]["DPIE_COD_TIPO_ESTOQUE_ERP"]		:= Alltrim(SD1->D1_LOCAL)
+				//aItensResp[Len(aItensResp)]["DPIE_REF_DOCUMENTO"]				:= "string",
+				//aItensResp[Len(aItensResp)]["DPIE_COD_DEPOSITO_ERP"]			:= "string",
+				//aItensResp[Len(aItensResp)]["DPIE_COD_DEPOSITANTE_ERP"]		:= "string",
+				aItensResp[Len(aItensResp)]["DPIE_CFOP"]						:= "0000"
+				//aItensResp[Len(aItensResp)]["DPIE_CNPJ_FORNECEDOR"]			:= "string",
+				//aItensResp[Len(aItensResp)]["DPIE_CNPJ_CLIENTE_TE"]			:= "string",
+				//aItensResp[Len(aItensResp)]["DPIE_DESCRICAO_CLIENTE_TE"]		:= "string",
+				aItensResp[Len(aItensResp)]["DPIE_COD_FORNECEDOR_ERP"]			:= Alltrim(SD1->D1_FORNECE + SD1->D1_LOJA)
+				//aItensResp[Len(aItensResp)]["DIPIE_CHAVE_ACESSO"]				:= "string"
+				aItensResp[Len(aItensResp)]["STATUS"]							:= "NP"
+			Else
+
+				aItensResp[Len(aItensResp)]["CE_COD_PRODUTO"]					:= Alltrim(SD1->D1_COD)
+			Endif
+
+			SD1->(dbSkip())
+		EndDo
+	EndIf
+
+Return(aItensResp)
+
+/*/{Protheus.doc} 
+Monta o Array de Itens do pedido de venda para o WMS
+@type user function
+@author Tiengo
+@since 20/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PSITENSPED(cInt)
+
+	Local aItensResp	:= {}		as array
+	Local cChave		:= FWxFilial("SC5")+SC5->C5_NUM
+
+	DbSelectArea("SC6")
+	DbSetOrder(1) // C6_FILIAL+C6_NUM+C6_ITEM+C6_PRODUTO
+
+	If SC6->(MSSeek(cChave))
+
+		While ! SC6->(Eof()) .and. cChave == FWxFilial("SC6")+SC6->C6_NUM
+
+			aAdd(aItensResp,JsonObject():New() )
+
+			If cInt <> 'CS'
+
+				aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITO"]			:= 1
+				aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITANTE"]			:= 1
+				aItensResp[Len(aItensResp)]["DPIS_NUM_DOCUMENTO"]			:= Alltrim(SC6->C6_NUM)
+				aItensResp[Len(aItensResp)]["DPIS_SERIE_DOCUMENTO"]			:= "0"
+				//aItensResp[Len(aItensResp)]["DPIS_REFERENCIA"]
+				aItensResp[Len(aItensResp)]["DPIS_DATA_EMISSAO"]		    := SC5->C5_EMISSAO
+				aItensResp[Len(aItensResp)]["DPIS_PESO_ITEM"]				:= 0
+				aItensResp[Len(aItensResp)]["DPIS_VALOR_ITEM"]				:= SC6->C6_VALOR
+				aItensResp[Len(aItensResp)]["DPIS_ICMS_ALIQUOTA"]			:= 0
+				aItensResp[Len(aItensResp)]["DPIS_COD_PRODUTO"]				:= Alltrim(SC6->C6_PRODUTO)
+				//aItensResp[Len(aItensResp)]["DPIS_LOTE"]
+				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE"]		:= 1   //Alltrim(SC6->C6_LOCAL)
+				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE_ERP"]    := '40'//Alltrim(SC6->C6_LOCAL)
+				aItensResp[Len(aItensResp)]["DPIS_QTDE"]					:= SC6->C6_QTDVEN
+				aItensResp[Len(aItensResp)]["STATUS"]						:= "NP"
+				//aItensResp[Len(aItensResp)]["DPIS_MOD_DOC"]
+				//aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITO_ERP"]
+				//aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITANTE_ERP"]
+				//aItensResp[Len(aItensResp)]["DPIS_AGRUPADOR"]
+				//aItensResp[Len(aItensResp)]["DPIS_QTDE_VARIAVEL_MIN"]
+				//aItensResp[Len(aItensResp)]["DPIS_QTDE_VARIAVEL_MAX"]
+				//aItensResp[Len(aItensResp)]["DPIE_COD_DEPOSITO"]
+				//aItensResp[Len(aItensResp)]["DPIS_PADRAO"]
+				//aItensResp[Len(aItensResp)]["DPIS_DESVIO"]
+				//aItensResp[Len(aItensResp)]["DPIS_OBSERVACAO"]
+				//aItensResp[Len(aItensResp)]["DPIS_UTILIZA_RESERVA"]
+			Else
+
+				aItensResp[Len(aItensResp)]["CS_COD_PRODUTO"]				:= Alltrim(SC6->C6_PRODUTO)
+
+			Endif
+
+			SC6->(dbSkip())
+		EndDo
+	EndIf
+
+Return(aItensResp)
+
+/*/{Protheus.doc} 
+WMS-INOVATECH - BUSCA RETORNO CONFIRMACAO DE PV
+@type user function
+@author Tiengo
+@since 20/03/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+
+User Function PSConfSai()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	//Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nRegDet			:= 0
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nRegDet := 1 to Len(jTrataResp)
+
+				fGravaF2(jTrataResp[nRegDet])
+
+			Next nRegDet
+
+		Endif
+	Endif
+
+Return()
+
+Static Function fGravaF2(jJsonRet)
+
+	Local cStatus	:= ""	as character
+
+	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
+	cPed 			:= jJsonRet:GetJSonObject('CB_NUM_PEDIDO')
+	cNota			:= jJsonRet:GetJSonObject('CB_NUM_NOTA_FISCAL')
+	cSerie			:= jJsonRet:GetJSonObject('CB_SERIE_NOTA_FISCAL')
+
+	If ! Empty(cStatus)
+
+		If cStatus == 'NP'
+
+			RecLock("SF2",.F.)
+
+			SF2->F2_ZDTDESP := dDataBase
+
+			SF2->(MSUnLock())
+		Endif
+	Endif
+
+	If ! Empty(cPed)
+
+		SC5->(DbSetOrder(1)) //SC5->C5_FILIAL + SC5->C5_NUM
+
+		If MSSeek(FWxFilial('SC5')+cPed)
+
+			RecLock("SC5", .F.)
+
+			If cStatus == 'NP'
+				SC5->C5_ZDTDESP		:= dDataBase
+				SC5->C5_XLIBOK		:= 'S' //Liberado
+			Endif
+
+			SC5->(MSUnLock())
+		Endif
+	Endif
+
+Return()
+
+User Function PSCancSai()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	//Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nRegDet			:= 0
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nRegDet := 1 to Len(jTrataResp)
+
+				fCancF2(jTrataResp[nRegDet])
+
+			Next nRegDet
+
+		Endif
+	Endif
+
+Return()
+
+Static Function fCancF2(jJsonRet)
+
+	Local cStatus	:= ""	as character
+
+	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
+
+	SF2->(DbSetOrder(1))//F2_FILIAL+F2_DOC+F2_SERIE+F2_CLIENTE+F2_LOJA+F2_FORMUL+F2_TIPO
+
+	If MSSeek(FWxFilial('SF2')+SD2->D2_DOC+SD2->D2_SERIE)
+
+		If ! Empty(cStatus)
+
+			If cStatus == 'NP'
+
+				RecLock("SF2",.F.)
+
+				SF2->F2_ZCANCW := '2' //Autoriza o cancelamento
+
+				SF2->(MSUnLock())
+			Endif
+		Endif
+	Endif
+
+Return()
+
+User Function PSCancEnt()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	//Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nRegDet			:= 0
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nRegDet := 1 to Len(jTrataResp)
+
+				fCancF1(jTrataResp[nRegDet])
+
+			Next nRegDet
+
+		Endif
+	Endif
+
+Return()
+
+Static Function fCancF1(jJsonRet)
+
+	Local cStatus	:= ""	as character
+
+	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
+
+	If ! Empty(cStatus)
+
+		If cStatus == 'NP'
+
+			RecLock("SF1",.F.)
+
+			SF1->F1_ZCANCW := '2' //Autoriza o cancelamento
+
+			SF1->(MSUnLock())
+		Endif
+	Endif
+
+Return()
+
+//Troca de Tipo de Estoque
+User Function PSEXEC261()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	//Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nY				:= 0
+	Local nX				:= 0
+	Local cTab				:= 'SD3'				as character
+	Local cServ				:= 'INOVAWMS'			as character
+	Local aAux				:= {}					as array
+	Local aExec				:= {}					as array
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nX := 1 to Len(jTrataResp)
+
+				ZS3->(DbSetOrder(4)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CODSER+ZS3_IDSALE
+
+				//Se não existir na ZS3, grava e após isso faz o execauto
+				If ! ZS3->(MSSeek(FWxFilial("ZS3")+cTab+cServ+Cvaltochar(jTrataResp[nX]:GetJSonObject('R_E_C_N_O_'))))
+
+					RecLock("ZS3",.T.)
+					ZS3->ZS3_FILIAL := fWxFilial('ZS3')
+					ZS3->ZS3_TABELA := cTab
+					ZS3->ZS3_IDSALE	:= Cvaltochar(jTrataResp[nX]:GetJSonObject('R_E_C_N_O_'))
+					ZS3->ZS3_CHAVE	:= 'TROCAEST' +'|'+ PadR(jTrataResp[nX]:GetJSonObject('BDE_COD_PRODUTO'),tamsx3('D3_COD') [1])
+					ZS3->ZS3_CODSER := cServ
+					ZS3->ZS3_DTINC 	:= dDataBase
+					ZS3->ZS3_STTINT := 'P'
+
+					ZS3->(MsUnlock())
+
+					SB1->(DbSetOrder(1)) //B1_FILIAL+B1_COD
+					If SB1->(MSSeek(FWxFilial("SB1")+PadR(jTrataResp[nX]:GetJSonObject('BDE_COD_PRODUTO'), tamsx3('D3_COD') [1])))
+						//ORIGEM
+						aadd(aAux,{"D3_COD"		,jTrataResp[nX]:GetJSonObject('BDE_COD_PRODUTO') 	,Nil})
+						aadd(aAux,{"D3_DESCRI"	,SB1->B1_DESC										,Nil})
+						aadd(aAux,{"D3_UM"		,SB1->B1_UM											,Nil})
+						aadd(aAux,{"D3_LOCAL"	,jTrataResp[nX]:GetJSonObject('BDE_ET_ORIGEM_ERP')	,Nil})
+
+						//DESTINO
+						aadd(aAux,{"D3_COD"		,jTrataResp[nX]:GetJSonObject('BDE_COD_PRODUTO') 	,Nil})
+						aadd(aAux,{"D3_DESCRI"	,SB1->B1_DESC										,Nil})
+						aadd(aAux,{"D3_UM"		,SB1->B1_UM											,Nil})
+						aadd(aAux,{"D3_LOCAL"	,jTrataResp[nX]:GetJSonObject('BDE_ET_ORIGEM_ERP')	,Nil})
+
+						aadd(aAux,{"D3_QUANT"	,jTrataResp[nX]:GetJSonObject('BDE_QTDE') 			,Nil})
+
+						aadd(aExec, aAux)
+
+						aAux	:=	{}
+					Endif
+				Endif
+			Next nX
+
+			If Len(aExec) > 0
+				For nY := 1 to Len(aExec)
+					fGrava261(aExec[nY])
+				Next nY
+			Endif
+		Endif
+	Endif
+
+Return()
+
+//EXECAUTO mata261
+Static Function fGrava261(aLinha)
+
+	Local aAuto			:= {}		as array
+	Local nOpcAuto		:= 3		as numeric
+	Local cMsgValid		:= ''		as character
+
+	Private lMsErroAuto := .F.
+
+//Cabecalho numero e data
+	aadd(aAuto,{GetSxeNum("SD3","D3_DOC"),dDataBase})
+
+	aadd(aLinha,{"D3_NUMSERI"	,""											,Nil}) //Numero serie
+	aadd(aLinha,{"D3_LOTECTL"	,""											,Nil}) //Lote Origem
+	aadd(aLinha,{"D3_NUMLOTE"	,""											,Nil}) //sublote origem
+	aadd(aLinha,{"D3_DTVALID"	,""											,Nil}) //data validade
+	aadd(aLinha,{"D3_POTENCI"	,0											,Nil}) //Potencia
+	aadd(aLinha,{"D3_QTSEGUM"	,0											,Nil}) //Seg unidade medida
+	aadd(aLinha,{"D3_ESTORNO"	,""											,Nil}) //Estorno
+	aadd(aLinha,{"D3_NUMSEQ"	,""											,Nil}) //Numero sequencia D3_NUMSEQ
+	aadd(aLinha,{"D3_LOTECTL"	,""											,Nil}) //Lote destino
+	aadd(aLinha,{"D3_NUMLOTE"	,""											,Nil}) //sublote destino
+	aadd(aLinha,{"D3_DTVALID"	,''											,Nil}) //validade lote destino
+	aadd(aLinha,{"D3_ITEMGRD"	,""											,Nil}) //Item Grade
+	aadd(aLinha,{"D3_CODLAN"	,""											,Nil}) //cat83 prod origem
+	aadd(aLinha,{"D3_CODLAN"	,""											,Nil}) //cat83 prod destino
+	aadd(aLinha,{"D3_ZSTSWMS"	,"1"										,Nil}) //customizado, indica que veio WMS
+
+	aAdd(aAuto,aLinha)
+
+	MSExecAuto({|x,y| mata261(x,y)},aAuto,nOpcAuto)
+
+	If lMsErroAuto
+		cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Erro de trasnferencia. Texto:' + MostraErro("c:\temp")
+	Else
+		ConfirmSx8()
+	EndIf
+	//Endif
+
+Return()
+
+//Acerto de saldo
+User Function PSEXEC241()
+
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	//Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nY				:= 0
+	Local nX				:= 0
+	Local cTab				:= 'SD3'				as character
+	Local cServ				:= 'INOVAWMS'			as character
+	Local aAux				:= {}					as array
+	Local aExec				:= {}					as array
+
+	If lOKRequest
+		//Converte o retorno que ainda esta em texto em um objeto jSon para ser usado
+		cRetTry := jTrataResp:FromJson( cJSonRecebido )
+
+		If ( ValType(cRetTry) <> "U" )
+
+			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+
+		Else //Obteve Sucesso.
+
+			//Troca o usuario logado no Protheus, para evitar erro no TMK...
+			__cUserId := "000249"
+			cUserName := "tablet" //imptablet
+
+			//Percorre o Array caso, tenha retornado mais de um registro
+			For nX := 1 to Len(jTrataResp)
+
+				ZS3->(DbSetOrder(4)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CODSER+ZS3_IDSALE
+
+				//Se não existir na ZS3, grava e após isso faz o execauto
+				If ! ZS3->(MSSeek(FWxFilial("ZS3")+cTab+cServ+Cvaltochar(jTrataResp[nX]:GetJSonObject('AE_DOCUMENTO'))))
+
+					RecLock("ZS3",.T.)
+					ZS3->ZS3_FILIAL := fWxFilial('ZS3')
+					ZS3->ZS3_TABELA := cTab
+					ZS3->ZS3_IDSALE	:= Cvaltochar(jTrataResp[nX]:GetJSonObject('AE_DOCUMENTO'))
+					ZS3->ZS3_CHAVE	:= 'ACERTOEST' +'|'+ PadR(jTrataResp[nX]:GetJSonObject('AE_PRODUTO'),tamsx3('D3_COD') [1])
+					ZS3->ZS3_CODSER := cServ
+					ZS3->ZS3_DTINC 	:= dDataBase
+					ZS3->ZS3_STTINT := 'P'
+
+					ZS3->(MsUnlock())
+
+					SB1->(DbSetOrder(1)) //B1_FILIAL+B1_COD
+					If SB1->(MSSeek(FWxFilial("SB1")+PadR(jTrataResp[nX]:GetJSonObject('AE_PRODUTO'), tamsx3('D3_COD') [1])))
+
+						aadd(aAux,{"D3_COD"		,Alltrim(SB1->B1_COD)										,NIL})
+						aadd(aAux,{"D3_UM"		,SB1->B1_UM													,Nil})
+						aadd(aAux,{"D3_LOCAL"	,jTrataResp[nX]:GetJSonObject('AE_COD_TIPO_ESTOQUE_ERP')	,Nil})
+						aadd(aAux,{"D3_QUANT"	,jTrataResp[nX]:GetJSonObject('AE_QTDE')					,Nil})
+						aadd(aAux,{"D3_ZSTSWMS"	,"2"														,Nil})
+
+						aadd(aExec, aAux)
+						aAux	:=	{}
+					Endif
+				Endif
+			Next nX
+
+			If Len(aExec) > 0
+				For nY := 1 to Len(aExec)
+					fGrava241(aExec[nY])
+				Next nY
+			Endif
+		Endif
+	Endif
+
+Return()
+
+//ExecAuto MATA241
+Static Function fGrava241(_aItem)
+
+	Local _aCab 		:= {}       		as array
+	Local _atotitem		:= {}    			as array
+
+	Private lMsHelpAuto := .T. // Se .T., exibe mensagens de help
+	Private lMsErroAuto := .F. // Se .F., não exibe erros automáticos
+
+	//Cabecalho
+	_aCab := {{"D3_DOC"		,NextNumero("SD3", 2, "D3_DOC", .T.), NIL},;
+		{"D3_TM"		,'501'		,NIL},;
+		{"D3_EMISSAO"	,dDatabase	,NIL};
+		}
+
+	//Adiciona o item ao array de itens
+	aAdd(_atotitem, _aItem)
+
+	If ValType(_aCab) == "A" .AND. ValType(_atotitem) == "A"
+
+		MSExecAuto({|x, y, z| MATA241(x, y, z)}, _aCab, _atotitem, 3)
+	Else
+		MsgStop("Erro: Arrays inválidos para execução automática.", "Erro")
+		cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Erro de Acerto Saldos. Texto:' + ("c:\temp")
+		Return()
+	EndIf
+
+	// Verifica se houve erro na execução automática
+	If lMsErroAuto
+		cMsgValid   += IIf(Empty(Alltrim(cMsgValid)),'','; ') + 'Erro de Acerto Saldos. Texto:' + MostraErro("c:\temp")
+	Else
+		ConfirmSx8()
+	EndIf
 
 Return()

@@ -1,0 +1,676 @@
+{
+    "title": "Inclusao de Titulos a Pagar",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "required": ["cnpj", "titulo"],
+    "properties": {
+        "cnpj": {
+            "description": "CNPJ da empresa destino",
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 14
+        },
+        "titulo": {
+            "id": "titulo",
+            "description": "Relacao de Titulos",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "id": "0",
+                "type": "object",
+                "required": ["idint", "E2_TIPO", "E2_NATUREZ", "E2_FORNECE", "E2_EMISSAO", "E2_VENCTO", "E2_VALOR"],
+                "dependentRequired": {
+                    "multinat": ["naturezas"]
+                },
+                "properties": {
+                    "idint": {
+                        "description": "ID da Integracao do Sistema solicitante",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 50
+                    },
+                    "E2_PREFIXO": {
+                        "description": "Prefixo do Titulo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                    },
+                    "E2_NUM": {
+                        "description": "Numero do Titulo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 9
+                    },
+                    "E2_PARCELA": {
+                        "description": "Parcela do Titulo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_TIPO": {
+                        "description": "Tipo do Titulo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                    },
+                    "E2_NATUREZ": {
+                        "description": "Codigo da natureza",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                    },
+                    "E2_PORTADO": {
+                        "description": "Codigo do portador",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                    },
+                    "E2_FORNECE": {
+                        "description": "CNPJ do Fornecedor",
+                        "type": "string",
+                        "minLength": 11,
+                        "maxLength": 14
+                    },
+                    "E2_EMISSAO": {
+                        "description": "Data de Emissao do Titulo",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_VENCTO": {
+                        "description": "Vencimento do Titulo",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_VENCREA": {
+                        "description": "Vencimento real do Titulo",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_VALOR": {
+                        "description": "Valor do Titulo",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_ISS": {
+                        "description": "Valor do ISS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_IRRF": {
+                        "description": "Valor do IRRF",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_HIST": {
+                        "description": "Historico do Titulo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 40
+                    },
+                    "E2_SALDO": {
+                        "description": "Saldo a Receber",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_VALJUR": {
+                        "description": "Taxa Permanencia Diaria",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_PORCJUR": {
+                        "description": "Porcentual Juros Diario",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 5
+                    },
+                    "E2_MOEDA": {
+                        "description": "Moeda do Titulo",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_VLCRUZ": {
+                        "description": "Valor na moeda nacional",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_ACRESC": {
+                        "description": "Valor de Acrescimo",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_FLUXO": {
+                        "description": "Fluxo de Caixa",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["S", "N", " "]
+                    },
+                    "E2_INSS": {
+                        "description": "Valor do INSS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_TXMOEDA": {
+                        "description": "Taxa da moeda",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 11
+                    },
+                    "E2_DECRESC": {
+                        "description": "Valor de Decrescimo",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_PROJPMS": {
+                        "description": "Rateio de Projetos",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", " "]
+                    },
+                    "E2_DIRF": {
+                        "description": "Gera Dirf para este tit?",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", " "]
+                    },
+                    "E2_CODRET": {
+                        "description": "Codigo de Retencao",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4
+                    },
+                    "E2_MODSPB": {
+                        "description": "Modalidade Pagto.Previsto",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", "3", " "]
+                    },
+                    "E2_SEST": {
+                        "description": "SEST/SENAT",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_COFINS": {
+                        "description": "Valor COFINS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_PIS": {
+                        "description": "Valor PIS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_CSLL": {
+                        "description": "Valor CSLL",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_CODBAR": {
+                        "description": "Codigo de Barras",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 44
+                    },
+                    "E2_LINDIG": {
+                        "description": "Linha Digitável",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 48
+                    },
+                    "E2_VENCISS": {
+                        "description": "Vencimento ISS",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_VBASISS": {
+                        "description": "Valor Acumulado Servicos",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_VARIAC": {
+                        "description": "Variacao conf.Cod.Rec.",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_PERIOD": {
+                        "description": "Periodicidade cod. DCTF",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1
+                    },
+                    "E2_MDCONTR": {
+                        "description": "Numero do contrato",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_MDREVIS": {
+                        "description": "Revisao do contrato",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                    },
+                    "E2_MDPLANI": {
+                        "description": "Numero da Planilha",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_MDCRON": {
+                        "description": "Numero do Cronograma",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_MDPARCE": {
+                        "description": "Numero da Parcela",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_FRETISS": {
+                        "description": "Forma de retencao do ISS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", " "]
+                    },
+                    "E2_TXMDCOR": {
+                        "description": "Tx. Moeda na Correcao M.",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_APLVLMN": {
+                        "description": "Aplica Vlr. Minimo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", " "]
+                    },
+                    "E2_CODRDA": {
+                        "description": "Codigo Rede Atendimento",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_CODISS": {
+                        "description": "Codigo Aliquota ISS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_DATASUS": {
+                        "description": "Data da Suspensao",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_FORBCO": {
+                        "description": "Banco do Fornecedor",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 3
+                    },
+                    "E2_FORAGE": {
+                        "description": "Agencia Bancaria Fornec.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 5
+                    },
+                    "E2_FAGEDV": {
+                        "description": "Digito Verificador Agenc.",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1
+                    },
+                    "E2_FORCTA": {
+                        "description": "Conta do Fornecedor",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                    },
+                    "E2_FCTADV": {
+                        "description": "Digito Verificador Conta",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_DTAPUR": {
+                        "description": "Data de apuracao",
+                        "type": "string",
+                        "pattern": "(0[1-9]|[12][0-9]|3[01])\\/(0[1-9]|1[1,2])\\/(19|20)\\d{2}"
+                    },
+                    "E2_NROREF": {
+                        "description": "Numero de Referencia",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_PARCIMA": {
+                        "description": "Parcela do Imposto IMA",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_IMA": {
+                        "description": "Valor do Imposto IMA",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_MEDNUME": {
+                        "description": "Num. Medicao",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_CODAPRO": {
+                        "description": "Código do Aprovador",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_TEMDOCS": {
+                        "description": "Possui documentos",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["1", "2", " "]
+                    },
+                    "E2_FORMPAG": {
+                        "description": "Forma de pagamento Prefer",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_CLVL": {
+                        "description": "Classe de Valor",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 9
+                    },
+                    "E2_ITEMCTA": {
+                        "description": "Item Contabil",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 9
+                    },
+                    "E2_RETINS": {
+                        "description": "Código de Retencao INSS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4
+                    },
+                    "E2_PRINSS": {
+                        "description": "Provisao de  - INSS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_MDBONI": {
+                        "description": "Bonificacao de Contrato",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_MDMULT": {
+                        "description": "Multa de Contrato",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_RETCNTR": {
+                        "description": "Retencao de Contrato",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_MDDESC": {
+                        "description": "Desconto de Contrato",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 15
+                    },
+                    "E2_FAMAD": {
+                        "description": "Valor do Famad",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_FMPEQ": {
+                        "description": "Valor do Fumipeq",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 16
+                    },
+                    "E2_PARCFAM": {
+                        "description": "Parcela do tributo Famad",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_PARCFMP": {
+                        "description": "Parcela Tributo Fumipeq",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_CIDE": {
+                        "description": "Valor do CIDE",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_CCUSTO": {
+                        "description": "Centro de Custo",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 9
+                    },
+                    "E2_DIACTB": {
+                        "description": "Cod. Diario da Contabilid",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_NODIA": {
+                        "description": "Seq. Diario Contabilidade",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 10
+                    },
+                    "E2_TPDESC": {
+                        "description": "Desconto F100",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1
+                    },
+                    "E2_BTRISS": {
+                        "description": "Bitributacao do ISS CPOM",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_CODSERV": {
+                        "description": "Codigo de Servico do ISS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 9
+                    },
+                    "E2_VRETBIS": {
+                        "description": "Vlr. Retencao ISS Bitrib.",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_PARCFAC": {
+                        "description": "Parcela do tributo FACS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_PRISS": {
+                        "description": "Provisao de  - ISS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_PARCFAB": {
+                        "description": "Parcela do tributo FABOV",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_CNPJRET": {
+                        "description": "CNPJ do retentor",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_FACS": {
+                        "description": "Valor do tributo FACS",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_FABOV": {
+                        "description": "Valor do tributo FABOV",
+                        "type": "number",
+                        "minLength": 1,
+                        "maxLength": 14
+                    },
+                    "E2_CODOPE": {
+                        "description": "Codigo Operadora de Frete",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_NOMOPE": {
+                        "description": "Nome da Operadora de Fret",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 30
+                    },
+                    "E2_CODINS": {
+                        "description": "Cod Retencao INSS",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 4
+                    },
+                    "E2_IDDARF": {
+                        "description": "Identificacao DARF",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 20
+                    },
+                    "E2_PARCCID": {
+                        "description": "Parcela do imposto",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 2
+                    },
+                    "E2_NUMSOL": {
+                        "description": "No. Solicitacäo de transf",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 6
+                    },
+                    "E2_XIDINT": {
+                        "description": "ID Integracao",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 50
+                    },
+                    "multinat": {
+                        "description": "Multiplas naturezas p/Tit",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1,
+                        "enum": ["S"]
+                    },
+                    "naturezas": {
+                        "id": "naturezas",
+                        "description": "Naturezas",
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "id": "1",
+                            "type": "object",
+                            "required": ["EV_VALOR", "EV_NATUREZ", "EV_RATEICC", "centroscusto"],
+                            "properties": {
+                                "EV_VALOR": {
+                                    "description": "Valor da movimentacao",
+                                    "type": "number",
+                                    "minLength": 1,
+                                    "maxLength": 16
+                                },
+                                "EV_NATUREZ": {
+                                    "description": "Natureza do orcamento",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 10
+                                },
+                                "EV_PERC": {
+                                    "description": "Perc. Distribuido da Nat.",
+                                    "type": "number",
+                                    "minLength": 1,
+                                    "maxLength": 11
+                                },
+                                "EV_RATEICC": {
+                                    "description": "Rateio p/ Centro de Custo",
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "maxLength": 1,
+                                    "enum": ["2"]
+                                },
+                                "centroscusto": {
+                                    "id": "centroscusto",
+                                    "description": "Centros de Custo",
+                                    "type": "array",
+                                    "minItems": 1,
+                                    "items": {
+                                        "id": "2",
+                                        "type": "object",
+                                        "required": ["EZ_CCUSTO", "EZ_VALOR"],
+                                        "properties": {
+                                            "EZ_VALOR": {
+                                                "description": "Valor do movimento",
+                                                "type": "number",
+                                                "minLength": 1,
+                                                "maxLength": 16
+                                            },
+                                            "EZ_CCUSTO": {
+                                                "description": "Centro de Custo",
+                                                "type": "string",
+                                                "minLength": 1,
+                                                "maxLength": 9
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

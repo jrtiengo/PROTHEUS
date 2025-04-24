@@ -1,0 +1,125 @@
+{
+    "title": "Inclusao de Medicao de Contratos",
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "required": ["cnpj", "medicoes"],
+    "properties": {
+        "cnpj": {
+            "description": "CNPJ da empresa destino",
+            "type": "string",
+            "minLength": 14,
+            "maxLength": 14
+        },
+        "medicoes": {
+            "id": "medicoes",
+            "description": "Relacao de Medicoes",
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "id": "0",
+                "type": "object",
+                 "required": ["idint", "CND_CONTRA", "CND_COMPET"],
+                "properties": {
+                    "idint": {
+                        "description": "ID da Integracao do Sistema solicitante",
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 50
+                    },
+				   "CND_CONTRA": {
+					   "description": "Numero do Contrato",
+					   "type": "string",
+					   "minLength": 1,
+					   "maxLength": 15
+				   },
+				   "CND_COMPET": {
+					   "description": "Competencia",
+					   "type": "string",
+					   "minLength": 1,
+					   "maxLength": 7
+				   },
+                    "itens": {
+                        "id": "itens",
+                        "description": "Itens",
+                        "type": "array",
+                        "minItems": 1,
+                        "items": {
+                            "id": "1",
+                            "type": "object",
+                            "required": ["CNE_PRODUT", "CNE_QUANT", "CNE_VLUNIT"],
+                            "properties": {
+								   "CNE_PRODUT": {
+									   "description": "Produto",
+									   "type": "string",
+									   "minLength": 1,
+									   "maxLength": 15
+								   },
+								   "CNE_QUANT": {
+									   "description": "Quantidade Medida",
+									   "type": "number",
+									   "minLength": 1,
+									   "maxLength": 16
+								   },	
+								   "CNE_VLUNIT": {
+									   "description": "Valor Unitario",
+									   "type": "number",
+									   "minLength": 1,
+									   "maxLength": 16
+								   },
+                                   "CNE_TS": {
+									   "description": "Tipo Saida",
+									   "type": "string",
+									   "minLength": 0,
+									   "maxLength": 3
+								   },
+                                   "CNE_CC": {
+									   "description": "Centro Custo",
+									   "type": "string",
+									   "minLength": 0,
+									   "maxLength": 9
+								   },
+								   "pedido": {
+									   "description": "Pedido",
+									   "type": "string",
+									   "minLength": 0,
+									   "maxLength": 16
+								   },								   
+                                "multabonif": {
+                                    "id": "multabonif",
+                                    "description": "Multa Bonificacao",
+                                    "type": "array",
+                                    "minItems": 0,
+                                    "items": {
+                                        "id": "2",
+                                        "type": "object",
+                                        "required": ["CNR_TIPO", "CNR_DESCRI", "CNR_VALOR"],
+                                        "properties": {
+											   "CNR_TIPO": {
+												   "description": "Tipo de movimento",
+												   "type": "string",
+												   "minLength": 1,
+												   "maxLength": 1,
+												   "enum": ["1","2"," "]
+											   },
+											   "CNR_DESCRI": {
+												   "description": "Descr.multa / Bonificacao",
+												   "type": "string",
+												   "minLength": 1,
+												   "maxLength": 50
+											   },
+											   "CNR_VALOR": {
+												   "description": "Valor do movimento",
+												   "type": "number",
+												   "minLength": 1,
+												   "maxLength": 14
+											   }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

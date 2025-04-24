@@ -1,0 +1,898 @@
+Using namespace tlpp.regex
+
+#Include "TOTVS.ch"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+
+#Define Enter Chr(13) + Chr(10)
+
+/*/{Protheus.doc} VldSchJSON
+Classe para validacao de JSON contra Schemas
+@type class
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+/*/
+Class VldSchJSON
+
+Data cPathSchema as character
+Data cTextSchema as character
+Data cError      as character
+Data lValid      as logical
+Data lSchInfo    as logical
+Data aSchema     as array
+Data cFile       as character
+Data lDelTemp    as logical
+
+Public Method New() Constructor
+Public Method Close()
+Public Method SetFileSch(cPath as Character, cMsgErr as Character) as logical
+Public Method SetTextSch(cText as Character, cMsgErr as Character) as logical
+Public Method CleanSch() as logical
+Public Method ValidJSON(oJSON as Json, cMsgErr as Character) as logical
+Public Method ShowError() as character
+
+EndClass
+
+/*/{Protheus.doc} VldSchJSON::New
+Metodo para criar o Object
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@return object, Objeto VldSchJSON
+/*/
+Method New() class VldSchJSON
+
+    ::cPathSchema := ""
+    ::cTextSchema := ""
+    ::cError      := ""
+    ::lValid      := .F.
+    ::lSchInfo    := .F.
+    ::aSchema     := {}
+    ::lDelTemp    := .F.
+
+Return Self
+
+/*/{Protheus.doc} VldSchJSON::Close
+Metodo para fehcar o Metodo criado 
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+/*/
+Method Close() class VldSchJSON
+
+    ::cPathSchema := ""
+    ::cTextSchema := ""
+    ::cError      := ""
+    ::lValid      := .F.
+    ::lSchInfo    := .F.
+    ::aSchema     := {}
+
+    If ::lDelTemp
+
+        If !fErase(::cPathSchema)
+
+            ConOut("[VldSchJSON] - " + DToC(dDatabase) + " - " + Time() + " -> Erro ao tentar excluir arquivo temporario!")
+
+        EndIf
+
+    EndIf
+
+    ::lDelTemp := .F. 
+    
+Return
+
+/*/{Protheus.doc} VldSchJSON::SetFileSch(cPath, cMsgErr) as logical
+Metodo para carregar o Schema atraves de um arquivo
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@return logical, Verdadeiro se carregou o Schema
+/*/
+Method SetFileSch(cPath as Character, cMsgErr as Character) as logical class VldSchJSON
+
+Local lRet     := .T. as logical
+Local oFile    := Nil as object
+Local nHandle := 0 as Numeric
+
+    If ::lSchInfo
+        cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
+        lRet     := .F.
+        ::cError := ""
+    Else
+        If !File(cPath)
+            cMsgErr    += "Arquivo informado nao existe!" + Enter
+            lRet       := .F.
+            ::lSchInfo := .F.
+        Else 
+            If Left(cPath, 1) = "\"
+                ::cPathSchema := cPath
+                nHandle := Ft_FUse(cPath)
+                If nHandle < 0 
+                    lRet       := .F.
+                    ::lSchInfo := .F.
+                    cMsgErr    += "Erro na abertura do arquivo!" + Enter
+                    ::cError   := ""
+                Else 
+                    Ft_FGoTop()
+                    While !Ft_FEOF()
+                        ::cFile += Ft_FReadLn()
+                        Ft_FSkip()
+                    EndDo
+                    Ft_FUse()
+                    lRet       := .T.
+                    ::lSchInfo := .T.
+                EndIf
+            Else
+                ::cPathSchema := cPath
+                oFile := FWFileReader():New(::cPathSchema)
+                If oFile:Open()
+                    While (oFile:HasLine())
+                        ::cFile += oFile:GetLine() + Chr(13) + Chr(10)
+                    EndDo
+                    lRet       := .T.
+                    ::lSchInfo := .T.
+                Else
+                    lRet       := .F.
+                    ::lSchInfo := .F.
+                    cMsgErr    += "Erro na abertura do arquivo!" + Enter
+                    ::cError   := ""
+                EndIf
+            EndIf
+        EndIf
+    EndIf
+
+Return lRet
+
+/*/{Protheus.doc} VldSchJSON::SetTextSch(cText, cMsgErr) as logical
+Metodo para carregar um Schema atraves de uma String
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@return logical, Verdadeiro se carregou o Schema
+/*/
+Method SetTextSch(cText as Character, cMsgErr as Character) as logical class VldSchJSON
+
+Local lRet := .T. as logical
+Local nI   := 0   as numeric
+Local cTxtLocal := "" as character
+
+    If ::lSchInfo
+        cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
+        lRet     := .F.
+        ::cError := ""
+    Else
+        If Empty(AllTrim(cText))
+            cMsgErr    += "Texto de Schema estao vazio!" + Enter
+            lRet       := .F.
+            ::lSchInfo := .F.
+        Else 
+            ::cTextSchema := cText
+            cTxtLocal := ::cTextSchema
+            If MlCount(cTxtLocal, 200) > 1
+                For nI := 1 To MlCount(cTxtLocal, 200)
+                    ::cFile += MemoLine(cTxtLocal, 200, nI)
+                Next nI
+                lRet       := .T.
+                ::lSchInfo := .T.
+            Else
+                lRet       := .F.
+                ::lSchInfo := .F.
+                cMsgErr    += "Erro na String enviada!" + Enter
+                ::cError   := ""
+            EndIf
+        EndIf
+    EndIf
+
+Return lRet
+
+/*/{Protheus.doc} VldSchJSON::CleanSch
+Metodo para limpar o Schema da Classe
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+/*/
+Method CleanSch() class VldSchJSON
+
+    ::cPathSchema := ""
+    ::cTextSchema := ""
+    ::lSchInfo    := .F.
+    ::cError      := ""
+    ::aSchema     := {}
+
+Return
+
+/*/{Protheus.doc} VldSchJSON::ValidJSON(oJSON, cMsgErr) as logical
+Metodo que valida o JSON contra o Schema
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@return logical, Verdadeiro se JSON x Schema estao valido
+/*/
+Method ValidJSON(oJSON as Json, cMsgErr as Character) as logical class VldSchJSON
+
+Local lRet := .T. as logical
+
+If !::lSchInfo
+
+    lRet := .F. 
+    ::CleanSch()
+    cMsgErr := "Schema ainda nao informado!"
+
+Else
+
+    If !PrepValid(oJSON, ::cFile, @cMsgErr, ::cError)
+
+        lRet := .F.
+        
+    EndIf
+
+EndIf
+
+Return lRet
+
+/*/{Protheus.doc} VldSchJSON::ShowError() as character
+Metodo para mostrar os erros gerados durante as operacoes
+@type method
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@return character, Mensagens de Erros
+/*/
+Method ShowError() as character class VldSchJSON
+Return ::cError
+
+/*/{Protheus.doc} PrepValid
+Funcao que inicia o processo de validacao do JSON x Schema
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Json a ser analisado
+@param cFile, character, Schema que sera utilizado para validacao
+@param cMsgErr, character, Mensagens de Erros
+@param cError, character, Mensagens de Erros da Classe
+/*/
+Static Function PrepValid(oJSON as Json, cFile as Character, cMsgErr as Character, cError as Character) as Logical
+
+Local lRet        := .T. as logical
+Local nI          := 0   as numeric
+Local nX          := 0   as numeric
+Local oSchema     := Nil as object
+Local aCmpObrig   := {}  as array
+Local jCmpDepReq  := {}  as json
+Local aCmpDepReq  := {}  as array
+Local aProperties := {}  as array
+
+Private cTitSchema       as character
+
+// Valida JSON
+If Len(oJSON:GetNames()) = 0
+
+    cMsgErr += "JSON estao com formato errado!" + Enter
+    cError += "JSON estao com formato errado!" + Enter
+    lRet := .F.
+    Return(lRet)
+
+EndIf
+
+// Valida JSON Schemas
+oSchema := JsonObject():New()
+oSchema:FromJSON(cFile)
+If Len(oSchema:GetNames()) = 0
+
+    cMsgErr += "JSON de Schema estao com formato errado!" + Enter
+    cError += "JSON de Schema estao com formato errado!" + Enter
+    lRet := .F.
+    Return(lRet)
+
+EndIf
+
+// Verifica se o Titulo do Schema ja estao alimentado
+If Empty(AllTrim(cTitSchema))
+
+    If oSchema:HasProperty("title")
+    
+        cTitSchema := oSchema["title"]
+
+    Else 
+
+        cTitSchema := ""
+
+    EndIf
+
+EndIf
+
+// Verifica se exitem campos obrigatorios no Schema 
+If oSchema:HasProperty("required")
+
+    aCmpObrig := oSchema["required"]
+
+EndIf
+
+jCmpDepReq := JsonObject():New()
+
+// Verifica se existem campos obrigatorios quando dependentes sao preenchidos
+If oSchema:HasProperty("dependentRequired")
+
+    jCmpDepReq := oSchema["dependentRequired"]
+
+EndIf
+
+// Se existem campos obrigatorios avalia
+If Len(aCmpObrig) > 0 
+
+    For nI := 1 To Len(aCmpObrig)
+
+        If !oJSON:HasProperty(aCmpObrig[nI])
+
+            lRet := .F. 
+            cMsgErr += cTitSchema + Enter + "Campo " + aCmpObrig[nI] + " e obrigatorio" + Enter
+            cError += cTitSchema + Enter + "Campo " + aCmpObrig[nI] + " e obrigatorio" + Enter
+
+        EndIf
+
+    Next nI
+
+EndIf
+
+// Se existem dependentes de campos realizar a avaliacao
+If Len(jCmpDepReq:GetNames()) > 0 
+
+    For nI := 1 To Len(jCmpDepReq:GetNames())
+
+        If oJson:HasProperty(jCmpDepReq:GetNames()[nI])
+
+            aCmpDepReq := jCmpDepReq[jCmpDepReq:GetNames()[nI]]
+
+            If Len(aCmpDepReq) > 0 
+
+                For nX := 1 To Len(aCmpDepReq)
+
+                    If !oJson:HasProperty(aCmpDepReq[nX])
+
+                        lRet := .F. 
+                        cMsgErr += cTitSchema + Enter + "Quando a chave " + jCmpDepReq:GetNames()[nI] + " for informada a chave " + aCmpDepReq[nX] + " tem que ser passada tambem!" + Enter
+                        cError += cTitSchema + Enter + "Quando a chave " + jCmpDepReq:GetNames()[nI] + " for informada a chave " + aCmpDepReq[nX] + " tem que ser passada tambem!" + Enter
+
+                    EndIf
+
+                Next nX
+
+            EndIf
+
+        EndIf
+
+    Next nI
+
+EndIf
+
+// Valida os Properties
+If oSchema:HasProperty("properties")
+
+    aProperties := oSchema["properties"]:GetNames()
+    If Len(aProperties) > 0 
+
+        For nI := 1 To Len(aProperties)
+
+            ChkPropert(oJSON, oSchema["properties"][aProperties[nI]], aProperties[nI], @cMsgErr, @cError, @lRet)
+
+        Next nI
+
+    EndIf
+
+EndIF
+
+Return lRet
+
+/*/{Protheus.doc} ChkPropert
+Funcao que realiza as validacoes. Podem ser iniciais ou de Arrays e/ou Json's
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema Properties com as validacoes
+@param cProperties, character, Nome do campo que sera analisado e com as suas propriedades
+@param cMsgErr, character, Mensagens de erro
+@param cError, character, Mensagens de erro
+@param lRet, logical, Falso em casos de erros
+@param nItem, numeric, Passar Item caso seja analise de um item de array
+/*/
+Static Function ChkPropert(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local oAux       := Nil as variant
+Local oArray     := Nil as object
+Local oAuxSch    := Nil as object
+Local aCmpObrig  := {}  as array
+Local jCmpDepReq := {}  as json
+Local aCmpDepReq := {}  as array
+Local nI         := 0   as numeric
+Local nX         := 0   as numeric
+Local nY         := 0   as numeric
+
+Default nItem := 0 
+
+    If oJSON:HasProperty(cProperties)
+    
+        oAux := oJSON[cProperties]
+
+    EndIf
+
+    // Se for Array 
+    If ValType(oAux) = "A"
+
+        If oProperties:HasProperty("minItems")
+
+            If Len(oAux) < oProperties["minItems"]
+
+                lRet := .F. 
+                cMsgErr += "Quantidade minima de itens deve ser " + cValToChar(oProperties["minItems"]) + Enter
+                cError += "Quantidade minima de itens deve ser " + cValToChar(oProperties["minItems"]) + Enter
+                Return
+
+            EndIf
+
+        EndIf
+
+        If oProperties:HasProperty("maxItems")
+
+            If Len(oAux) < oProperties["maxItems"]
+
+                lRet := .F. 
+                cMsgErr += "Quantidade maxima de itens deve ser " + cValToChar(oProperties["maxItems"]) + Enter
+                cError += "Quantidade maxima de itens deve ser " + cValToChar(oProperties["maxItems"]) + Enter
+                Return
+
+            EndIf
+
+        EndIf
+
+        If oProperties:HasProperty("items")
+
+            // Verifica se exitem campos obrigatorios no Schema 
+            If oProperties["items"]:HasProperty("required")
+
+                aCmpObrig := oProperties["items"]["required"]
+
+            EndIf
+
+            jCmpDepReq := JsonObject():New()
+            // Verifica se existem campos obrigatorios quando dependentes sao preenchidos
+            If oProperties["items"]:HasProperty("dependentRequired")
+
+                jCmpDepReq := oProperties["items"]["dependentRequired"]
+
+            EndIf
+
+            // Se existem campos obrigatorios avalia
+            If Len(aCmpObrig) > 0 
+
+                For nI := 1 To Len(oAux)
+                
+                    For nX := 1 To Len(aCmpObrig)
+
+                        If !oAux[nI]:HasProperty(aCmpObrig[nX])
+
+                            lRet := .F. 
+                            cMsgErr += cTitSchema + Enter + "Item " + cValToChar(nI) + " -  Campo " + aCmpObrig[nX] + " e obrigatorio" + Enter
+                            cError += cTitSchema + Enter + "Item " + cValToChar(nI) + " - Campo " + aCmpObrig[nX] + " e obrigatorio" + Enter
+
+                        EndIf
+
+                    Next nX
+
+                Next nI
+
+            EndIf
+
+            // Se existem dependentes de campos realizar a avaliacao
+            If Len(jCmpDepReq:GetNames()) > 0 
+
+                For nY := 1 To Len(oAux)
+
+                    For nI := 1 To Len(jCmpDepReq:GetNames())
+
+                        If oAux[nY]:HasProperty(jCmpDepReq:GetNames()[nI])
+
+                            aCmpDepReq := jCmpDepReq[jCmpDepReq:GetNames()[nI]]
+
+                            If Len(aCmpDepReq) > 0 
+
+                                For nX := 1 To Len(aCmpDepReq)
+
+                                    If !oAux[nY]:HasProperty(aCmpDepReq[nX])
+
+                                        lRet := .F. 
+                                        cMsgErr += cTitSchema + Enter + "Item " + cValToChar(nY) + " - Quando a chave " + jCmpDepReq:GetNames()[nI] + " for informada a chave " + aCmpDepReq[nX] + " tem que ser passada tambem!" + Enter
+                                        cError += cTitSchema + Enter + "Item " + cValToChar(nY) + " - Quando a chave " + jCmpDepReq:GetNames()[nI] + " for informada a chave " + aCmpDepReq[nX] + " tem que ser passada tambem!" + Enter
+
+                                    EndIf
+
+                                Next nX
+
+                            EndIf
+
+                        EndIf
+
+                    Next nI
+
+                Next nY
+
+            EndIf
+
+            // Verifica as Propriedades deste array 
+            If oProperties["items"]:HasProperty("properties")
+                oAuxSch := oProperties["items"]["properties"]
+            Else 
+                Return
+            EndIf
+
+            For nI := 1 To Len(oAux)
+
+                If ValType(oAux[nI]) = "J"
+
+                    For nX := 1 To Len(oAuxSch:GetNames())
+                    
+                        ChkPropert(oAux[nI], oAuxSch[oAuxSch:GetNames()[nX]], oAuxSch:GetNames()[nX], @cMsgErr, @cError, @lRet, nI)
+
+                    Next nX
+
+                Else 
+
+                    FreeObj(oArray)
+                    oArray := JsonObject():New()
+                    For nX := 1 To Len(oAux[nI])
+                    
+                        oArray[oAux[nI][nX][01]] := oAux[nI][nX][02]
+
+                    Next nX
+                    For nX := 1 To Len(oAuxSch:GetNames())
+                    
+                        ChkPropert(oAux[nI], oAuxSch[oAuxSch:GetNames()[nX]], oAuxSch:GetNames()[nX], @cMsgErr, @cError, @lRet, nI)
+
+                    Next nX
+
+                EndIf
+
+            Next nI 
+
+        EndIf
+
+    // Se for JSON
+    ElseIf ValType(oAux) = "J"
+
+    /*
+    At� o momento nao achei este item dentro de um pr�prio JSON
+    */
+
+    // Senao 
+    ElseIf ValType(oAux) != "U"
+
+        ChkType(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+        ChkPattern(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+        ChkSizes(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+        ChkValues(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+        ChkDecimal(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+        ChkEnum(oJSON, oProperties, cProperties, @cMsgErr, @cError, @lRet, nItem)
+
+    EndIf
+
+Return
+
+/*/{Protheus.doc} ChkType
+Funcao para chegar o tipo do campo
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+@obs Os tipos utilizados em Schemas sao (string, numeric, array, object e boolean)
+/*/
+Static Function ChkType(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local cTipoJson := ""  as character
+Local xValJson  := Nil as variant
+Local cTipoSch  := ""  as character
+
+If oProperties:HasProperty("type") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    cTipoSch := oProperties["type"]
+    Do Case 
+        Case cTipoSch = "string"
+            cTipoSch := "C"
+
+        Case cTipoSch = "integer"
+            cTipoSch := "N"
+
+        Case cTipoSch = "number"
+            cTipoSch := "N"
+
+        Case cTipoSch = "array"
+            cTipoSch := "A"
+
+        Case cTipoSch = "object"
+            cTipoSch := "J"
+
+        Case cTipoSch = "boolean"
+            cTipoSch := "L"
+
+        Otherwise
+            cTipoSch := "U"
+
+    EndCase
+
+    If oJSON:HasProperty(cProperties)
+
+        oJson:GetJsonValue(cProperties, @xValJson, @cTipoJson)
+        If cTipoSch != cTipoJson
+
+            lRet := .F. 
+            cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tipo do campo " + cProperties + ". O mesmo deve ser " + cTipoSch + Enter
+            cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tipo do campo " + cProperties + ". O mesmo deve ser " + cTipoSch + Enter
+
+        EndIf
+
+    EndIf
+
+EndIf
+
+Return
+
+/*/{Protheus.doc} ChkSizes
+Funcao que analisa todos os tipos de validacao de tamanho do conteudo informado
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+@obs serao verificados as propriedades (minLength e maxLength)
+/*/
+Static Function ChkSizes(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local nTamanho := 0 as numeric
+
+// Valida o Tamanho minimo do campo 
+If oProperties:HasProperty("minLength") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nTamanho := oProperties["minLength"]
+    If Len(cValToChar(oJson[cProperties])) < nTamanho
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tamanho minimo do campo " + cProperties + ". O mesmo deve ser " + cValToChar(nTamanho) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tamanho minimo do campo " + cProperties + ". O mesmo deve ser " + cValToChar(nTamanho) + Enter
+
+    EndIf
+
+EndIf
+
+// Valida o Tamanho maximo do campo 
+If oProperties:HasProperty("maxLength") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nTamanho := oProperties["maxLength"]
+    If Len(cValToChar(oJson[cProperties])) > nTamanho
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tamanho maximo do campo " + cProperties + ". O mesmo deve ser " + cValToChar(nTamanho) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Erro no tamanho maximo do campo " + cProperties + ". O mesmo deve ser " + cValToChar(nTamanho) + Enter
+
+    EndIf
+
+EndIf
+
+Return
+
+/*/{Protheus.doc} ChkValues
+Funcao que analisa todos os tipos de validacao de valores do conteudo informado
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+@obs serao verificados as propriedades (exclusiveMinimum, exclusiveMaximum, minimum e maximum)
+/*/
+Static Function ChkValues(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local nValor := 0 as numeric
+
+// Valida o valor menor 
+If oProperties:HasProperty("exclusiveMinimum") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nValor := oProperties["exclusiveMinimum"]
+    If oJson[cProperties] <= nValor
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor minimo do campo " + cProperties + " deve ser maior que " + cValToChar(nValor) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor minimo do campo " + cProperties + " deve ser maior que " + cValToChar(nValor) + Enter
+
+    EndIf
+
+EndIf
+
+// Valida o valor maior 
+If oProperties:HasProperty("exclusiveMaximum") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nValor := oProperties["exclusiveMaximum"]
+    If oJson[cProperties] >= nValor
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor maximo do campo " + cProperties + " deve ser menor que " + cValToChar(nValor) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor maximo do campo " + cProperties + " deve ser menor que " + cValToChar(nValor) + Enter
+
+    EndIf
+
+EndIf
+
+// Valida o valor menor igual 
+If oProperties:HasProperty("minimum") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nValor := oProperties["minimum"]
+    If oJson[cProperties] < nValor
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor minimo do campo " + cProperties + " deve ser maior ou igual a " + cValToChar(nValor) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor minimo do campo " + cProperties + " deve ser maior ou igual a " + cValToChar(nValor) + Enter
+
+    EndIf
+
+EndIf
+
+// Valida o valor maior igual 
+If oProperties:HasProperty("maximum") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nValor := oProperties["maximum"]
+    If oJson[cProperties] > nValor
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor maximo do campo " + cProperties + " deve ser menor ou igual a " + cValToChar(nValor) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor maximo do campo " + cProperties + " deve ser menor ou igual a " + cValToChar(nValor) + Enter
+
+    EndIf
+
+EndIf
+
+Return
+
+/*/{Protheus.doc} ChkDecimal
+Funcao que analisa multiplos e decimais de valores do conteudo informado
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 01/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+/*/
+Static Function ChkDecimal(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local nResultante := 0 as numeric
+Local nValor      := 0 as numeric
+
+// Verifica multiplos e casas decimais
+If oProperties:HasProperty("multipleOf") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    nValor := oProperties["multipleOf"]
+    nResultante := MOD(oJson[cProperties], nValor)
+    If nResultante != 0 
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor de multiplo e/ou decimais do campo " + cProperties + " estao errado. Verificar se multiplo de " + cValToChar(nValor) + Enter
+        cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor de multiplo e/ou decimais do campo " + cProperties + " estao errado. Verificar se multiplo de " + cValToChar(nValor) + Enter
+
+    EndIf
+
+EndIf
+
+Return
+
+/*/{Protheus.doc} ChkPattern
+Funcao para validar a Formatacao (RegEx) de campo
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 02/06/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+/*/
+Static Function ChkPattern(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local oRegEx := Nil as object
+Local cRegEx := ""  as character
+
+If oProperties:HasProperty("pattern") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    cRegEx := oProperties["pattern"]
+    oRegEx := Regex():New(cRegEx)
+
+    If !oRegEx:partialMatch(oJson[cProperties])
+
+        lRet := .F. 
+        cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Formatacao do campo " + cProperties + " estao errado. Verificar o RegEx " + cRegEx + Enter
+        cError  += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Formatacao do campo " + cProperties + " estao errado. Verificar o RegEx " + cRegEx + Enter
+
+    EndIf
+
+EndIf
+
+Return
+
+
+/*/{Protheus.doc} ChkEnum
+Funcao para validar o conteudo da chave quando existem valores padroes
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 06/08/2024
+@param oJSON, object, Parte do Json a ser analisado
+@param oProperties, object, Schema com propriedades do campo
+@param cProperties, character, Campo
+@param cMsgErr, character, Mensagens de Erro
+@param cError, character, Mensagens de Erro
+@param lRet, logical, Falso em caso de Erro
+@param nItem, numeric, Item caso seja analise de um item de array
+/*/
+Static Function ChkEnum(oJSON as Json, oProperties as Json, cProperties as Character, cMsgErr as Character, cError as Character, lRet as Logical, nItem as Numeric)
+
+Local aCombo := {}
+Local cCombo := ""
+
+If oProperties:HasProperty("enum") .And. oJson:HasProperty(cProperties) .And. ValType(oJson[cProperties]) != "U"
+
+    aCombo := oProperties["enum"]
+    If Len(aCombo) > 0 
+
+        If At(cProperties, cError) > 0 
+
+            Return
+
+        EndIf
+
+        aEval(aCombo, {|vlr| cCombo += vlr + ", "})
+        cCombo := Left(cCombo, Len(cCombo) - 2)
+
+        If aScan(aCombo, {|x| x = oJson[cProperties]}) <= 0
+
+            lRet := .F. 
+            cMsgErr += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor da chave " + cProperties + " esta errado. Seguem os possiveis: " + cCombo + Enter
+            cError += Iif(nItem > 0, "Item " + cValToChar(nItem) + " - ", "") + "Valor da chave " + cProperties + " esta errado. Seguem os possiveis: " + cCombo + Enter
+
+        EndIf
+
+    EndIf
+
+EndIf
+
+Return
