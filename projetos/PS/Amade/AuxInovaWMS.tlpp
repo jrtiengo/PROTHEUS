@@ -93,7 +93,7 @@ User Function PSSTSF1()
 
 			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
 
-		Else 
+		Else
 
 			If SF1->(MSSeek(cChave))
 
@@ -131,7 +131,7 @@ User Function PSConfEnt()
 
 			U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
 
-		Else 
+		Else
 			//Troca o usuario logado no Protheus, para evitar erro no TMK...
 			__cUserId := "000249"
 			cUserName := "tablet" //imptablet
@@ -160,7 +160,7 @@ Static Function fGravaF1(jJsonRet)
 
 			RecLock("SF1",.F.)
 
-			SF1->F1_ZSTSWMS := '2' //0=NE;1=NP;2=P;3=ER;4=NA                                                                                                         
+			SF1->F1_ZSTSWMS := '2' //0=NE;1=NP;2=P;3=ER;4=NA
 
 			SF1->(MSUnLock())
 
@@ -168,7 +168,7 @@ Static Function fGravaF1(jJsonRet)
 
 			RecLock("SF1",.F.)
 
-			SF1->F1_ZSTSWMS := '3'                                                                                                       
+			SF1->F1_ZSTSWMS := '3'
 
 			SF1->(MSUnLock())
 		Endif
@@ -262,19 +262,21 @@ User Function PSITENSPED(cInt)
 
 				aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITO"]			:= 1
 				aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITANTE"]			:= 1
-				aItensResp[Len(aItensResp)]["DPIS_NUM_DOCUMENTO"]			:= Alltrim(SC6->C6_NUM)
-				aItensResp[Len(aItensResp)]["DPIS_SERIE_DOCUMENTO"]			:= "0"
+				aItensResp[Len(aItensResp)]["DPIS_NUM_DOCUMENTO"]			:= SC5->(RECNO())
+				aItensResp[Len(aItensResp)]["DPIS_REF_DOCUMENTO"]			:= Alltrim(SC6->C6_NUM)
+				aItensResp[Len(aItensResp)]["DPIS_SERIE_DOCUMENTO"]			:= "PED"
 				//aItensResp[Len(aItensResp)]["DPIS_REFERENCIA"]
 				aItensResp[Len(aItensResp)]["DPIS_DATA_EMISSAO"]		    := SC5->C5_EMISSAO
-				aItensResp[Len(aItensResp)]["DPIS_PESO_ITEM"]				:= 0
+				aItensResp[Len(aItensResp)]["DPIS_PESO_ITEM"]				:= posicione('SB1',1,xFilial('SB1')+Alltrim(SC6->C6_PRODUTO),'B1_PESBRU')
 				aItensResp[Len(aItensResp)]["DPIS_VALOR_ITEM"]				:= SC6->C6_VALOR
 				aItensResp[Len(aItensResp)]["DPIS_ICMS_ALIQUOTA"]			:= 0
 				aItensResp[Len(aItensResp)]["DPIS_COD_PRODUTO"]				:= Alltrim(SC6->C6_PRODUTO)
 				//aItensResp[Len(aItensResp)]["DPIS_LOTE"]
-				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE"]		:= 1   //Alltrim(SC6->C6_LOCAL)
-				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE_ERP"]    := '40'//Alltrim(SC6->C6_LOCAL)
+				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE"]		:= 0
+				aItensResp[Len(aItensResp)]["DPIS_COD_TIPO_ESTOQUE_ERP"]    := Alltrim(SC6->C6_LOCAL)
 				aItensResp[Len(aItensResp)]["DPIS_QTDE"]					:= SC6->C6_QTDVEN
 				aItensResp[Len(aItensResp)]["STATUS"]						:= "NP"
+
 				//aItensResp[Len(aItensResp)]["DPIS_MOD_DOC"]
 				//aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITO_ERP"]
 				//aItensResp[Len(aItensResp)]["DPIS_COD_DEPOSITANTE_ERP"]
@@ -289,9 +291,7 @@ User Function PSITENSPED(cInt)
 			Else
 
 				aItensResp[Len(aItensResp)]["CS_COD_PRODUTO"]				:= Alltrim(SC6->C6_PRODUTO)
-
 			Endif
-
 			SC6->(dbSkip())
 		EndDo
 	EndIf
@@ -332,25 +332,24 @@ User Function PSConfSai()
 			//Percorre o Array caso, tenha retornado mais de um registro
 			For nRegDet := 1 to Len(jTrataResp)
 
-				fGravaF2(jTrataResp[nRegDet])
+				fGrava(jTrataResp[nRegDet])
 
 			Next nRegDet
-
 		Endif
 	Endif
 
 Return()
 
-Static Function fGravaF2(jJsonRet)
+Static Function fGrava(jJsonRet)
 
 	Local cStatus	:= ""	as character
 
 	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
-	cPed 			:= jJsonRet:GetJSonObject('CB_NUM_PEDIDO')
+	cPed 			:= jJsonRet:GetJSonObject('CS_REF_DOCUMENTO')
 	cNota			:= jJsonRet:GetJSonObject('CB_NUM_NOTA_FISCAL')
 	cSerie			:= jJsonRet:GetJSonObject('CB_SERIE_NOTA_FISCAL')
 
-	If ! Empty(cStatus)
+	If ! Empty(cStatus) .and. ! Empty(cNota)
 
 		If cStatus == 'NP'
 
@@ -363,22 +362,16 @@ Static Function fGravaF2(jJsonRet)
 	Endif
 
 	If ! Empty(cPed)
+			If SC5->(MSSeek(FWxFilial('SC5')+cPed))
+				
+				If cStatus == 'NP'
+					SC5->C5_ZDTDESP		:= dDataBase
+					SC5->C5_XLIBOK		:= 'S' //Liberado
+				Endif
 
-		SC5->(DbSetOrder(1)) //SC5->C5_FILIAL + SC5->C5_NUM
-
-		If MSSeek(FWxFilial('SC5')+cPed)
-
-			RecLock("SC5", .F.)
-
-			If cStatus == 'NP'
-				SC5->C5_ZDTDESP		:= dDataBase
-				SC5->C5_XLIBOK		:= 'S' //Liberado
+				SC5->(MSUnLock())
 			Endif
-
-			SC5->(MSUnLock())
 		Endif
-	Endif
-
 Return()
 
 User Function PSCancSai()
@@ -423,7 +416,7 @@ Static Function fCancF2(jJsonRet)
 
 	SF2->(DbSetOrder(1))//F2_FILIAL+F2_DOC+F2_SERIE+F2_CLIENTE+F2_LOJA+F2_FORMUL+F2_TIPO
 
-	If MSSeek(FWxFilial('SF2')+SD2->D2_DOC+SD2->D2_SERIE)
+	If SF2->(MSSeek(FWxFilial('SF2')+SD2->D2_DOC+SD2->D2_SERIE))
 
 		If ! Empty(cStatus)
 
