@@ -55,16 +55,17 @@ User Function MS520VLD()
 		FWAlertError("Nota já despachada pelo WMS", "Cancelamento não autorizado")
 		lRet := .F.
 	Else
+
 		If Empty(SF2->F2_ZCANCW)
 
 			RecLock("SF2",.F.)
 
 			SF2->F2_ZCANCW := '1' //Cancelamento solicitado 
-			SF2->(MSUnLock())
-			lRet := .F.
-			
-			FWAlertError("Solicitação de Cancelamento Enviado ao WMS", "Cancelamento WMS")
 
+			SF2->(MSUnLock())
+
+			FWAlertError("Solicitação de Cancelamento Enviado ao WMS", "Cancelamento WMS")
+			
 		ElseIf SF2->F2_ZCANCW == '1'
 			
 			FWAlertError("Aguardando retorno WMS", "Cancelamento")
