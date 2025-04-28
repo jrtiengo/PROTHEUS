@@ -59,17 +59,13 @@ Static Function fZS3(jJsonRet, cMet)
 	If cMet == 'POST'
 
 		RecLock("ZS3",.F.)
-
 		ZS3->ZS3_STTINT		:= ""
-
 		ZS3->(MSUnLock())
 
 	Elseif nID > 0 .and. ! Empty(cStatus) .and. cMet == 'GET'
 
 		RecLock("ZS3",.F.)
-
 		ZS3->ZS3_STTINT		:= cStatus
-
 		ZS3->(MSUnLock())
 	Endif
 

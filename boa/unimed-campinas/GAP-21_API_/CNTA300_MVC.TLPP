@@ -1,0 +1,127 @@
+#include 'tlpp-core.th'
+#include 'tlpp-rest.th'
+#include 'tbiconn.ch'
+#Include 'FWMVCDef.ch'
+
+/*
+Aprovação de contrato
+*/
+
+@Post(endpoint="/contratosv1/aprovar",description='Aprovação de contratos')
+
+User Function RESTAPROV()
+	Local oJson     	:= JsonObject():New()
+    Local nContrato     := 0
+    Local cLog          := ""
+    Local oRetorno 		:= JsonObject():New()
+
+	// 'oJson' irá carregar os dados vindos do corpo da requisição
+	oJson:FromJson( oRest:getBodyRequest() )
+
+	// Se o conteúdo não for informado, é um `BAD REQUEST`
+	If Empty(oJson["CONTRATO"]) .OR. Empty(oJson["APROVADOR"])
+		oRest:setStatusCode( 400 )
+		oRest:setResponse("Schema Inválido, falta dados!")
+		Return Nil
+	EndIf
+
+    nContrato := fBuscaContrato(alltrim(oJson["CONTRATO"]))
+
+    If nContrato == 0
+        cLog := fAprova(oJson)
+
+        If !Empty(cLog)
+            oRest:setStatusCode( 400 )
+            oRetorno['retorno']    := 'false'
+            oRetorno['Descricao']       := cLog
+            oRest:setResponse(oRetorno)
+            Return Nil
+        EndIf 
+    ElseIf nContrato == 1
+        oRest:setStatusCode( 404 )
+        oRetorno['retorno']    := 'false'
+        oRetorno['Descricao']       := "Contrato " +alltrim(oJson["CONTRATO"])+ " não disponivel para aprovação, verifique com o responsável."
+		oRest:setResponse(oRetorno)
+		Return Nil
+    ElseIf nContrato == 2
+        oRest:setStatusCode( 404 )
+        oRetorno['retorno']    := 'false'
+        oRetorno['Descricao']       := "Contrato " +alltrim(oJson["CONTRATO"])+ " não localizado!"
+		oRest:setResponse(oRetorno)
+		Return Nil
+    EndIf 
+
+    oRest:setStatusCode( 200 )
+    oRetorno['retorno']    := 'true'
+    oRetorno['Descricao']       := "Aprovado com sucesso!"
+    oRest:setResponse(oRetorno)
+Return Nil
+
+//-- Verifica se contrato está disponivel para aprovação
+Static Function fBuscaContrato(cContrato)
+    Local nRet := 0
+    Local cAlias := GetNextAlias()
+
+    BeginSql alias cAlias
+        SELECT CN9_FILIAL, CN9_NUMERO, CN9_SITUAC 
+        FROM  %table:CN9% CN9 
+        WHERE CN9_FILIAL = %xfilial:CN9%
+        AND CN9_NUMERO = %exp:cContrato%
+        AND D_E_L_E_T_ = '' 
+    EndSql
+
+    If (cAlias)->(!Eof())
+        If (cAlias)->CN9_SITUAC == "04"
+            nRet := 0   //-- Disponivel para aprovação.
+        Else
+            nRet := 1   //-- Contrato não disponivel para aprovação, verifique com o responsável.
+        EndIf
+    Else
+        nRet := 2       //-- Contrato não localizado.
+    EndIf 
+
+    (cAlias)->(DbCloseArea())
+Return nRet 
+
+//-- Função para efetuar aprovação do contrato.
+Static Function fAprova(oJson)
+    Local cLog := ""
+    Local lRet := .T.
+
+    DbSelectArea("SAK")
+    SAK->(dbSetOrder(1))
+    IF SAK->(dbSeek(xFilial("SAK")+oJson['APROVADOR']))
+        __cUserId := SAK->AK_USER
+	else
+		cLog := "Usuário não encontrado no cadastro de Aprovadores " 
+		Return cLog
+    EndIF 
+ 	
+    DbSelectArea("SCR")
+    //-- CR_FILIAL+CR_TIPO+CR_NUM+CR_APROV
+    SCR->(DbSetOrder(3)) 
+    If SCR->(DbSeek(xFilial("SCR") + 'CT' + Padr(oJson['CONTRATO'], TamSX3("CR_NUM")[1]) + oJson['APROVADOR']))
+        //-- Seleciona a operação de aprovação de documentos
+        A094SetOp("001")
+
+        //-- Carrega o modelo de dados e seleciona a operação de aprovação (UPDATE)
+        oModel094 := FWLoadModel('MATA094')
+        oModel094:SetOperation( MODEL_OPERATION_UPDATE )
+        oModel094:Activate()
+
+        lRet := oModel094:VldData()
+
+        If oModel094:CommitData()
+            cLog := ""
+        Else
+            //-- Busca o Erro do Modelo de Dados
+            aErro := oModel094:GetErrorMessage()
+            cLog := AllToChar(aErro[06])
+        EndIf
+ 
+        //-- Desativa o modelo de dados
+        oModel094:DeActivate()
+    Else    
+        cLog := "Problema no processamento, não encontrato registro de aprovação para o Aprovador "+alltrim(oJson['APROVADOR'])+". " 
+    EndIf 
+Return cLog

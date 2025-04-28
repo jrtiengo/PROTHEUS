@@ -49,12 +49,13 @@ User Function MS520VLD()
 	RestArea( aAreaSF2 )
 
 //Validação para não permitir a exclusão da nota, se a nota já foi despachada.
-
 	If ! Empty(SF2->F2_ZDTDESP)
 
 		FWAlertError("Nota já despachada pelo WMS", "Cancelamento não autorizado")
+
 		lRet := .F.
-	Else
+/*	
+		Else
 		If Empty(SF2->F2_ZCANCW)
 
 			RecLock("SF2",.F.)
@@ -68,11 +69,14 @@ User Function MS520VLD()
 		ElseIf SF2->F2_ZCANCW == '1'
 			
 			FWAlertError("Aguardando retorno WMS", "Cancelamento")
+			lRet := .F.
 		
 		ElseIf SF2->F2_ZCANCW == '3'
 		
 			FWAlertError("Cancelamento não autorizado pelo WMS", "Cancelamento")
+			lRet := .F.
 		Endif
+	*/
 	Endif
 
 //
