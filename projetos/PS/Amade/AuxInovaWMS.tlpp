@@ -11,7 +11,6 @@ WMS-INOVATECH - BUSCA RETORNO DOS ENVIO
 @param param_name, param_type, param_descr
 @return return_var, return_type, return_description
 /*/
-
 User Function PSstsWMS()
 
 	Local lOKRequest		:= ParamIXB[1]			as logical
@@ -40,13 +39,13 @@ User Function PSstsWMS()
 			For nRegDet := 1 to Len(jTrataResp)
 
 				fZS3(jTrataResp[nRegDet], cMetodo)
-
 			Next nRegDet
 		EndIf
 	EndIf
 
 Return()
 
+//Grava ZS3_STTINT
 Static Function fZS3(jJsonRet, cMet)
 
 	Local nID		:= 0	as numeric
@@ -72,6 +71,7 @@ Static Function fZS3(jJsonRet, cMet)
 Return()
 
 //Atualiza o STATUS da prenota, para vincular ao WMS
+/*
 User Function PSSTSF1()
 
 	Local lOKRequest		:= ParamIXB[1]			as logical
@@ -102,7 +102,7 @@ User Function PSSTSF1()
 		Endif
 	Endif
 Return()
-
+*/
 /*/{Protheus.doc} 
 WMS-INOVATECH - BUSCA RETORNO CONFIRMACAO DE ENTRADA
 @type user function
@@ -111,7 +111,6 @@ WMS-INOVATECH - BUSCA RETORNO CONFIRMACAO DE ENTRADA
 @param param_name, param_type, param_descr
 @return return_var, return_type, return_description
 /*/
-
 User Function PSConfEnt()
 
 	Local lOKRequest		:= ParamIXB[1]			as logical
@@ -136,9 +135,7 @@ User Function PSConfEnt()
 			For nRegDet := 1 to Len(jTrataResp)
 
 				fGravaF1(jTrataResp[nRegDet])
-
 			Next nRegDet
-
 		Endif
 	Endif
 
@@ -153,19 +150,13 @@ Static Function fGravaF1(jJsonRet)
 	If ! Empty(cStatus)
 
 		If cStatus == 'NP'
-
 			RecLock("SF1",.F.)
-
 			SF1->F1_ZSTSWMS := '2' //0=NE;1=NP;2=P;3=ER;4=NA
-
 			SF1->(MSUnLock())
-
+		
 		Elseif cStatus == 'ER'
-
 			RecLock("SF1",.F.)
-
 			SF1->F1_ZSTSWMS := '3'
-
 			SF1->(MSUnLock())
 		Endif
 	Endif
@@ -180,7 +171,6 @@ Monta o Array de Itens de entrada para o WMS
 @param param_name, param_type, param_descr
 @return return_var, return_type, return_description
 /*/
-
 User Function PSITENSENT(cInt)
 
 	Local aItensResp	:= {}		as array
@@ -239,7 +229,6 @@ Monta o Array de Itens do pedido de venda para o WMS
 @param param_name, param_type, param_descr
 @return return_var, return_type, return_description
 /*/
-
 User Function PSITENSPED(cInt)
 
 	Local aItensResp	:= {}		as array
@@ -302,7 +291,6 @@ WMS-INOVATECH - BUSCA RETORNO CONFIRMACAO DE PV
 @param param_name, param_type, param_descr
 @return return_var, return_type, return_description
 /*/
-
 User Function PSConfSai()
 
 	Local lOKRequest		:= ParamIXB[1]			as logical
@@ -327,14 +315,15 @@ User Function PSConfSai()
 
 			//Percorre o Array caso, tenha retornado mais de um registro
 			For nRegDet := 1 to Len(jTrataResp)
-				fGrava(jTrataResp[nRegDet])
+				fGravaF2(jTrataResp[nRegDet])
 			Next nRegDet
 		Endif
 	Endif
 
 Return()
 
-Static Function fGrava(jJsonRet)
+//
+Static Function fGravaF2(jJsonRet)
 
 	Local cStatus	:= ""	as character
 
@@ -391,9 +380,7 @@ User Function PSCancSai()
 			For nRegDet := 1 to Len(jTrataResp)
 
 				fCancC5(jTrataResp[nRegDet])
-
 			Next nRegDet
-
 		Endif
 	Endif
 
@@ -470,6 +457,24 @@ Static Function fCancF1(jJsonRet)
 		Endif
 	Endif
 
+Return()
+
+//chama a INT de atualizacao de pedido/nota entrada
+Static Function fAtuCancelamento(cTipo)
+	
+	Local oIntegracao   as object
+	
+	oIntegracao := Nil
+	
+	If cTipo == 'E'
+		oIntegracao := BasePsIntegra():New(.T.,"000056")
+	Else
+		oIntegracao := BasePsIntegra():New(.T.,"000057")
+	Endif
+
+	oIntegracao:GeraRequisicao(,,) // Faz a integracao usando o registro posicionado.
+
+	FreeObj(oIntegracao)
 Return()
 
 //Troca de Tipo de Estoque
@@ -704,22 +709,4 @@ Static Function fGrava241(_aItem)
 		ConfirmSx8()
 	EndIf
 
-Return()
-
-//chama a integração de atualização de pedido
-Static Function fAtuCancelamento(cTipo)
-	
-	Local oIntegracao   as object
-	
-	oIntegracao := Nil
-	
-	If cTipo == 'E'
-		oIntegracao := BasePsIntegra():New(.T.,"000056")
-	Else
-		oIntegracao := BasePsIntegra():New(.T.,"000057")
-	Endif
-
-	oIntegracao:GeraRequisicao(,,) // Faz a integracao usando o registro posicionado.
-
-	FreeObj(oIntegracao)
 Return()

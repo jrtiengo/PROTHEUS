@@ -4,7 +4,6 @@
 
 /*/{Protheus.doc} User Function SF1140I
    Responsável por atualizar as informações do cabeçalho de um Pré-Documento de Entrada.
-   0=NE; Não enviado ao WMS
    1=NP; enviado, mas não processo
    2=P; processado
    3=ER; processado com erros
@@ -23,7 +22,7 @@ User Function SF1140I()
 
 		If RecLock("SF1",.F.)
 
-			SF1->F1_ZSTSWMS := "0"
+			SF1->F1_ZSTSWMS := "1"
 			SF1->F1_ZCANCW	:= ""
 			SF1->(MSUnLock())
 		Endif
@@ -45,22 +44,25 @@ User Function A140ALT()
 	Local lRet := .T.	as logical
 
 	If ! IsBlind()
-		If SF1->F1_ZSTSWMS <> '0'
-			//1=Aguardando Cancelamento; 2=Cancelamento Autorizado; 3=Cancelamento Negado
-			If Empty(SF1->F1_ZCANCW)
-				FWAlertWarning("Alteracao nao permitida, solicite o cancelamento ao WMS!", "Alteracao nao permitida")
-				lRet := .F.
-			ElseIf SF1->F1_ZCANCW == '1'
-				FWAlertWarning("Alteracao nao permitida, aguardando Retorno WMS", "Alteracao nao permitida")
-				lRet := .F.
-			ElseIf SF1->F1_ZCANCW == '3'
-				FWAlertWarning("Alteracao nao permitida, cancelamento Negado", "Alteracao nao permitida")
-				lRet := .F.
-			Else
-				FWAlertSucess("Cancelamento Autorizado", "Alteracao permitida")
-				lRet := .T.
-			Endif
-		Else
+
+		DbSelectArea( "ZS3" )
+		ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE
+		cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SF1"+Alltrim(FWxFilial("SF1")+SF1->F1_DOC+'|'+SF1->F1_SERIE+'|'+SF1->F1_FORNECE+'|'+SF1->F1_LOJA+'|'+SF1->F1_TIPO)))
+
+		If cChave .and. Empty(SF1->F1_ZCANCW)
+			RecLock("SF1",.F.)
+			SF1->F1_ZCANCW		:= '1' //Cancelamento solicitado
+			SF1->(MSUnLock())
+			FWAlertWarning('Cancelamento enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+			lRet := .F.
+		Elseif cChave .and. SF1->F1_ZCANCW== '1'
+			FWAlertWarning('Cancelamento ja enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+			lRet := .F.
+		Elseif cChave .and. SF1->F1_ZCANCW == '2'
+			FWAlertSuccess('Cancelamento autorizado pelo WMS, alteracao permitida!.','ATENÇÃO WMS')
+			lRet := .T.
+		Elseif ! cChave .and. Empty(SF1->F1_ZCANCW)
+			FWAlertSuccess('Nota nao enviado WMS, alteracao permitida!.','ATENÇÃO WMS')
 			lRet := .T.
 		Endif
 	Endif
@@ -80,22 +82,25 @@ User Function A140Exc()
 	Local lRet := .T.   as logical
 
 	If ! IsBlind()
-		If SF1->F1_ZSTSWMS <> '0'
-			//1=Aguardando Cancelamento; 2=Cancelamento Autorizado; 3=Cancelamento Negado
-			If Empty(SF1->F1_ZCANCW)
-				FWAlertWarning("Exclusao nao permitida, solicite o cancelamento ao WMS!", "Exclusao nao permitida")
-				lRet := .F.
-			ElseIf SF1->F1_ZCANCW == '1'
-				FWAlertWarning("Exclusao nao permitida, aguardando Retorno WMS", "Exclusao nao permitida")
-				lRet := .F.
-			ElseIf SF1->F1_ZCANCW == '3'
-				FWAlertWarning("Exclusao nao permitida, cancelamento Negado", "Exclusao nao permitida")
-				lRet := .F.
-			Else
-				FWAlertSucess("Cancelamento Autorizado", "Exclusao permitida")
-				lRet := .T.
-			Endif
-		Else
+
+		DbSelectArea( "ZS3" )
+		ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE
+		cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SF1"+Alltrim(FWxFilial("SF1")+SF1->F1_DOC+'|'+SF1->F1_SERIE+'|'+SF1->F1_FORNECE+'|'+SF1->F1_LOJA+'|'+SF1->F1_TIPO)))
+
+		If cChave .and. Empty(SF1->F1_ZCANCW)
+			RecLock("SF1",.F.)
+			SF1->F1_ZCANCW		:= '1' //Cancelamento solicitado
+			SF1->(MSUnLock())
+			FWAlertWarning('Cancelamento enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+			lRet := .F.
+		Elseif cChave .and. SF1->F1_ZCANCW== '1'
+			FWAlertWarning('Cancelamento ja enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+			lRet := .F.
+		Elseif cChave .and. SF1->F1_ZCANCW == '2'
+			FWAlertSuccess('Cancelamento autorizado pelo WMS, alteracao permitida!.','ATENÇÃO WMS')
+			lRet := .T.
+		Elseif ! cChave .and. Empty(SF1->F1_ZCANCW)
+			FWAlertSuccess('Nota nao enviado WMS, alteracao permitida!.','ATENÇÃO WMS')
 			lRet := .T.
 		Endif
 	Endif
@@ -113,7 +118,7 @@ User Function MT140COR()
 	Local aNewCores := {}   as array
 	Local nX        := 0    as numeric
 
-	aAdd(aNewCores,{'F1_ZSTSWMS=="0"'   ,'BR_PRETO_0' })
+	//aAdd(aNewCores,{'F1_ZSTSWMS=="0"'   ,'BR_PRETO_0' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="1"'   ,'BR_PRETO_1' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="2"'   ,'BR_PRETO_2' })
 	aAdd(aNewCores,{'F1_ZSTSWMS=="3"'   ,'BR_PRETO_3' })
@@ -136,7 +141,7 @@ Return(aNewCores)
 User Function MTA140MNU
 
 	aAdd(aRotina,{OemToAnsi("Altera Envio WMS ?")	,"U_PSAUX001", 0 , 02, 0, nil})
-	aAdd(aRotina,{OemToAnsi("Cancela no WMS ?")		,"U_PSAUX002", 0 , 02, 0, nil})
+	//aAdd(aRotina,{OemToAnsi("Cancela no WMS ?")		,"U_PSAUX002", 0 , 02, 0, nil})
 
 Return()
 
@@ -161,7 +166,11 @@ User Function PSAUX001()
 		Return()
 	Endif
 
-	If SF1->F1_ZSTSWMS == '0'
+	DbSelectArea( "ZS3" )
+	ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE
+	cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SF1"+Alltrim(FWxFilial("SF1")+SF1->F1_DOC+'|'+SF1->F1_SERIE+'|'+SF1->F1_FORNECE+'|'+SF1->F1_LOJA+'|'+SF1->F1_TIPO)))
+
+	If ! cChave
 		If FWAlertYesNo("Você deseja cancelar o envio ao WMS da nota?" +' '+ SF1->F1_DOC, "Envio WMS!")
 			If RecLock("SF1",.F.)
 				SF1->F1_ZSTSWMS := "4"
@@ -170,7 +179,7 @@ User Function PSAUX001()
 			Endif
 		Endif
 	Else
-		FWAlertError("Nao e possivel alterar, Prenota - ja enviada ao WMS!", "Integração WMS!")
+		FWAlertError("Prenota - ja enviada ao WMS!", "Integração WMS!")
 	Endif
 
 Return()
@@ -181,6 +190,7 @@ Return()
    @since 01/04/2025
    @author tiengo
 /*/
+/*
 User Function PSAUX002()
 
 	If SF1->F1_ZSTSWMS <> '0'
