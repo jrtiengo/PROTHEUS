@@ -14,10 +14,9 @@ User Function MT103INC()
 
 	If lClass
 		If ! IsBlind()
-			//0-Nao enviado - 1-Enviado 3-Erros
-			If SF1->F1_ZSTSWMS == "0" .or. SF1->F1_ZSTSWMS == "1" .or. SF1->F1_ZSTSWMS == "3"
+			//So sera classificado se o WMS estiver retornado
+			If SF1->F1_ZSTSWMS <> '2'
 				lRet := .F.
-
 				FWAlertWarning("Entrar em contato com a Logistica(WMS)", "Pre-nota ainda em processamento pelo WMS")
 			Endif
 		Endif
@@ -25,6 +24,12 @@ User Function MT103INC()
 
 Return( lRet )
 
+/*/{Protheus.doc} MT103COR
+Ponto de entrada para as regras de cores do documento de entrada.
+@type     user function
+@author   tiengo
+@since   28042025
+/*/
 User Function MT103COR()
 
 	Local aNewCores := {}   as array
@@ -43,6 +48,12 @@ User Function MT103COR()
 
 Return(aNewCores)
 
+/*/{Protheus.doc} MT103LEG
+Ponto de entrada para cores da legenda do documento de entrada.
+@type     user function
+@author   tiengo
+@since   28042025
+/*/
 User Function MT103LEG()
 
 	Local aLegNew := PARAMIXB[1]    as array
@@ -54,36 +65,36 @@ User Function MT103LEG()
 
 Return(aLegNew)
 
+/*/{Protheus.doc} MT103EXC
+Ponto de entrada para validação da exclusão do documento de entrada.
+@type     user function
+@author   tiengo
+@since   28042025
+/*/
 User Function MT103EXC()
 
 	Local	lRet := .T.
 
-	If SF1->F1_ZSTSWMS == "0" .or. SF1->F1_ZSTSWMS == "4" .or. SF1->F1_ZSTSWMS == "" //Se não for enviado ou não faz parte do WMS
-
-		//1=Aguardando Cancelamento; 2=Cancelamento Autorizado; 3=Cancelamento Negado
-		If SF1->F1_ZCANCW == ''
-			If RecLock("SF1",.F.)
-
-				SF1->F1_ZCANCW := "1"
-
-				SF1->(MSUnLock())
+	If ! IsBlind()
+		If SF1->F1_ZSTSWMS <> '0'
+			//1=Aguardando Cancelamento; 2=Cancelamento Autorizado; 3=Cancelamento Negado
+			If Empty(SF1->F1_ZCANCW)
+				FWAlertWarning("Exclusao/Estorno nao permitido, solicite o cancelamento ao WMS!", "Exclusao nao permitida")
+				lRet := .F.
+			ElseIf SF1->F1_ZCANCW == '1'
+				FWAlertWarning("Exclusao/Estorno nao permitido, aguardando Retorno WMS", "Exclusao nao permitida")
+				lRet := .F.
+			ElseIf SF1->F1_ZCANCW == '3'
+				FWAlertWarning("Exclusao/Estorno nao permitido, cancelamento Negado", "Exclusao nao permitida")
+				lRet := .F.
+			Else
+				FWAlertSucess("Cancelamento Autorizado", "Exclusao permitida")
+				lRet := .T.
 			Endif
-		ElseIf SF1->F1_ZCANCW == '1'
-
-			FWAlertWarning("Aguardando Retorno WMS", "Integraçao WMS")
-			lRet := .F.
-		ElseIf SF1->F1_ZCANCW == '3'
-
-			FWAlertWarning("Cancelamento Negado", "Integraçao WMS")
-			lRet := .F.
-		Else
+		Else 
 			lRet := .T.
 		Endif
-	Else
-
-		lRet := .F.
-		FWAlertWarning("Nota já processada, não poderá ser excluida", "Integraçao WMS")
-	EndIf
+	Endif
 
 Return (lRet)
 

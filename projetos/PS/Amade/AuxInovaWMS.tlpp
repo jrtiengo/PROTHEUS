@@ -340,7 +340,7 @@ Static Function fGrava(jJsonRet)
 
 	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
 	cPed 			:= jJsonRet:GetJSonObject('CS_REF_DOCUMENTO')
-	cNota			:= jJsonRet:GetJSonObject('CB_NUM_NOTA_FISCAL')
+	cNota			:= Padl(jJsonRet:GetJSonObject('CB_NUM_NOTA_FISCAL'),tamsx3('F2_DOC')[1],'0')
 	cSerie			:= jJsonRet:GetJSonObject('CB_SERIE_NOTA_FISCAL')
 
 	If ! Empty(cStatus) .and. ! Empty(cNota)
@@ -356,6 +356,7 @@ Static Function fGrava(jJsonRet)
 	If ! Empty(cStatus)  .and. ! Empty(cPed)
 		If SC5->(MSSeek(FWxFilial('SC5')+cPed))
 			If cStatus == 'NP'
+				RecLock("SC5",.F.)
 				SC5->C5_ZDTDESP		:= dDataBase
 				SC5->C5_XLIBOK		:= 'S' //Liberado
 				SC5->(MSUnLock())
@@ -389,7 +390,7 @@ User Function PSCancSai()
 			//Percorre o Array caso, tenha retornado mais de um registro
 			For nRegDet := 1 to Len(jTrataResp)
 
-				fCancF2(jTrataResp[nRegDet])
+				fCancC5(jTrataResp[nRegDet])
 
 			Next nRegDet
 
@@ -398,25 +399,21 @@ User Function PSCancSai()
 
 Return()
 
-Static Function fCancF2(jJsonRet)
+Static Function fCancC5(jJsonRet)
 
 	Local cStatus	:= ""	as character
 
 	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
 
-	SF2->(DbSetOrder(1))//F2_FILIAL+F2_DOC+F2_SERIE+F2_CLIENTE+F2_LOJA+F2_FORMUL+F2_TIPO
-
-	If SF2->(MSSeek(FWxFilial('SF2')+SD2->D2_DOC+SD2->D2_SERIE))
+	If SC5->(MSSeek(FWxFilial('SC5')+SC5->C5_NUM))
 
 		If ! Empty(cStatus)
-
 			If cStatus == 'NP'
+				RecLock("SC5",.F.)
+				SC5->C5_ZCANCW := '2' //Autoriza o cancelamento
+				SC5->(MSUnLock())
 
-				RecLock("SF2",.F.)
-
-				SF2->F2_ZCANCW := '2' //Autoriza o cancelamento
-
-				SF2->(MSUnLock())
+				fAtuCancelamento('S') //chama funcao para atualizar o status no WMS
 			Endif
 		Endif
 	Endif
@@ -464,14 +461,12 @@ Static Function fCancF1(jJsonRet)
 	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
 
 	If ! Empty(cStatus)
-
 		If cStatus == 'NP'
-
 			RecLock("SF1",.F.)
-
 			SF1->F1_ZCANCW := '2' //Autoriza o cancelamento
-
 			SF1->(MSUnLock())
+
+			fAtuCancelamento('E') //chama funcao para atualizar o status no WMS
 		Endif
 	Endif
 
@@ -597,7 +592,7 @@ Static Function fGrava261(aLinha)
 		ConfirmSx8()
 
 		RecLock("SD3",.F.)
-		SF1->D3_ZSTSWMS	:= '1' //customizado, indica que veio WMS
+		SD3->D3_ZSTSWMS	:= '1' //customizado, indica que veio WMS
 		SD3->(MSUnLock())
 	EndIf
 
@@ -709,4 +704,22 @@ Static Function fGrava241(_aItem)
 		ConfirmSx8()
 	EndIf
 
+Return()
+
+//chama a integração de atualização de pedido
+Static Function fAtuCancelamento(cTipo)
+	
+	Local oIntegracao   as object
+	
+	oIntegracao := Nil
+	
+	If cTipo == 'E'
+		oIntegracao := BasePsIntegra():New(.T.,"000056")
+	Else
+		oIntegracao := BasePsIntegra():New(.T.,"000057")
+	Endif
+
+	oIntegracao:GeraRequisicao(,,) // Faz a integracao usando o registro posicionado.
+
+	FreeObj(oIntegracao)
 Return()

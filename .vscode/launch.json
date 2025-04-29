@@ -76,8 +76,11 @@
 		},
 		{
 			"label": "7"
+		},
+		{
+			"label": "PSINTEGRA"
 		}
 	],
-	"lastProgramExecuted": "sigamdi",
+	"lastProgramExecuted": "U_PSINTMON",
 	"lastProgramArguments": []
 }

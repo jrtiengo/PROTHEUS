@@ -19,8 +19,9 @@ If AllTrim( SF1->F1_MSFIL ) <> AllTrim( SM0->M0_CODFIL )
    lRet := .F.
 EndIf
 
-//Validação para não permitir a exclusão da nota, se a nota já foi despachada.
 
+//Validação para não permitir a exclusão da nota, se a nota já foi despachada.
+/*
 	If SF1->F1_ZSTSWMS = '2'
 
 		FWAlertError("Nota já despachada pelo WMS", "Cancelamento não autorizado")
@@ -49,5 +50,5 @@ EndIf
          lRet := .F.
 		Endif
 	Endif
-
+*/
 Return lRet

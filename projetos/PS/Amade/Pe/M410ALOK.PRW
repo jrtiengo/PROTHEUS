@@ -83,26 +83,48 @@ If Altera
 				Alert("Pedido está em processo de impressão pela Expedição ou Retira. Não pode ser alterado.")
 				_lRet := .F.
 			Elseif !SC5->C5_XLIBOK $ "Z,W,L"                                     //Se Pedido NÃO estiver liberado para Expedição, Recepcionado ou Em separação;
-				_lRet := .T.                                                      //Permite
-			Elseif SC5->C5_XLIBOK $ "L"                                          //Se liberado para Expedição
-				Alert("Pedido já foi liberado para WMS. Não pode ser alterado.")
-				_lRet := .F.                                                      //Permite
-				/* ALTERADO PARA WMS - 17/04/2025
+				_lRet := .T.                                                     //Permite
+			Elseif SC5->C5_XLIBOK $ "L"								             //Se liberado para Expedição
+				_lRet := .F.     
+				
+				//Tratamento para permitir cancelamento do pedido no WMS
+				DbSelectArea( "ZS3" )
+				ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE 
+				cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SC5"+FWxFilial("SC5")+'|'+SC5->C5_NUM))
+				
+				If cChave .and. Empty(SC5->C5_ZCANCW)
+						RecLock("SC5",.F.)
+						SC5->C5_ZCANCW		:= '1' //Cancelamento solicitado
+						SC5->(MSUnLock())	
+						FWAlertWarning('Pedido enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+					    _lRet := .F. 
+				Elseif cChave .and. SC5->C5_ZCANCW == '1'
+					FWAlertWarning('Pedido ja enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
+					_lRet := .F. 
+				Elseif cChave .and. SC5->C5_ZCANCW == '2'
+					FWAlertWarning('Pedido ja cancelado no WMS, alteracao permitida!.','ATENÇÃO WMS')
+					_lRet := .T.
+				Elseif ! cChave .and. Empty(SC5->C5_ZCANCW)
+					FWAlertWarning('Pedido nao enviado WMS, alteracao permitida!.','ATENÇÃO WMS')
+					_lRet := .T.
+				Endif                                                
+				
+				/*
 				lResp := msgbox("Pedido já foi liberado para Expedição mas ainda não foi recepcionado. Se continuar será necessário liberar novamente. Deseja mesmo alterar?","Atenção!", "YESNO")
 				if _lResp
-					_lRet := .T.            //Permite
+					_lRet := .T.            //Permite                                                                                                             
 				Else
 					Alert("Alteração cancelada.")
 					_lRet := .F.            //Não permite
 				Endif
 				*/
-			Else
-				Alert("Pedido já recepcionado pela Expedição ou Retira. Não pode ser alterado.")
-				_lRet := .F.
-			Endif
-		Endif
-		////////////////////////////////////
-	EndIf
+Else
+	Alert("Pedido já recepcionado pela Expedição ou Retira. Não pode ser alterado.")
+	_lRet := .F.
+Endif
+Endif
+
+EndIf
 EndIf
 //  Alteracao em 30/12/2004
 
@@ -150,6 +172,7 @@ If SC5->C5_XLIBOK $ "L" .and. _lRet .and. Altera        // Se estava liberado pa
 	SC5->C5_XLIBOK      := ""                           // Muda status para pedido em aberto
 	SC5->C5_XDTHLIB     := ""                           // Limpa data da liberação para Expedição
 	SC5->C5_XCODBAR     := ""                           // Limpa o código de barras que identifica a versão liberada anteriormente
+	SC5->C5_ZCANCW	    := ""                           // Limpa o código de cancelamento enviado ao WMS
 	MsUnLock()
 Endif
 
