@@ -1,0 +1,595 @@
+#include "totvs.ch"
+
+/******************************************************************************************
+* Autor...........: Vitor Seide
+* Data............: 16/04/2025
+* Descrição.......: Função para importação de produtos a partir de um arquivo CSV.
+* Arquivo.........: PsImpPrd.tlpp
+* Observações.....: Certifique-se de que o arquivo CSV esteja formatado corretamente.
+******************************************************************************************/
+User Function PsImpPrd()
+Local nPrd          := 0
+Local nCountFail    := 0
+Local nLimitFail    := 0
+Local aProdutos     := fExcelPrd()
+Private lIncSB1     := .F.
+Private lAltSB1     := .T.
+Private lIncSB5     := .T.
+Private lAltSB5     := .T.
+
+    If Len(aProdutos) > 0
+      
+        For nPrd := 1 to Len(aProdutos)
+
+            If nLimitFail > 0
+                If nCountFail >= nLimitFail
+                    Exit
+                EndIf
+            EndIf
+            
+            If aProdutos[nPrd][1]
+                
+                If Len(aProdutos[nPrd][5]) > 0
+                    aProdutos[nPrd][2] += Iif(Empty(Alltrim(aProdutos[nPrd][2])),'','; ') + 'SB1->' + fIncSB1(aProdutos[nPrd][3],aProdutos[nPrd][5])
+                EndIf
+                If Len(aProdutos[nPrd][6]) > 0 .and. aProdutos[nPrd][3] > 0
+                    aProdutos[nPrd][2] += Iif(Empty(Alltrim(aProdutos[nPrd][2])),'','; ') + 'SB5->' + fIncSB5(aProdutos[nPrd][4],aProdutos[nPrd][6])
+                EndIf
+
+                If !('Alterado produto com sucesso' $ aProdutos[nPrd][2] .or. 'Incluido produto com sucesso' $ aProdutos[nPrd][2])
+                    nCountFail++
+                EndIf
+
+            EndIf
+        Next nPrd
+
+        fExpPrd(aProdutos)
+    
+    Else
+        FWAlertWarning(OemToAnsi("Nenhum registro identificado."),"Nenhuma registro identificado.")
+    EndIf
+
+Return
+
+Static Function fExcelPrd()
+Local	cArqTxt 	:= cGetFile("CSV (separado por virgula) | *.CSV | ",OemToAnsi("Importar produtos."),,,,GETF_LOCALHARD)
+Local   aColunas    := {}
+Local	aRegistros	:= {}
+Local   oFile
+Local   aLinhas     := {}
+Local   lFilSB1     := .F.
+Local   aDadSB1     := {}
+LOcal   lSB1        := .F.
+Local   lFilSB5     := .F.
+Local   aDadSB5     := {}
+Local   lSB5        := .F.
+Local   cVldExcel   := ''
+Local   cVldLinha   := ''
+Local   xConteudo
+Local   nPosFil     := 0
+Local   nPosPrd     := 0
+Local   cCodPrd     := ''
+Local   cCodFil     := ''
+Local   nRecnoSB1   := 0
+Local   nRecnoSB5   := 0
+Local   lExit       := .F.
+Local   cTabela     := ''
+Local   cCampo      := ''
+Local	nLin    	:= 0 
+Local   nCol        := 0
+Local   nLinTot     := 0
+Local   nPos        := 0
+
+    If	Empty(cArqTxt)
+        Return {}
+    EndIf
+    If	! File(cArqTxt)
+        MsgAlert(OemToAnsi("Arquivo não encontrado."))
+        Return {}
+    EndIf
+
+    oFile := FWFileReader():New(cArqTxt)
+    If oFile:Open()
+        aLinhas := oFile:GetAllLines()
+        oFile:Close()
+    Else
+        MsgAlert(OemToAnsi("O arquivo de nome "+cArqTxt+" nao pode ser aberto! "),OemToAnsi("Atenção!"))
+        Return {}
+    EndIf
+
+    DbSelectArea("SB1")
+    SB1->(DbSetOrder(1))
+    lFilSB1 := !Empty(Alltrim(xFilial('SB1')))
+
+    DbSelectArea("SB5")
+    SB5->(DbSetOrder(1))
+    lFilSB5 := !Empty(Alltrim(xFilial('SB5')))
+
+    // Passa pela primeira linha para pegar os campos a serem atualizados
+    cLinha      := aLinhas[1]
+    cLinha      := StrTran(cLinha,'ï»¿','') //Retira carecter do excel
+    cLinha      := StrTran(cLinha,' ','') //Retira espaços dos campos
+    While !lExit
+
+        // Verifica a linha completa
+        nLimite 	:= At(";",cLinha)-1
+        // Para pegar a ultima coluna
+        If nLimite <= 0
+            If Len(Alltrim(cLinha)) > 0
+                nLimite := Len(Alltrim(cLinha))
+            EndIf
+        EndIf
+
+        If nLimite > 0
+
+            // Reseta variaveis
+            cCampo  := ''
+            cTabela := ''
+            cCombo  := ''
+            aCombo  := {}
+            nCombo  := 0
+
+            // Carrega o nome do campo na coluna
+            cCampo  := SubStr(cLinha,1,nLimite)
+            cCampo 	:= Alltrim(Upper(cCampo))
+            // Tira a parte utilizada
+            If	nLimite <= Len(cLinha)
+                cLinha := SubStr(cLinha,nLimite+2,Len(cLinha)) 
+            EndIf
+
+            // Define a tabela do campo
+            If SubStr(cCampo,1,2) = 'B1'
+                cTabela := 'SB1'
+                lSB1    := .T.
+            ElseIf SubStr(cCampo,1,2) = 'B5'
+                cTabela := 'SB5'
+                lSB5    := .T.
+            Else
+                cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Essa importação apenas suporta campos das tabelas SB1 e SB5. Coluna invalida: ' + cCampo
+            EndIf
+
+            // Se a tabela existe
+            If !Empty(Alltrim(cTabela))
+                
+                // Se o campo existe na tabela
+                If (cTabela)->(FieldPos(cCampo)) > 0
+                    If GetSx3Cache(cCampo,"X3_CONTEXT") <> 'V'
+
+                        If aScan(aColunas,{|x| Alltrim(x[1]) == Alltrim(cCampo)}) <= 0
+                            // Verifica se tem combo
+                            cCombo  := GetSx3Cache(cCampo,"X3_CBOX")
+                            If !Empty(Alltrim(cCombo))
+                                aCombo  := StrTokArr(cCombo,';')
+                            EndIf
+
+                            // Adiciona as colunas
+                            aAdd(aColunas,{ cTabela,;
+                                            cCampo,;
+                                            GetSx3Cache(cCampo,"X3_TIPO"),;
+                                            GetSx3Cache(cCampo,"X3_TAMANHO"),;
+                                            GetSx3Cache(cCampo,"X3_DECIMAL"),;
+                                            aCombo})
+                        Else
+                            cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Coluna duplicada no arquivo excel. Coluna invalida: ' + cCampo
+                        EndIf
+                    Else
+                        cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Campo enviado não é fisico, apenas virtual. Coluna invalida: ' + cCampo
+                    EndIf
+                Else
+                    cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Campo não identificado na tabela. Coluna invalida: ' + cCampo
+                EndIf
+
+            EndIf
+
+        Else
+
+            lExit := .T.
+        EndIf
+
+    EndDo
+
+    nPosPrd := aScan(aColunas,{|x| Alltrim(x[2]) == 'B1_COD'})
+    If nPosPrd <=0
+        nPosPrd := aScan(aColunas,{|x| Alltrim(x[2]) == 'B5_COD'})
+    EndIf
+    If nPosPrd <= 0
+        cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Não foi definido coluna com codigo do produto.'
+    EndIf
+    If lFilSB1 .or. lFilSB5
+        nPosFil := aScan(aColunas,{|x| Alltrim(x[2]) == 'B1_FILIAL'})
+        If nPosFil <=0
+            nPosFil := aScan(aColunas,{|x| Alltrim(x[2]) == 'B5_FILIAL'})
+        EndIf
+        If nPosFil <= 0
+            cVldExcel += IIf(Empty(Alltrim(cVldExcel)),'','; ') + 'Erro Planilha - Não foi definido coluna com filial do produto e é obrigatorio nessa empresa.'
+        EndIf
+    EndIf
+
+    If Empty(Alltrim(cVldExcel))
+        For nLin := 2 to Len(aLinhas) // Inicia a partir da segunda linha para pegar os dados
+
+            // Reseta variaveis
+            cVldLinha   := ''
+            cCodPrd     := ''
+            cCodFil     := ''
+            aDadSB1     := {}
+            aDadSB5     := {}
+            nRecnoSB1   := 0
+            nRecnoSB5   := 0
+            nCombo      := 0
+            cOpcCmb     := ''
+            nLinTot++
+
+            // Verifica a linha completa
+            cLinha      := aLinhas[nLin]
+            cLinha      := StrTran(cLinha,'ï»¿','') //Retira carecter do excel
+
+            // Passa por cada coluna
+            For nCol := 1 to Len(aColunas)
+
+                nLimite 	:= At(";",cLinha)-1
+                nLimite		:= IIf(nLimite<0,Len(cLinha),nLimite)
+                xConteudo 	:= SubStr(cLinha,1,nLimite) // Pega a primeira coluna
+                If	nLimite <= Len(cLinha)
+                    cLinha := SubStr(cLinha,nLimite+2,Len(cLinha)) // Tira a parte utilizada
+                EndIf
+                
+                // Validações e modificações
+
+                // Campo COMBOBOX
+                    If Len(aColunas[nCol][6]) > 0
+                        
+                        nCombo  := aScan(aColunas[nCol][6],{|x| SubStr(FwNoAccent(Alltrim(Upper(x))),1,(At('=',x)-1)) == Alltrim(FwNoAccent(Upper(xConteudo))) })
+                        If nCombo <= 0
+                            nCombo  := aScan(aColunas[nCol][6],{|x| SubStr(FwNoAccent(Alltrim(Upper(x))),(At('=',x)+1)) == Alltrim(FwNoAccent(Upper(xConteudo))) })
+                        EndIf
+                        
+                        If nCombo > 0
+                            cOpcCmb     := SubStr(aColunas[nCol][6][nCombo],1,At('=',aColunas[nCol][6][nCombo])-1)
+                            xConteudo   := cOpcCmb                    
+                        EndIf
+
+                    EndIf
+
+                // Validação de tipagem
+                    Do Case
+                        Case aColunas[nCol][3] == 'C'
+                            xConteudo := SubStr(xConteudo,1,aColunas[nCol][4])
+
+                        Case aColunas[nCol][3] == 'N'
+                            xConteudo := Val(xConteudo)
+                            xConteudo := Round(xConteudo,aColunas[nCol][5])
+
+                        Case aColunas[nCol][3] == 'D'
+                            If !('/' $ xConteudo)
+                                xConteudo := StoD(DtoC(xConteudo))
+                            EndIf
+
+                        Case aColunas[nCol][3] == 'M'
+
+                    EndCase
+
+                // Validação de tamanho de conteudo
+                     Do Case
+                        Case aColunas[nCol][3] == 'C'
+                            If Len(Alltrim(xConteudo)) > aColunas[nCol][4]
+                                cVldLinha += IIf(Empty(Alltrim(cVldLinha)),'','; ') + 'Erro Linha - O conteudo enviado na coluna ' + aColunas[nCol][2] + ' é maior que o permitido no campo. '
+                            EndIf
+
+                        Case aColunas[nCol][3] == 'N'
+                            If Len(Alltrim(cValToChar(xConteudo))) > aColunas[nCol][4]-aColunas[nCol][5]
+                                cVldLinha += IIf(Empty(Alltrim(cVldLinha)),'','; ') + 'Erro Linha - O conteudo enviado na coluna ' + aColunas[nCol][2] + ' é maior que o permitido no campo. '
+                            EndIf
+
+                    EndCase 
+
+                //Se for o codigo do produto, anota para usar no posicionamento
+                If nCol == nPosPrd
+                    cCodPrd := xConteudo
+                EndIf
+                If nCol == nPosFil
+                    cCodFil := xConteudo
+                EndIf
+
+                // Adiciona a linha
+                If aColunas[nCol][2] = 'B1_COD' .or. aColunas[nCol][2] = 'B5_COD'
+                    If lSB1
+                        nPos := aScan(aDadSB1,{|x| Alltrim(x[1]) = 'B1_COD'})
+                        If nPos <= 0
+                            aAdd(aDadSB1,{'B1_COD',xConteudo})
+                        EndIf
+                    EndIf
+                    If lSB5
+                        nPos := aScan(aDadSB5,{|x| Alltrim(x[1]) = 'B5_COD'})
+                        If nPos <= 0
+                            aAdd(aDadSB5,{'B5_COD',xConteudo})
+                        EndIf
+                    EndIf
+                ElseIf aColunas[nCol][1] = 'SB1'
+                    aAdd(aDadSB1,{aColunas[nCol][2],xConteudo})
+                Else // SB5
+                    aAdd(aDadSB5,{aColunas[nCol][2],xConteudo})
+                EndIf
+            
+            Next nCol
+
+            If Empty(Alltrim(cCodPrd))
+                cVldLinha += IIf(Empty(Alltrim(cVldLinha)),'','; ') + 'Erro Linha - Não foi identificado o codigo do produto.'
+            Else
+                SB1->(DbGoTop())
+                
+                If SB1->(DbSeek(xFilial("SB1",cCodFil)+Padr(cCodPrd,TamSx3("B1_COD")[1])))
+                    nRecnoSB1 := SB1->(Recno())
+                EndIf
+                If lSB5
+                    SB5->(DbGoTop())
+                    If SB5->(DbSeek(xFilial("SB5",cCodFil)+Padr(cCodPrd,TamSx3("B5_COD")[1])))
+                        nRecnoSB5   := SB5->(Recno())
+                    EndIf
+                EndIf
+            EndIf
+        
+            // Adiciona a linha
+            aAdd(aRegistros,{Empty(Alltrim(cVldLinha)),;
+                            cVldLinha,;
+                            nRecnoSB1,;
+                            nRecnoSB5,;
+                            aDadSB1,;
+                            aDadSB5,;
+                            nLin,;
+                            cCodPrd;
+            })
+
+        Next j
+    Else 
+        MsgAlert(cVldExcel)
+    EndIf
+		
+Return aRegistros
+
+Static Function fIncSB1(nRecno,aDados)
+Local cRetorno      := ''
+Local nOpc          := 4
+Local aErro         := {}
+Local nErro         := 1
+Local nField        := 1
+Private lMsErroAuto := .F.
+Default nRecno      := 0
+Default aDados      := {}
+
+    If Len(aDados) > 0
+
+        If nRecno > 0 
+            
+            If lAltSB1
+
+                // Definição de metodo
+                nOpc    := 4 // Alteração
+                
+                DbSelectArea("SB1")
+                SB1->(DbGoTo(nRecno))
+                If nRecno == SB1->(Recno())
+
+                    // Ordenação
+                    aDados := FWVetByDic(aDados,'SB1')
+                    
+                    If RecLock("SB1",.F.)
+                        For nField := 1 to Len(aDados)
+                            If aDados[nField][1] <> 'B1_FILIAL' .and. aDados[nField][1] <> 'B1_COD'
+                                Replace &('SB1->'+aDados[nField][1]) With aDados[nField][2]
+                            EndIf
+                        Next nField
+                        SB1->(MsUnlock())
+                        cRetorno := 'Alterado produto com sucesso'
+                    EndIf
+                    
+                    /*MSExecAuto({|x,y| Mata010(x,y)},aDados,nOpc)
+                    
+                    If !lMsErroAuto
+                        cRetorno := 'Alterado produto com sucesso'
+                    Else
+                        aErro := GetAutoGRLog()
+                        If Len(aErro) > 0
+                            For nErro := 1 To Len(aErro)
+                                cRetorno += aErro[nErro] + CRLF
+                            Next nErro
+                        Else
+                            cRetorno := MostraErro('C:\temp')
+                        EndIf
+                    EndIf*/
+
+                Else
+                    cRetorno := 'Não foi possivel posicionar no produto'
+                EndIf
+            Else
+                cRetorno := 'Identificado produto, mas não pode ser alterado um existente'
+            EndIf
+        Else
+            // Se for inclusão
+            If lIncSB1
+
+                // Definição de metodo
+                nOpc    := 3 // Inclusão
+              
+                // Ordenação
+                aDados := FWVetByDic(aDados,'SB1')
+                
+                If RecLock("SB1",.T.)
+                    For nField := 1 to Len(aDados)
+                        Replace &('SB1->'+aDados[nField][1]) With aDados[nField][2]
+                    Next nField
+                    SB1->(MsUnlock())
+                    cRetorno := 'Incluido produto com sucesso'
+                EndIf
+                
+                /*MSExecAuto({|x,y| Mata010(x,y)},aDados,nOpc)
+                
+                If !lMsErroAuto
+                    cRetorno := 'Incluido produto com sucesso'
+                Else
+                    aErro := GetAutoGRLog()
+                    If Len(aErro) > 0
+                        For nErro := 1 To Len(aErro)
+                            cRetorno += aErro[nErro] + CRLF
+                        Next nErro
+                    Else
+                        cRetorno := MostraErro('C:\temp')
+                    EndIf
+                EndIf*/
+               
+            Else
+                cRetorno := 'Inclusão de produto não permitida'
+            EndIf
+
+        EndIf
+
+    Else
+        cRetorno := 'Não identificado dados para inserir o produto'
+    EndIf
+
+Return cRetorno
+
+Static Function fIncSB5(nRecno,aDados)
+Local cRetorno      := ''
+Local nOpc          := 4
+Local aErro         := {}
+Local nErro         := 1
+Local nField        := 1
+Private lMsErroAuto := .F.
+Default nRecno      := 0
+Default aDados      := {}
+
+    If Len(aDados) > 0
+
+        // Se for alteração
+        If nRecno > 0
+
+            If lAltSB5
+                
+                // Definição de metodo
+                nOpc    := 4 // Alteração
+
+                DbSelectArea("SB5")
+                SB5->(DbGoTo(nRecno))
+                If nRecno == SB5->(Recno())
+
+                    // Ordenação
+                    aDados := FWVetByDic(aDados,'SB5')
+                    
+                    If RecLock("SB5",.F.)
+                        For nField := 1 to Len(aDados)
+                            If aDados[nField][1] <> 'B5_FILIAL' .and. aDados[nField][1] <> 'B5_COD'
+                                Replace &('SB5->'+aDados[nField][1]) With aDados[nField][2]
+                            EndIf
+                        Next nField
+                        SB5->(MsUnlock())
+                        cRetorno := 'Alterado complemento com sucesso'
+                    EndIf
+                    
+                    /*MSExecAuto({|x,y| MATA180(x,y)},aDados,nOpc)
+                    
+                    If !lMsErroAuto
+                        cRetorno := 'Alterado complemento com sucesso'
+                    Else
+                        aErro := GetAutoGRLog()
+                        If Len(aErro) > 0
+                            For nErro := 1 To Len(aErro)
+                                cRetorno += aErro[nErro] + CRLF
+                            Next nErro
+                        Else
+                            cRetorno := MostraErro('C:\temp')
+                        EndIf
+                    EndIf*/
+                Else
+                    cRetorno := 'Não foi possivel posicionar no complemento'
+                EndIf
+
+            Else
+                cRetorno := 'Identificado complemento, mas não pode ser alterado um existente'
+            EndIf
+
+        Else
+            // Se for inclusão
+            If lIncSB5
+
+                // Definição de metodo
+                nOpc          := 3 // Inclusão
+                
+                // Ordenação
+                aDados := FWVetByDic(aDados,'SB5')
+                
+                If RecLock("SB5",.T.)
+                    For nField := 1 to Len(aDados)
+                        Replace &('SB5->'+aDados[nField][1]) With aDados[nField][2]
+                    Next nField
+                    SB5->(MsUnlock())
+                    cRetorno := 'Incluido complemento com sucesso'
+                EndIf
+                
+                /*MSExecAuto({|x,y| MATA180(x,y)},aDados,nOpc)
+                
+                If !lMsErroAuto
+                    cRetorno := 'Incluido complemento com sucesso'
+                Else
+                    aErro := GetAutoGRLog()
+                    If Len(aErro) > 0
+                        For nErro := 1 To Len(aErro)
+                            cRetorno += aErro[nErro] + CRLF
+                        Next nErro
+                    Else
+                        cRetorno := MostraErro('C:\temp')
+                    EndIf
+                EndIf*/
+
+            Else
+                cRetorno := 'Inclusão de complemento não permitida'
+            EndIf
+        EndIf
+
+    Else
+        cRetorno := 'Não identificado dados para inserir o complemento'
+    EndIf
+
+Return cRetorno
+
+Static Function fExpPrd(aProdutos)
+Local oFWMsExcel
+Local oExcel
+Local cArquivo      := GetTempPath()+'imp_produtos.xml'
+Local nLin          := 1
+    
+    //Criando o objeto que irá gerar o conteúdo do Excel
+    oFWMsExcel := FWMSExcel():New()
+
+    //Aba 01 - Campos
+    oFWMsExcel:AddworkSheet("Produtos") //Não utilizar número junto com sinal de menos. Ex.: 1-
+
+    //Criando a Tabela
+    oFWMsExcel:AddTable("Produtos","Status da Importação")
+
+    //Criando Colunas
+    oFWMsExcel:AddColumn("Produtos","Status da Importação","Linha Planilha",1,2) 
+    oFWMsExcel:AddColumn("Produtos","Status da Importação","Produto",1,1) 
+    oFWMsExcel:AddColumn("Produtos","Status da Importação","Mensagem",1,1) 
+
+    For nLin := 1 to Len(aProdutos)
+        oFWMsExcel:AddRow("Produtos","Status da Importação",;
+                                        {aProdutos[nLin][7],;
+                                        aProdutos[nLin][8],;
+                                        aProdutos[nLin][2];
+                                        })
+    Next nLin
+
+    //Ativando o arquivo e gerando o xml
+    oFWMsExcel:Activate()
+    oFWMsExcel:GetXMLFile(cArquivo)
+
+    //Abrindo o excel e abrindo o arquivo xml
+    If  FWAlertYesNo("O arquivo foi gerado com sucesso em: "+AllTrim(cArquivo)+". Deseja abrir o Excel?", "Abrir Arquivo do Excel?")
+        oExcel := MsExcel():New()           // Abre uma nova conexão com Excel
+        oExcel:WorkBooks:Open(cArquivo)     // Abre uma planilha
+        oExcel:SetVisible(.T.)              // Visualiza a planilha
+        oExcel:Destroy()                    // Encerra o processo do gerenciador de tarefas
+    EndIf
+
+Return

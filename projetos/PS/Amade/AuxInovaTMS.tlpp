@@ -1,0 +1,140 @@
+#include 'totvs.ch'
+#INCLUDE "TBICONN.CH"
+#include "Fileio.ch"
+#INCLUDE "protheus.ch"
+
+/*/{Protheus.doc} 
+Monta o Array de Itens de saida para o TMS
+@type user function
+@author Tiengo
+@since 30/04/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+User Function PSNOTAITENS()
+
+	Local aItens		:= {}		as array
+	Local cChave	    := ""		as character
+	Local cProduto		:= ""		as character
+
+	DbSelectArea("SD2")
+	SD2->(DbSetOrder(3)) //D2_FILIAL+D2_DOC+D2_SERIE+D2_CLIENTE+D2_LOJA+D2_COD+D2_ITEM
+
+	cChave	:= FWxFilial("SF2")+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA
+
+	If SD2->(MSSeek(cChave))
+
+		While ! SD2->(Eof()) .and. cChave == FWxFilial("SD2")+SD2->D2_DOC+SD2->D2_SERIE+SD2->D2_CLIENTE+SD2->D2_LOJA
+
+			aAdd(aItens,JsonObject():New())
+
+			cProduto :=   Padr(Alltrim(SD2->D2_COD),tamsx3('D3_COD')[1])
+
+			aItens[Len(aItens)]["CNPJ_EMBARCADOR"]					:= FWSM0Util():GetSM0Data()[11][2]
+			aItens[Len(aItens)]["CNPJ_EMISSOR"]						:= FWSM0Util():GetSM0Data()[11][2]
+			aItens[Len(aItens)]["NUM_NF"]							:= Alltrim(SF2->F2_DOC)
+			aItens[Len(aItens)]["SERIE_NF"]							:= Alltrim(SF2->F2_SERIE)
+			aItens[Len(aItens)]["COD_PRODUTO"]						:= Alltrim(SD2->D2_COD)
+			aItens[Len(aItens)]["DESC_PRODUTO"]						:= Substring(Posicione('SB1', 1, FWxFilial('SB1') + cProduto, 'B1_DESC'),1,50)
+			aItens[Len(aItens)]["QTDE"]								:= SD2->D2_QUANT
+			aItens[Len(aItens)]["VLR_UNIT"]							:= SD2->D2_PRCVEN
+			aItens[Len(aItens)]["ALTURA_PRODUTO"]					:= Posicione('SB5', 1, FWxFilial('SB1') + cProduto, 'B5_ALTURLC')
+			aItens[Len(aItens)]["LARGURA_PRODUTO"]					:= Posicione('SB5', 1, FWxFilial('SB1') + cProduto, 'B5_LARGLC')
+			aItens[Len(aItens)]["COMPRIMENTO_PRODUTO"]				:= Posicione('SB5', 1, FWxFilial('SB1') + cProduto, 'B5_COMPRLC')
+
+			SD2->(dbSkip())
+		EndDo
+	Endif
+
+Return(aItens)
+
+/*/{Protheus.doc} 
+Retornar o objeto M3_VOL para o TMS
+@type user function
+@author Tiengo
+@since 30/04/2025
+@param param_name, param_type, param_descr
+@return return_var, return_type, return_description
+/*/
+User Function PSNOTAVOL()
+
+	Local nAltura		:= 0					as numeric
+	Local nLargura		:= 0					as numeric
+	Local nCompr		:= 0					as numeric
+	Local nM3			:= 0					as numeric
+	Local cChave		:= ""					as character
+
+	DbSelectArea("SD2")
+	SD2->(DbSetOrder(3)) //D2_FILIAL+D2_DOC+D2_SERIE+D2_CLIENTE+D2_LOJA+D2_COD+D2_ITEM
+
+	cChave	:= FWxFilial("SF2")+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA
+
+	If SD2->(MSSeek(cChave))
+
+		While ! SD2->(Eof()) .and. cChave == FWxFilial("SD2")+SD2->D2_DOC+SD2->D2_SERIE+SD2->D2_CLIENTE+SD2->D2_LOJA
+
+			cProduto 		:=  Padr(Alltrim(SD2->D2_COD),tamsx3('D2_COD')[1])
+			nAltura 		:=	Posicione('SB5', 1, FWxFilial('SB5') + cProduto, 'B5_ALTURLC')
+			nLargura		:=	Posicione('SB5', 1, FWxFilial('SB5') + cProduto, 'B5_LARGLC')
+			nCompr			:=	Posicione('SB5', 1, FWxFilial('SB5') + cProduto, 'B5_COMPRLC')
+
+			nM3	+= nAltura * nLargura * nCompr / 1000000
+
+			SD2->(dbSkip())
+		EndDo
+	Endif
+
+Return(nM3)
+
+User Function PSSTSTMS()
+
+	Local cChave	    	:= ""		as character
+	Local lOKRequest		:= ParamIXB[1]			as logical
+	Local cJSonRecebido		:= ParamIXB[4]			as character
+	Local cMetodo			:= ParamIXB[5]			as character
+	Local jTrataResp    	:= JsonObject():New() 	as object
+	Local nFrete			:= 0					as numeric
+
+	If lOKRequest
+		cChave	:= FWxFilial("SF2")+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA
+
+		If cMetodo == 'POST'
+			If SF2->(MSSeek(cChave))
+
+				RecLock("SF2",.F.)
+				SF2->F2_ZSTSTMS 	:= '1'
+				SF2->(MSUnLock())
+			Endif
+		Else
+			cRetTry := jTrataResp:FromJson(cJSonRecebido)
+
+			If ( ValType(cRetTry) <> "U" )
+
+				U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
+			Else //Obteve Sucesso.
+
+				nFrete 	:= jTrataResp:GetJSonObject('FRETE_VALOR')
+				
+				If SF2->(MSSeek(cChave))
+
+					RecLock("SF2",.F.)
+					SF2->F2_ZSTSTMS 	:= '2'
+					SF2->F2_FRETE		:= nFrete //falta preecnher
+					SF2->(MSUnLock())
+
+					lGrava := .T.
+				Endif
+
+				If lGrava
+					SC5->(DbSetOrder(20))
+					If SC5->(MSSeek(FWxFilial('SC5')+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA))
+						RecLock("SC5",.F.)
+						SC5->C5_FRETE	= nFrete
+						SC5->(MSUnLock())
+					Endif
+				Endif
+			Endif
+		Endif
+	Endif
+
+Return()

@@ -153,7 +153,7 @@ Static Function fGravaF1(jJsonRet)
 			RecLock("SF1",.F.)
 			SF1->F1_ZSTSWMS := '2' //0=NE;1=NP;2=P;3=ER;4=NA
 			SF1->(MSUnLock())
-		
+
 		Elseif cStatus == 'ER'
 			RecLock("SF1",.F.)
 			SF1->F1_ZSTSWMS := '3'
@@ -174,7 +174,7 @@ Monta o Array de Itens de entrada para o WMS
 User Function PSITENSENT(cInt)
 
 	Local aItensResp	:= {}		as array
-	Local cChave		:= FWxFilial("SD1")+SF1->F1_DOC+SF1->F1_SERIE+SF1->F1_FORNECE+SF1->F1_LOJA
+	Local cChave		:= FWxFilial("SF1")+SF1->F1_DOC+SF1->F1_SERIE+SF1->F1_FORNECE+SF1->F1_LOJA
 
 	DbSelectArea("SD1")
 	DbSetOrder(1) // D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
@@ -207,7 +207,9 @@ User Function PSITENSENT(cInt)
 				//aItensResp[Len(aItensResp)]["DPIE_CNPJ_FORNECEDOR"]			:= "string",
 				//aItensResp[Len(aItensResp)]["DPIE_CNPJ_CLIENTE_TE"]			:= "string",
 				//aItensResp[Len(aItensResp)]["DPIE_DESCRICAO_CLIENTE_TE"]		:= "string",
-				aItensResp[Len(aItensResp)]["DPIE_COD_FORNECEDOR_ERP"]			:= Alltrim(SD1->D1_FORNECE + SD1->D1_LOJA)
+				If SF1->F1_TIPO == 'N' .and. SF1->F1_FORMUL <> 'S' .or. SF1->F1_TIPO == 'D'
+					aItensResp[Len(aItensResp)]["DPIE_COD_FORNECEDOR_ERP"]			:= Alltrim(SD1->D1_FORNECE + SD1->D1_LOJA)
+				Endif
 				//aItensResp[Len(aItensResp)]["DIPIE_CHAVE_ACESSO"]				:= "string"
 				aItensResp[Len(aItensResp)]["STATUS"]							:= "NP"
 			Else
@@ -325,7 +327,9 @@ Return()
 //
 Static Function fGravaF2(jJsonRet)
 
-	Local cStatus	:= ""	as character
+	Local cStatus	:= ""		as character
+	Local lGrava	:= .F.  	as logical	
+
 
 	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
 	cPed 			:= jJsonRet:GetJSonObject('CS_REF_DOCUMENTO')
@@ -333,12 +337,23 @@ Static Function fGravaF2(jJsonRet)
 	cSerie			:= jJsonRet:GetJSonObject('CB_SERIE_NOTA_FISCAL')
 
 	If ! Empty(cStatus) .and. ! Empty(cNota)
-		If SF2->(MSSeek(FWxFilial('SF2')+cNota+cSerie))
+		If SF2->(MSSeek(FWxFilial('SF2')+cNota+cSerie)) //C5_FILIAL+C5_NOTA+C5_SERIE+C5_CLIENTE+C5_LOJACLI+C5_NUM                                                                                                         
 			If cStatus == 'NP'
 				RecLock("SF2",.F.)
 				SF2->F2_ZDTDESP 	:= dDataBase
 				SF2->(MSUnLock())
+
+				lGrava := .T.
 			EndIf
+			
+			If lGrava
+				SC5->(DbSetOrder(20))
+				If SC5->(MSSeek(FWxFilial('SC5')+cNota+cSerie+SF2->F2_CLIENTE+SF2->F2_LOJA))
+					RecLock("SC5",.F.)
+					SC5->C5_ZDTDESP		:= dDataBase
+					SC5->(MSUnLock())
+				Endif
+			Endif
 		Endif
 	Endif
 
@@ -346,7 +361,6 @@ Static Function fGravaF2(jJsonRet)
 		If SC5->(MSSeek(FWxFilial('SC5')+cPed))
 			If cStatus == 'NP'
 				RecLock("SC5",.F.)
-				SC5->C5_ZDTDESP		:= dDataBase
 				SC5->C5_XLIBOK		:= 'S' //Liberado
 				SC5->(MSUnLock())
 			Endif
@@ -445,7 +459,7 @@ Static Function fCancF1(jJsonRet)
 
 	Local cStatus	:= ""	as character
 
-	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
+	cStatus 		:= jJsonRet:GetJSonObject('Status')
 
 	If ! Empty(cStatus)
 		If cStatus == 'NP'
@@ -461,15 +475,15 @@ Return()
 
 //chama a INT de atualizacao de pedido/nota entrada
 Static Function fAtuCancelamento(cTipo)
-	
+
 	Local oIntegracao   as object
-	
+
 	oIntegracao := Nil
-	
+
 	If cTipo == 'E'
-		oIntegracao := BasePsIntegra():New(.T.,"000056")
+		oIntegracao := BasePsIntegra():New("000060")
 	Else
-		oIntegracao := BasePsIntegra():New(.T.,"000057")
+		oIntegracao := BasePsIntegra():New("000056")
 	Endif
 
 	oIntegracao:GeraRequisicao(,,) // Faz a integracao usando o registro posicionado.
@@ -533,7 +547,7 @@ User Function PSEXEC261()
 						aadd(aAux,{"D3_DESCRI"	,Alltrim(SB1->B1_DESC)								,Nil})
 						aadd(aAux,{"D3_UM"		,SB1->B1_UM											,Nil})
 						aadd(aAux,{"D3_LOCAL"	,jTrataResp[nX]:GetJSonObject('BDE_ET_ORIGEM_ERP')	,Nil})
-						aadd(aAux,{"D3_LOCALIZ", ""													,Nil}) 
+						aadd(aAux,{"D3_LOCALIZ", ""													,Nil})
 
 						//DESTINO
 						aadd(aAux,{"D3_COD"		,cProduto 											,Nil})

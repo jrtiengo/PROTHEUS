@@ -87,27 +87,29 @@ If Altera
 			Elseif SC5->C5_XLIBOK $ "L"								             //Se liberado para Expedição
 				_lRet := .F.     
 				
-				//Tratamento para permitir cancelamento do pedido no WMS
-				DbSelectArea( "ZS3" )
-				ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE 
-				cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SC5"+FWxFilial("SC5")+'|'+SC5->C5_NUM))
-				
-				If cChave .and. Empty(SC5->C5_ZCANCW)
-						RecLock("SC5",.F.)
-						SC5->C5_ZCANCW		:= '1' //Cancelamento solicitado
-						SC5->(MSUnLock())	
-						FWAlertWarning('Pedido enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
-					    _lRet := .F. 
-				Elseif cChave .and. SC5->C5_ZCANCW == '1'
-					FWAlertWarning('Pedido ja enviado ao WMS, aguardando retorno!','ATENÇÃO WMS')
-					_lRet := .F. 
-				Elseif cChave .and. SC5->C5_ZCANCW == '2'
-					FWAlertWarning('Pedido ja cancelado no WMS, alteracao permitida!.','ATENÇÃO WMS')
-					_lRet := .T.
-				Elseif ! cChave .and. Empty(SC5->C5_ZCANCW)
-					FWAlertWarning('Pedido nao enviado WMS, alteracao permitida!.','ATENÇÃO WMS')
-					_lRet := .T.
-				Endif                                                
+				If FWAlertYesNo("Essa ação vai cancelar a separação do seu pedido, e o mesmo sera colocado ao final da fila de separação, deseja MESMO cancelar? ", "Cancelamento WMS!")
+					//Tratamento para permitir cancelamento do pedido no WMS
+					DbSelectArea( "ZS3" )
+					ZS3->(DbSetOrder(1)) //ZS3_FILIAL+ZS3_TABELA+ZS3_CHAVE 
+					cChave := ZS3->(MsSeek(FWxFilial("ZS3")+"SC5"+FWxFilial("SC5")+'|'+SC5->C5_NUM))
+					
+					If cChave .and. Empty(SC5->C5_ZCANCW)
+							RecLock("SC5",.F.)
+							SC5->C5_ZCANCW		:= '1' //Cancelamento solicitado
+							SC5->(MSUnLock())	
+							FWAlertWarning('Requisicao enviada ao WMS aguardar a liberacao (cerca de 15 min)!','Cancelamento WMS')
+							_lRet := .F. 
+					Elseif cChave .and. SC5->C5_ZCANCW == '1'
+						FWAlertWarning('Cancelamento ja enviado ao WMS, aguardando retorno do cancelamento!','Cancelamento WMS')
+						_lRet := .F. 
+					Elseif cChave .and. SC5->C5_ZCANCW == '2'
+						FWAlertWarning('Pedido ja cancelado no WMS, alteracao permitida!.','Cancelamento WMS')
+						_lRet := .T.
+					Elseif ! cChave .and. Empty(SC5->C5_ZCANCW)
+						FWAlertWarning('Pedido nao enviado ao WMS, alteracao permitida!.','Cancelamento WMS')
+						_lRet := .T.
+					Endif    
+				Endif                                            
 				
 				/*
 				lResp := msgbox("Pedido já foi liberado para Expedição mas ainda não foi recepcionado. Se continuar será necessário liberar novamente. Deseja mesmo alterar?","Atenção!", "YESNO")

@@ -1,12 +1,33 @@
 #Include "TOTVS.ch"
 #Include "TopConn.ch"
-#Include "TBIConn.ch"
 #Include "Protheus.ch"
 #Include "tlpp-core.th"
 #Include "tlpp-rest.th"
 
-#Define cTitApp "Funções Genéricas"
 #Define Enter Chr(13) + Chr(10)
+
+User Function AnswerFormat(statusCode As Numeric, message As Character, detailed As Character) as Json
+
+Local oError := ErrorClass():New() as Object
+Local jAux   := JsonObject():New() as JSON
+Local jRet   := JsonObject():New() as JSON
+
+TRY 
+
+    jAux:FromJson(detailed)
+
+    jRet["result"]     := Iif(statusCode < 300, .T., .F.)
+    jRet["statusCode"] := statusCode
+    jRet["message"]    := message
+    jRet["response"]   := jAux
+
+CATCH oError
+
+    U_AdminMsg("[AnswerFormat] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind())
+
+ENDTRY
+
+Return jRet
 
 /*/{Protheus.doc} PrepEnvironment
 FunÃ§Ã£o que prepara o Ambiente
@@ -24,6 +45,7 @@ User Function PrepEnvironment(cCNPJ as Character, cEmp as Character, cFil as Cha
 Local aArea  := GetArea()          as Array
 Local lRet   := .F.                as Logical
 Local oError := ErrorClass():New() as Object
+
 Default cEmp := ""
 Default cFil := ""
 
@@ -74,66 +96,6 @@ RestArea(aArea)
 
 Return lRet
 
-/*/{Protheus.doc} AnswerRest
-Função para padronização de JSON de retorno OK
-@type function
-@version V 1.00
-@author Edson Hornberger
-@since 19/10/2023
-@param jServiceResponse, json, JSON de retorno
-/*/
-User Function AnswerRest(jServiceResponse as Json)
-
-oRest:setKeyHeaderResponse("Content-Type", "application/json")
-
-If ( jServiceResponse["result"] )
-
-    oRest:setResponse( jServiceResponse[ "response" ] )
-
-Else
-
-    oRest:setFault(jServiceResponse[ "response" ]:toJson())
-
-Endif
-
-If ( jServiceResponse[ "statusCode" ] != Nil )
-
-    oRest:setStatusCode( jServiceResponse[ "statusCode" ] )
-
-Endif
-
-FreeObj(jServiceResponse)
-jServiceResponse := Nil
-
-Return
-
-
-/*/{Protheus.doc} AnswerErrorFormat
-Função para padronização de JSON de retorno ERRO
-@type function
-@version V 1.00
-@author Edson Hornberger
-@since 19/10/2023
-@param statusCode, numeric, Código do erro
-@param message, character, Mensagem do erro
-@param detailed, character, Detalhamento do erro
-@return json, jRet JSON montado
-/*/
-User Function AnswerErrorFormat(statusCode As Numeric, message As Character, detailed As Character) as Json
-
-Local cAux := ""                 as Character
-Local jAux := JsonObject():New() as JSON
-Local jRet := JsonObject():New() as JSON
-
-cAux := '{"success": ' + Iif(statusCode < 300 , 'true', 'false') + ', "code": ' + cValToChar(statusCode) + ', "message": "' + message + '", "detailedMessage": "' + detailed + '"}'
-jAux:FromJson(cAux)
-
-jRet["result"]          := Iif(statusCode < 300, .T., .F.)
-jRet["statusCode"]      := statusCode
-jRet["response"]        := jAux
-
-Return jRet
-
 
 /*/{Protheus.doc} TreatsData
 Função para tratar dados antes de passar para o MsExecAuto
@@ -156,6 +118,7 @@ TRY
     If ValType(xData) = "U"
 
         Do Case 
+
             Case FwSX3Util():GetFieldType(cCampo) = "C"
                 xRet := ""
 
@@ -178,12 +141,19 @@ TRY
     EndIf
 
     Do Case 
+
         Case FwSX3Util():GetFieldType(cCampo) = "C" .And. ValType(xData) = "C"
+            xData := AllTrim(xData)
+            xRet := AllTrim(Iif(cOpc = "R", DecodeUTF8(xData, "cp1252"), EncodeUTF8(xData, "cp1252")))
+            xRet := AvKey(xRet,cCampo) 
+
+        Case FwSX3Util():GetFieldType(cCampo) = "M" .And. ValType(xData) = "C"
             xData := AllTrim(xData)
             xRet := AllTrim(Iif(cOpc = "R", DecodeUTF8(xData, "cp1252"), EncodeUTF8(xData, "cp1252")))
 
         Case FwSX3Util():GetFieldType(cCampo) = "C" .And. ValType(xData) = "N"
             xRet := cValToChar(xData)
+            xRet := AvKey(xRet,cCampo) 
 
         Case FwSX3Util():GetFieldType(cCampo) = "D"
             xData := AllTrim(xData)
@@ -200,6 +170,7 @@ TRY
 
         OtherWise
             xRet := xData
+            xRet := IIF(ValType(xData)!="N",AvKey(xRet,cCampo),xRet)
 
     EndCase
 
@@ -210,48 +181,6 @@ CATCH oError
 ENDTRY
 
 Return xRet
-
-
-/*/{Protheus.doc} xValidDic
-Função para validar a chave enviada no JSON
-@type function
-@version V 1.00
-@author Edson Hornberger
-@since 05/08/2024
-@param cTabela, character, Tabela do Protheus
-@param cNameField, character, Campo da Tabela 
-@param cMsgErr, character, Mensagem de Erros
-@return logical, Verdadeiro se a chave está com a nomenclatura correta
-/*/
-User Function xValidDic(cTabela as Character, cNameField as Character, cMsgErr as Character) as Logical 
-
-Local lRet     := .T.                as Logical
-Local oError   := ErrorClass():New() as Object
-Local aArea    := GetArea()          as Array
-Local aAreaSX3 := SX3->(GetArea())   as Array
-
-TRY 
-
-    dbSelectArea("SX3")
-    SX3->(dbSetOrder(2))
-    If !SX3->(dbSeek(PadR(cNameField, 10)))
-
-        cMsgErr += "Chave " + cNameField + " informada nao existe no Dicionario de Dados - Tabela (" + cTabela + ")" + Enter
-        lRet    := .F. 
-
-    EndIf
-
-CATCH oError
-
-    lRet    := .F.
-    cMsgErr += oError:Description
-
-ENDTRY
-
-RestArea(aAreaSX3)
-RestArea(aArea)
-
-Return lRet
 
 
 /*/{Protheus.doc} AdminMsg
@@ -267,15 +196,15 @@ Função para o montar o retorno de mensagens
 /*/
 User Function AdminMsg(cMsgErr as Character, lBlind as Logical, oErrorDev as Object)
 
-Local oError   := ErrorClass():New() as Object
-Local nTamLin  := 0                  as Numeric
-Local nPosLine := 0                  as Numeric
-Local cLinTxt  := ""                 as Character
-Local cLinha   := ""                 as Character
-Local nI       := 0                  as Numeric
+Local oError      := ErrorClass():New() as Object
+Local nTamLin     := 0                  as Numeric
+Local nPosLine    := 0                  as Numeric
+Local cLinTxt     := ""                 as Character
+Local cLinha      := ""                 as Character
+Local nI          := 0                  as Numeric
 
-Default lBlind := .F.
-Default oErrorDev := Nil 
+Default lBlind    := .F.
+Default oErrorDev := Nil
 
 TRY
 
@@ -345,3 +274,45 @@ CATCH oError
 ENDTRY
 
 Return
+
+
+/*/{Protheus.doc} xValidDic
+Função para validar a chave enviada no JSON
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 05/08/2024
+@param cTabela, character, Tabela do Protheus
+@param cNameField, character, Campo da Tabela 
+@param cMsgErr, character, Mensagem de Erros
+@return logical, Verdadeiro se a chave está com a nomenclatura correta 
+/*/
+User Function xValidDic(cTabela as Character, cNameField as Character, cMsgErr as Character) as Logical 
+
+Local lRet     := .T.                as Logical
+Local oError   := ErrorClass():New() as Object
+Local aArea    := GetArea()          as Array
+Local aAreaSX3 := SX3->(GetArea())   as Array
+
+TRY 
+
+    dbSelectArea("SX3")
+    SX3->(dbSetOrder(2))
+    If !SX3->(dbSeek(PadR(cNameField, 10)))
+
+        cMsgErr += "Chave " + cNameField + " informada nao existe no Dicionario de Dados - Tabela (" + cTabela + ")" + Enter
+        lRet    := .F. 
+
+    EndIf
+
+CATCH oError
+
+    lRet    := .F.
+    cMsgErr += oError:Description
+
+ENDTRY
+
+RestArea(aAreaSX3)
+RestArea(aArea)
+
+Return lRet

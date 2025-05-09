@@ -21,6 +21,24 @@
 			"isMultiSession": true,
 			"enableTableSync": true,
 			"enableMultiThread": true
+		},
+		{
+			"type": "totvs_language_web_debug",
+			"request": "launch",
+			"name": "Protheus Web Generic",
+			"program": "${command:AskForProgramName}",
+			"cwb": "${workspaceFolder}",
+			"isMultiSession": true,
+			"enableTableSync": true,
+			"enableMultiThread": true,
+			"enableProfile": false,
+			"isAccessibilityMode": false,
+			"doNotShowSplash": false,
+			"openglMode": false,
+			"dpiMode": false,
+			"olddpiMode": false,
+			"language": "1",
+			"ignoreFiles": true
 		}
 	],
 	"lastPrograms": [
@@ -79,8 +97,11 @@
 		},
 		{
 			"label": "PSINTEGRA"
+		},
+		{
+			"label": "u_PsImpPrd"
 		}
 	],
-	"lastProgramExecuted": "sigamdi",
+	"lastProgramExecuted": "U_PSINTMON",
 	"lastProgramArguments": []
 }
