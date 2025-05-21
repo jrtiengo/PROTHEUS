@@ -83,9 +83,19 @@ If Altera
 				Alert("Pedido está em processo de impressão pela Expedição ou Retira. Não pode ser alterado.")
 				_lRet := .F.
 			Elseif !SC5->C5_XLIBOK $ "Z,W,L"                                     //Se Pedido NÃO estiver liberado para Expedição, Recepcionado ou Em separação;
-				_lRet := .T.                                                     //Permite
-			Elseif SC5->C5_XLIBOK $ "L"								             //Se liberado para Expedição
-				_lRet := .F.     
+				_lRet := .T.                                                      //Permite
+			Elseif SC5->C5_XLIBOK $ "L"                                          //Se liberado para Expedição
+/* TRECHO COMENTADO PARA POR AS NOVAS REGRAS DO WMS
+				_lResp := msgbox("Pedido já foi liberado para Expedição mas ainda não foi recepcionado. Se continuar será necessário liberar novamente. Deseja mesmo alterar?","Atenção!", "YESNO")
+				if _lResp
+					_lRet := .T.            //Permite
+				Else
+					Alert("Alteração cancelada.")
+					_lRet := .F.            //Não permite
+				Endif
+*/
+				//Nova regra para WMS
+				_lRet := .F.             //Não permite
 				
 				If FWAlertYesNo("Essa ação vai cancelar a separação do seu pedido, e o mesmo sera colocado ao final da fila de separação, deseja MESMO cancelar? ", "Cancelamento WMS!")
 					//Tratamento para permitir cancelamento do pedido no WMS
@@ -109,24 +119,14 @@ If Altera
 						FWAlertWarning('Pedido nao enviado ao WMS, alteracao permitida!.','Cancelamento WMS')
 						_lRet := .T.
 					Endif    
-				Endif                                            
-				
-				/*
-				lResp := msgbox("Pedido já foi liberado para Expedição mas ainda não foi recepcionado. Se continuar será necessário liberar novamente. Deseja mesmo alterar?","Atenção!", "YESNO")
-				if _lResp
-					_lRet := .T.            //Permite                                                                                                             
-				Else
-					Alert("Alteração cancelada.")
-					_lRet := .F.            //Não permite
-				Endif
-				*/
-Else
-	Alert("Pedido já recepcionado pela Expedição ou Retira. Não pode ser alterado.")
-	_lRet := .F.
-Endif
-Endif
-
-EndIf
+				Endif               
+			Else
+				Alert("Pedido já recepcionado pela Expedição ou Retira. Não pode ser alterado.")
+				_lRet := .F.
+			Endif
+		Endif
+		////////////////////////////////////
+	EndIf
 EndIf
 //  Alteracao em 30/12/2004
 

@@ -1,0 +1,451 @@
+#Include 'TOTVS.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Documentacao de SCHEMA REST"
+#Define Enter Chr(13) + Chr(10)
+
+User Function xDocSchema()
+
+Local oError     := Nil as Object
+Local cSchema    := ""  as Character
+Local cPlanilha  := ""  as Character
+Local oExcel     := Nil as Object
+Local oAppExc    := Nil as Object
+Local nI         := 0   as Numeric
+Local oSchema    := Nil as Json
+Local cConteudo  := ""  as Character
+Local jSchema    := Nil as Json
+Local jJson      := Nil as Json
+Local cWorkSheet := ""  as Character
+Local cTable     := ""  as Character
+Local aLinhas    := {}  as Array
+Local aCelStyle  := {}  as Array
+Local arequired  := {}  as Array
+Local jDepReq    := {}  as Array
+
+TRY
+
+    cSchema := tFileDialog("Schema JSON (*.json)", cTitApp,, "\schemaint", .F.)
+    If !Empty(AllTrim(cSchema))
+
+        oSchema := FwFileReader():New(cSchema)
+
+        If oSchema:Open()
+
+            cPlanilha := GetTempPath(.T.) 
+            cConteudo := oSchema:FullRead()
+            jSchema := JsonObject():New()
+            jSchema:FromJson(cConteudo)
+
+            If Len(jSchema:GetNames()) > 0 
+
+                cWorkSheet := "Dados do Schema"
+
+                For nI := 1 To Len(jSchema:GetNames())
+
+                    Do Case 
+                        Case jSchema:GetNames()[nI] = "title"
+                            cTable := jSchema["title"]
+
+                        Case jSchema:GetNames()[nI] = "required"
+                            arequired := jSchema["required"]
+
+                        Case jSchema:GetNames()[nI] = "properties"
+                            jJson := jSchema["properties"]
+
+                        Case jSchema:GetNames()[nI] = "dependentRequired"
+                            jDepReq := jSchema["dependentRequired"]
+
+                    EndCase
+
+                Next nI 
+
+                If Empty(AllTrim(cTable))
+
+                    cTable := "Schema"
+
+                EndIf
+
+                If ValType(jDepReq) = "U"
+
+                    jDepReq := JsonObject():New()
+
+                EndIf
+
+                oExcel := FwMsExcelEx():New()
+                oExcel:AddWorkSheet(cWorkSheet)
+	            oExcel:AddTable(cWorkSheet, cTable)
+
+                oExcel:SetTitleFont("GEORGIA")
+                oExcel:SetTitleSizeFont(14)
+                oExcel:SetTitleBold(.T.)
+                oExcel:SetTitleFrColor("#DDD000")
+                oExcel:SetTitleBgColor("#000000")
+                
+                //AddColumn(< cWorkSheet >, < cTable >, < cColumn >,< nAlign >(Alinhamento da coluna ( 1-Left,2-Center,3-Right )), 
+                //< nFormat >(Codigo de formatação ( 1-General,2-Number,3-Monetário,4-DateTime )), < lTotal >)
+                //oExcel:AddColumn(cWorkSheet, cTable, "DADOS TECNICOS", 1, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Campo", 1, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Descricao", 1, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Obrigatorio", 2, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Tipo", 2, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Tamanho", 3, 2, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Tam.Min.", 3, 2, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Tam.Max.", 3, 2, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Formato Regex", 1, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Dados possiveis", 1, 1, .F.)
+                oExcel:AddColumn(cWorkSheet, cTable, "Observacao", 1, 1, .F.)
+
+                If Len(jJson:GetNames()) > 0 
+
+                    FwMsgRun(, {|oSay| U_xMakePlanilha(@oSay, jJson, @aLinhas, arequired, jDepReq)}, cTitApp, "Gerando dados para Planilha")
+
+                EndIf
+
+                oExcel:SetHeaderFont("CALIBRI")
+                oExcel:SetHeaderSizeFont(12)
+                oExcel:SetHeaderBold(.T.)
+                oExcel:SetFrColorHeader("#F8F8F8")
+                oExcel:SetBgColorHeader("#A0A0A1")
+                
+                oExcel:SetCelFrColor("#000000")
+                oExcel:SetCelFont("CALIBRI")
+                oExcel:SetCelSizeFont(11)
+                oExcel:SetCelBgColor("#FFFCF3")
+
+                For nI := 1 To 10//Len(aLinhas)
+
+                    aAdd(aCelStyle, nI)
+
+                Next nI
+
+                Processa({|| FillExcel(@oExcel, cWorkSheet, cTable, aLinhas, aCelStyle)}, cTitApp, "Preenchendo linhas da Planilha...", .F.)
+
+                oExcel:Activate()
+
+                If Right(AllTrim(cPlanilha), 1) = "\"
+                    cPlanilha := AllTrim(cPlanilha) + cTable + "_" + DToS(dDataBase) + "_" + Left(StrTran(Time(), ":", ""), 4) + ".xml"
+                ELSE
+                    cPlanilha := AllTrim(cPlanilha) + "\" + cTable + "_" + DToS(dDataBase) + "_" + Left(StrTran(Time(), ":", ""), 4) + ".xml"
+                ENDIF
+
+                oExcel:GetXMLFile(cPlanilha)
+                
+                oAppExc := MsExcel():New() 
+                oAppExc:WorkBooks:Open(cPlanilha)  
+                oAppExc:SetVisible(.T.)
+                oAppExc:Destroy()
+                
+                oExcel:DeActivate()
+                oExcel := FreeObj(oExcel)
+
+            Else 
+
+                Aviso(cTitApp, "Arquivo não é um Schema!", {"Ok"}, 1)
+                Return
+
+            EndIf
+
+        EndIf
+
+    EndIf
+
+CATCH oError
+
+    If !IsBlind()
+
+        Aviso(cTitApp, "[ERROR] - xDocSchema: DEV " + oError:Description)
+
+    Else 
+
+        ConOut("[ERROR] - xDocSchema: DEV " + oError:Description)
+
+    EndIf
+
+ENDTRY
+
+Return
+
+
+User Function xMakePlanilha(oSay as Object, jJson as Json, aLinhas as Array, arequired as Array, jDepReq as Variant)
+
+Local oError     := ErrorClass():New() as Object
+Local nI         := 0                  as Numeric
+Local nX         := 0                  as Numeric
+Local aCmpObrig  := {}                 as Array
+Local jCmpDepend := Nil                as Json
+Local aCmpDepend := {}                 as Array
+Local aAux       := {}                 as Array
+Local nPos       := 0                  as Numeric
+Local aPreenc    := {}                 as Array
+Local cPreenc    := ""                 as Character
+Local cObs       := ""                 as Character
+Local jItems     := Nil                as Json
+Local nTam       := 0                  as Numeric
+
+TRY
+
+    If Len(jJson:GetNames()) > 0
+
+        For nI := 1 To Len(jJson:GetNames())
+
+            aAux       := {}
+            cObs       := ""
+            aPreenc    := {}
+            cPreenc    := ""
+            aCmpDepend := {}
+            nTam       := 0
+            FreeObj(jItems)
+
+            If jJson:HasProperty("properties") .And. jJson:GetNames()[nI] = "properties"
+
+                If jJson:HasProperty("required")
+
+                    aCmpObrig := jJson["required"]
+
+                EndIf
+
+                If jJson:HasProperty("dependentRequired")
+
+                    jCmpDepend := jJson["dependentRequired"]
+
+                Else 
+
+                    jCmpDepend := JsonObject():New()
+
+                EndIf
+
+                jItems := jJson["properties"]
+                U_xMakePlanilha(@oSay, jItems, @aLinhas, aCmpObrig, jCmpDepend)
+                Sleep(3000)
+
+            ElseIf !jJson:HasProperty("properties")
+
+                Do Case
+                    Case jJson[jJson:GetNames()[nI]]["type"] = "array"
+
+                        dbSelectArea("SX3")
+                        SX3->(dbSetOrder(2))
+                        If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                            nTam := FwSX3Util():GetFieldStruct(jJson:GetNames()[nI])[03]
+
+                        EndIf
+
+                        aAdd(aAux, jJson:GetNames()[nI])
+                        aAdd(aAux, StrTran(StrTran(jJson[jJson:GetNames()[nI]]["description"],"<",""),">",""))
+                        nPos := aScan(arequired, {|x| x = jJson:GetNames()[nI]})
+                        aAdd(aAux, Iif(nPos > 0, "Sim", "Nao"))
+                        aAdd(aAux, jJson[jJson:GetNames()[nI]]["type"])
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("maxLength"), jJson[jJson:GetNames()[nI]]["maxLength"], nTam))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("minLength"), jJson[jJson:GetNames()[nI]]["minLength"], 0))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("maxLength"), jJson[jJson:GetNames()[nI]]["maxLength"], 0))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("pattern"),   jJson[jJson:GetNames()[nI]]["pattern"], ""))
+                        If jJson[jJson:GetNames()[nI]]:HasProperty("enum")
+
+                            dbSelectArea("SX3")
+                            dbSetOrder(2)
+                            If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                                aPreenc := RetSx3Box(X3CBox(),,, FwSX3Util():GetFieldStruct(SX3->X3_CAMPO)[3])
+                                aEval(aPreenc,{|cChvVlr| cPreenc += cChvVlr[1] + ", "})
+                                cPreenc := SubStr(cPreenc, 1, Len(cPreenc) - 2)
+
+                            EndIf
+
+                        EndIf
+                        aAdd(aAux, cPreenc)
+                        
+                        If jJson[jJson:GetNames()[nI]]:HasProperty("minItems")
+
+                            cObs += " Minimo de itens " + cValToChar(jJson[jJson:GetNames()[nI]]["minItems"])
+
+                        EndIf
+
+                        If jJson[jJson:GetNames()[nI]]:HasProperty("maxItems")
+
+                            cObs += " Maximo de itens " + cValToChar(jJson[jJson:GetNames()[nI]]["maxItems"])
+
+                        EndIf
+
+                        If Len(jDepReq) > 0
+
+                            For nX := 1 To Len(jDepReq:GetNames())
+
+                                If jDepReq:GetNames()[nX] = jJson:GetNames()[nI]
+
+                                    aCmpDepend := jDepReq[jDepReq:GetNames()[nX]]
+                                    cObs += " Se preenchido deve ser informado o(s) campo(s) "
+                                    aEval(aCmpDepend, {|cCampo| cObs += cCampo + ", "})
+                                    cObs := SubStr(cObs, 1, Len(cObs) - 2)
+                                
+                                EndIf
+
+                            Next nX
+
+                        EndIf
+
+                        dbSelectArea("SX3")
+                        dbSetOrder(2)
+                        If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                            cObs += Iif(!Empty(cObs), Enter, "") + StrTran(StrTran(StrTran(GetHlpSoluc(SX3->X3_CAMPO)[1], Enter, " "), ">", "'"), "<", "'")
+
+                        EndIf
+
+                        aAdd(aAux, cObs)
+                        aAdd(aLinhas, aAux)
+
+                        If jJson[jJson:GetNames()[nI]]["items"]:HasProperty("required")
+
+                            aCmpObrig := jJson[jJson:GetNames()[nI]]["items"]["required"]
+
+                        EndIf
+
+                        If jJson[jJson:GetNames()[nI]]["items"]:HasProperty("dependentRequired")
+
+                            jCmpDepend := jJson[jJson:GetNames()[nI]]["items"]["dependentRequired"]
+
+                        Else 
+
+                            jCmpDepend := JsonObject():New()
+
+                        EndIf
+                        
+                        jItems := jJson[jJson:GetNames()[nI]]["items"]
+                        U_xMakePlanilha(@oSay, jItems, @aLinhas, aCmpObrig, jCmpDepend)
+                        Sleep(3000)
+
+                    OtherWise
+                        dbSelectArea("SX3")
+                        SX3->(dbSetOrder(2))
+                        If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                            nTam := FwSX3Util():GetFieldStruct(jJson:GetNames()[nI])[03]
+
+                        EndIf
+
+                        aAdd(aAux, jJson:GetNames()[nI])
+                        aAdd(aAux, StrTran(StrTran(jJson[jJson:GetNames()[nI]]["description"],"<",""),">",""))
+                        nPos := aScan(arequired, {|x| x = jJson:GetNames()[nI]})
+                        aAdd(aAux, Iif(nPos > 0, "Sim", "Nao"))
+                        aAdd(aAux, jJson[jJson:GetNames()[nI]]["type"])
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("maxLength"), jJson[jJson:GetNames()[nI]]["maxLength"], nTam))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("minLength"), jJson[jJson:GetNames()[nI]]["minLength"], 0))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("maxLength"), jJson[jJson:GetNames()[nI]]["maxLength"], 0))
+                        aAdd(aAux, Iif(jJson[jJson:GetNames()[nI]]:HasProperty("pattern"),   jJson[jJson:GetNames()[nI]]["pattern"], ""))
+                        If jJson[jJson:GetNames()[nI]]:HasProperty("enum")
+
+                            dbSelectArea("SX3")
+                            dbSetOrder(2)
+                            If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                                aPreenc := RetSx3Box(X3CBox(),,, FwSX3Util():GetFieldStruct(SX3->X3_CAMPO)[3])
+                                aEval(aPreenc,{|cChvVlr| cPreenc += cChvVlr[1] + ", "})
+                                cPreenc := SubStr(cPreenc, 1, Len(cPreenc) - 2)
+
+                            EndIf
+
+                        EndIf
+                        aAdd(aAux, cPreenc)
+                        
+                        If SX3->(dbSeek(jJson:GetNames()[nI])) .And. SX3->X3_TIPO = "M"
+
+                            cObs := "Campo MEMO sem restricao de tamanho!"
+                            
+                        EndIf
+                        
+                        If Len(jDepReq) > 0
+
+                            For nX := 1 To Len(jDepReq:GetNames())
+
+                                If jDepReq:GetNames()[nX] = jJson:GetNames()[nI]
+
+                                    aCmpDepend := jDepReq[jDepReq:GetNames()[nX]]
+                                    cObs += " Se preenchido deve ser informado o(s) campo(s) "
+                                    aEval(aCmpDepend, {|cCampo| cObs += cCampo + ", "})
+                                    cObs += Iif(!Empty(cObs), Enter, "") + SubStr(cObs, 1, Len(cObs) - 2)
+                                
+                                EndIf
+
+                            Next nX
+
+                        EndIf
+
+                        dbSelectArea("SX3")
+                        dbSetOrder(2)
+                        If SX3->(dbSeek(jJson:GetNames()[nI]))
+
+                            cObs += Iif(!Empty(cObs), Enter, "") + StrTran(StrTran(StrTran(GetHlpSoluc(SX3->X3_CAMPO)[1], Enter, " "), ">", "'"), "<", "'")
+
+                        EndIf
+
+                        aAdd(aAux, cObs)
+                        aAdd(aLinhas, aAux)
+
+                EndCase
+            
+            EndIf
+
+        Next nI
+
+    Else 
+
+        Aviso(cTitApp, "Json de properties vazio", {"Ok"}, 1)
+        Return
+
+    EndIf
+
+CATCH oError
+
+    ConOut("[ERROR] - xDocSchema: DEV " + oError:Description)
+
+ENDTRY
+
+Return
+
+
+Static Function FillExcel(oExcel as Object, cWorkSheet as Character, cTable as Character, aLinhas as Array, aCelStyle as Array)
+
+Local oError := ErrorClass():New() as Object
+Local nI     := 0                  as Numeric
+
+TRY
+
+    ProcRegua(Len(aLinhas))
+
+    For nI := 1 To Len(aLinhas)
+
+        IncProc("Inseridos " + cValToChar(nI) + " de " + cValToChar(Len(aLinhas)))
+
+        If Mod(nI, 2) = 0
+
+            oExcel:SetCelBgColor("#FFFCF3")
+
+        Else 
+
+            oExcel:SetCelBgColor("#F4F4F4")
+
+        EndIf
+
+        oExcel:AddRow(cWorkSheet, cTable, aLinhas[nI], aCelStyle)
+
+    Next nI
+
+CATCH oError
+
+    If !IsBlind()
+
+        Aviso(cTitApp, "[ERROR] - xDocSchema: DEV " + oError:Description)
+
+    Else 
+
+        ConOut("[ERROR] - xDocSchema: DEV " + oError:Description)
+
+    EndIf
+
+ENDTRY
+
+Return

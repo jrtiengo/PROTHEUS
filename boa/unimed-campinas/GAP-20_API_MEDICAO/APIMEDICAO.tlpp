@@ -102,36 +102,36 @@ User Function inclui_medicao() as Logical
 
 					if ! lRet
 						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Medições Incluidas"+ Enter + cMsgOk + Enter + "Medições nao Incluidas" + Enter + cMsgErr, "Medições nao Incluidas" + Enter + cMsgErr)
 						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+						oRest:SetResponse(U_AnswerFormat(606, "Algumas Medições com erro na Inclusao", cMsgOk))
 					Else
 						oRest:SetStatusCode(201)
 						oDetail['detalhes']	:= cMsgOk
 						cMsgOk := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
+						oRest:SetResponse(U_AnswerFormat(201, "Medições Incluidas com sucesso!", cMsgOk))
 					Endif
 				Else
 					oRest:SetStatusCode(602)
 					oDetail['detalhes']	:= cMsgErr
 					cMsgErr := oDetail:ToJson()
-					oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto contrato", "Objeto contrato invalido"))
+					oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto medicoes", "Objeto medicoes invalido"))
 
 					FreeObj(jAuxLog)
 					jAuxLog := JsonObject():New()
 
 					jAuxLog["status"]  := "0"
 					jAuxLog["idinteg"] := ""
-					jAuxLog["nomapi"]  := "POST_INCCONTR"
-					jAuxLog["rotina"]  := "CNTA300"
-					jAuxLog["tabela"]  := "CN9"
+					jAuxLog["nomapi"]  := "POST_INCMED"
+					jAuxLog["rotina"]  := "CNTA121"
+					jAuxLog["tabela"]  := "CND"
 					jAuxLog["recno"]   := 0
 					jAuxLog["data"]    := DToS(dDataBase)
 					jAuxLog["hora"]    := Time()
 					jAuxLog["msgresp"] := "error"
-					jAuxLog["msgerr"]  := "Nao informado o objeto contrato"
+					jAuxLog["msgerr"]  := "Nao informado o objeto Medicao"
 					jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-					jAuxLog["jsonret"] := '{"result": "Nao foi informada objeto Contrato"}'
+					jAuxLog["jsonret"] := '{"result": "Nao foi informada objeto Medicao"}'
 				Endif
 			Endif
 		EndIf
@@ -146,26 +146,24 @@ User Function inclui_medicao() as Logical
 
 Return(.T.)
 
-/*/{Protheus.doc} xGeraCND
-Função para Geração do Execauto da Mediçao via MVC 
-@type function
-@author Carla Barbosa
-@since 23/08/2024
-/*/
-Static Function xGeraCND(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro) 
+//Função para Geração do Execauto da Mediçao via MVC 
+Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 
 	Local aArea         := FWGetArea()          as Array
 	Local oModel        := Nil                  as Object
 	Local cContrato     := ""                   as Character
 	Local cNumMed       := ""                   as Character
 	Local cCompet       := ""                   as Character
+	Local cAlias        := ""                   as Character
+	Local nRecno        := 0                    as numeric
 	Local cRevisao      := ""                   as Character
 	Local cGrAprov      := ""                   as Character
 	Local cConta        := ""                   as Character
 	Local cCCusto       := ""                   as Character
-	Local cItemC        := ""                   as Character
-	Local cClasseV      := ""                   as Character
 	Local cTes          := ""                   as Character
+	Local cMultp 		:= ""                   as Character
+	Local cMuldes 		:= ""                   as Character
+	Local nMulval 		:= 0                    as numeric
 	Local aMsgDeErro    := {}                   as Array
 	Local nc            := 1                    as numeric
 	Local nj            := 1                    as numeric
@@ -178,7 +176,7 @@ Static Function xGeraCND(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 		jAuxLog := JsonObject():New()
 		If !oLog:SetTab("SZL")
 
-			U_AdminMsg("[xExecFINA050] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+			U_AdminMsg("[CNTA121] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
 		jMedicoes := jBody:GetJsonObject("medicoes")
@@ -189,250 +187,236 @@ Static Function xGeraCND(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 			cContrato := jmedicoes[nc]['CND_CONTRA']
 			cCompet   := jmedicoes[nc]['CND_COMPET']
 			cRevisao  := ""
-			
-            CN9->(DbSetOrder(1))
-			If CN9->(DbSeek(xFilial("CN9") + cContrato))//Posicionar na CN9 para realizar a inclusão
-				while CN9->CN9_FILIAL == xFILIAL("CN9") .AND. CN9->CN9_NUMERO == cContrato
-					if CN9->CN9_SITUAC <> '05' /// VIGENTE
-						CN9->(dbskip())
-					Else
-						cRevisao := CN9->CN9_REVISA
-						exit
-					Endif
-				Enddo
-				if !empty(alltrim(cRevisao))
+			nRecno    := 0
 
-					// Buscando a Competencia do Contrato
-					aCompets := CtrCompets()
-					nCompet  := cValtoChar(aScan(aCompets, {|x| AllTrim(x) == cCompet }) )
-					lSemifixo := IF(Posicione("CN1",1,xFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="3",.T.,.F.)
-					lEventual := IF(Posicione("CN1",1,xFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="2",.T.,.F.)
-					lFixo     := IF(Posicione("CN1",1,xFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="1",.T.,.F.)
-					cRevisao  := CN9->CN9_REVISA
-					cGrAprov  := CN9->CN9_GRPAPR
-					oModel := FWLoadModel("CNTA121")
-					oModel:SetOperation(3)
-					If (oModel:CanActivate())
-						oModel:Activate()
-						oModel:SetValue("CNDMASTER","CND_CONTRA"    ,CN9->CN9_NUMERO)
-						oModel:SetValue("CNDMASTER","CND_APROV"     ,cGrAprov)
-						oModel:SetValue("CNDMASTER","CND_RCCOMP"    ,nCompet)//Selecionar competência
-						oModel:SetValue("CNDMASTER","CND_XIDINT"    ,xIDInteg)//Selecionar competência
-						oModel:SetValue("CXNDETAIL","CXN_CHECK" , .T.)//Marcar a planilha(nesse caso apenas uma)
+			//Posicionar no ultimo registro para obter a ultima revisao
+			cAlias	:= "SELECT MAX(R_E_C_N_O_) RECNO FROM "+ RetSqlName("CN9") +" WHERE D_E_L_E_T_ = '' AND CN9_NUMERO = '"+cContrato+"' AND CN9_SITUAC = '05'
 
-						for nj := 1 to len(jmedicoes[nc]['itens'])
-							cProduto := jmedicoes[nc]['itens'][nj]['CNE_PRODUT']
-							cQuant   := (jmedicoes[nc]['itens'][nj]['CNE_QUANT'])
-							cVlUni   := (jmedicoes[nc]['itens'][nj]['CNE_VLUNIT'])
-							if jmedicoes[nc]['itens'][nj]:HasProperty('pedido')
-								cPedido  := jmedicoes[nc]['itens'][nj]['pedido']
-							Else
-								cPedido  := ""
-							Endif
-							cNumPlan := oMODEL:GETVALUE("CNEDETAIL","CNE_NUMERO")
-							If jmedicoes[nc]['itens'][nj]:HasProperty('CNE_TS')
-								cTes     := (jmedicoes[nc]['itens'][nj]['CNE_TS'])
-							Else
-								cTes     := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_TS")
-							Endif
-							If jmedicoes[nc]['itens'][nj]:HasProperty('CNE_CC')
-								cCCusto      := (jmedicoes[nc]['itens'][nj]['CNE_CC'])
-							Else
-								cCCusto  := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_CC")
-							Endif
-							cConta   := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_CONTA")
-							cItemC   := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_ITEMCT")
-							cClasseV := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_CLVL")
-							cTabPr   := Posicione("CNB",7,xFILIAL("CNB")+cCONTRATO+cRevisao+cNumPlan+cProduto,"CNB_XTABP")
-							cMensagem:= ""
-							xRet     := .t.
-							nVlList  := PrecoTab(cProduto,cQuant,cTabPr,@cMensagem,@xRet)
-							if nVlList >0
-								cVlUni := nVlList
-							Endif
-							if lEventual
-								oModel:GetModel('CNEDETAIL'):GoLine(nj)
-								oModel:GetModel('CNEDETAIL'):LoadValue('CNE_ITEM', PadL(cValtoChar(nj), CNE->(Len(CNE_ITEM)), "0"))//Adiciona um item a planilha
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_PRODUT' , cProduto)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'  , cQuant)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , cVlUni )
+			cAlias	:= ChangeQuery(cAlias)
+			PLSQuery(cAlias, "cQry")
+
+			If ! cQry->(EoF())
+
+				nRecno   := cQry->RECNO
+
+				CN9->(DBSetOrder(1))//CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+				CN9->(dbGoto(nRecno))
+
+				// Buscando a Competencia do Contrato
+				aCompets		:= CtrCompets()
+				nCompet			:= cValtoChar(aScan(aCompets, {|x| AllTrim(x) == cCompet }) )
+				lSemifixo		:= IF(Posicione("CN1",1,FWxFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="3",.T.,.F.) //Contrato Semifixo
+				lNfixo			:= IF(Posicione("CN1",1,FWxFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="2",.T.,.F.) //Contrato Não Fixo
+				lFixo     		:= IF(Posicione("CN1",1,FWxFILIAL("CN1")+CN9->CN9_TPCTO,"CN1_CTRFIX")=="1",.T.,.F.) //Contrato Fixo
+				cRevisao  		:= CN9->CN9_REVISA
+				cGrAprov  		:= CN9->CN9_GRPAPR
+
+				oModel := FWLoadModel("CNTA121")
+				oModel:SetOperation(3)
+
+				If (oModel:CanActivate())
+					oModel:Activate()
+					oModel:SetValue("CNDMASTER","CND_CONTRA"    ,CN9->CN9_NUMERO)
+					oModel:SetValue("CNDMASTER","CND_APROV"     ,cGrAprov)
+					oModel:SetValue("CNDMASTER","CND_RCCOMP"    ,nCompet)
+					oModel:SetValue("CNDMASTER","CND_XIDINT"    ,xIDInteg)
+					oModel:SetValue("CXNDETAIL","CXN_CHECK" 	, .T.)			//Marcar a planilha(nesse caso apenas uma)
+
+					For nj := 1 to len(jmedicoes[nc]['itens'])
+
+						cProduto := (jmedicoes[nc]['itens'][nj]['CNE_PRODUT'])
+						cQuant   := (jmedicoes[nc]['itens'][nj]['CNE_QUANT'])
+						nVlList   := (jmedicoes[nc]['itens'][nj]['CNE_VLUNIT'])
+
+						cNumPlan := oMODEL:GETVALUE("CNEDETAIL","CNE_NUMERO")
+
+						If jmedicoes[nc]['itens'][nj]:HasProperty('CNE_TS')
+							cTes		:= (jmedicoes[nc]['itens'][nj]['CNE_TS'])
+						Endif
+
+						If jmedicoes[nc]['itens'][nj]:HasProperty('CNE_CC')
+							cCCusto		:= (jmedicoes[nc]['itens'][nj]['CNE_CC'])
+						Endif
+
+						If jmedicoes[nc]['itens'][nj]:HasProperty('CNE_CONTA')
+							cConta		:= (jmedicoes[nc]['itens'][nj]['CNE_CONTA'])
+						Endif
+
+						If lNfixo
+							oModel:GetModel('CNEDETAIL'):LoadValue('CNE_ITEM', PadL(cValtoChar(nj), CNE->(Len(CNE_ITEM)), "0"))//Adiciona um item a planilha
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_PRODUT' , cProduto)
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'  , cQuant)
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , nVlList)
+							If ! Empty(cTes)
 								oModel:SetValue( 'CNEDETAIL' , 'CNE_TS'     , cTes)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_CONTA'  , cConta)
+							Endif
+							If ! Empty(cCCusto)
 								oModel:SetValue( 'CNEDETAIL' , 'CNE_CC'     , cCCusto)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_ITEMCT' , cItemC)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_CLVL'   , cClasseV)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_XNUMPE', cPedido)
-							Else
-								oModel:GetModel('CNEDETAIL'):GoLine(nj)
-								oModel:GetModel('CNEDETAIL'):LoadValue('CNE_ITEM', PadL(cValtoChar(nj), CNE->(Len(CNE_ITEM)), "0"))//Adiciona um item a planilha
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_PRODUT' , cProduto)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'  , cQuant)
-								if nVlList>0
-									oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , nVlList )
+							Endif
+							If ! Empty(cConta)
+								oModel:SetValue( 'CNEDETAIL' , 'CNE_CONTA'  , cConta)
+							Endif
+
+						Else
+							oModel:GetModel('CNEDETAIL'):GoLine(nj)
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'		, cQuant)
+							If lSemifixo
+								oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , nVlList)
+							Endif
+							If ! Empty(cTes)
+								oModel:SetValue( 'CNEDETAIL' , 'CNE_TS'     , cTes)
+							Endif
+							If ! Empty(cCCusto)
+								oModel:SetValue( 'CNEDETAIL' , 'CNE_CC'     , cCCusto)
+							Endif
+							If ! Empty(cConta)
+								oModel:SetValue( 'CNEDETAIL' , 'CNE_CONTA'  , cConta)
+							Endif
+						Endif
+
+						If valtype(jmedicoes[nc]['itens'][nj]['multabonif']) <> 'U'
+							For nK := 1 to len(jmedicoes[nc]['itens'][nj]['multabonif'])
+
+								If nK == 1
+									oModel:GetModel('CNRDETAIL2'):GoLine(nK)
+								Else
+									oModel:GetModel('CNRDETAIL2'):AddLine()
 								Endif
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_TS'     , cTes)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_CONTA'  , cConta)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_CC'     , cCCusto)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_ITEMCT' , cItemC)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_CLVL'   , cClasseV)
-								oModel:SetValue( 'CNEDETAIL' , 'CNE_XNUMPE', cPedido)
-							Endif
-							If valtype(jmedicoes[nc]['itens'][nj]['multabonif']) <> 'U'
-								for nk := 1 to len(jmedicoes[nc]['itens'][nj]['multabonif'])
 
-									if nk == 1
-										oModel:GetModel('CNRDETAIL2'):GoLine(nk)
-									Else
-										oModel:GetModel('CNRDETAIL2'):AddLine()
-									Endif
-									cTIPO := jmedicoes[nc]['itens'][nj]['multabonif'][nk]['CNR_TIPO']
-									cDESCR:= jmedicoes[nc]['itens'][nj]['multabonif'][nk]['CNR_DESCRI']
-									cVALOR:= jmedicoes[nc]['itens'][nj]['multabonif'][nk]['CNR_VALOR']
-									oModel:SetValue("CNRDETAIL2","CNR_TIPO"     , cTIPO)//1=Multa/2=Bonificação
-									oModel:SetValue("CNRDETAIL2","CNR_DESCRI"   , cDESCR)
-									oModel:SetValue("CNRDETAIL2","CNR_VALOR"    , cVALOR)
-								next nk
-							endif
-						next
-						If (oModel:VldData()) /*Valida o modelo como um todo*/
-							oModel:CommitData()
-						EndIf
+								cMultp 	:= jmedicoes[nc]['itens'][nj]['multabonif'][nK]['CNR_TIPO']
+								cMuldes	:= jmedicoes[nc]['itens'][nj]['multabonif'][nK]['CNR_DESCRI']
+								cMulval	:= jmedicoes[nc]['itens'][nj]['multabonif'][nK]['CNR_VALOR']
+								oModel:SetValue("CNRDETAIL2","CNR_TIPO"     , cMultp)//1=Multa/2=Bonificação
+								oModel:SetValue("CNRDETAIL2","CNR_DESCRI"   , cMuldes)
+								oModel:SetValue("CNRDETAIL2","CNR_VALOR"    , nMulval)
+							Next nK
+						Endif
+					Next
+
+					If (oModel:VldData())
+						oModel:CommitData()
+					EndIf
+
+					FreeObj(jAuxLog)
+					jAuxLog     := JsonObject():New()
+
+					If(oModel:HasErrorMessage())
+
+						//Caso nao tenha sido gravada a medição, verifica o erro
+						aMsgDeErro := oModel:GetErrorMessage()
+						cMsgErro   := aMsgDeErro[6]
+						cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+						lRet := .F.
+
 						FreeObj(jAuxLog)
-						jAuxLog     := JsonObject():New()
-						If(oModel:HasErrorMessage())
-							aMsgDeErro := oModel:GetErrorMessage()
-							cMsgErro   := aMsgDeErro[6]
-							cLogErro   += "Contrato Nr  "+ cCONTRATO + " Medição Nao Gerada! Erro: " + cMsgErro + CRLF
-							nTotErro++
-							lRet := .f.
+						jAuxLog             := JsonObject():New()
+						jAuxLog["status"]   := "0"
+						jAuxLog["idinteg"]  := ""
+						jAuxLog["nomapi"]   := "POST_INCCONTR"
+						jAuxLog["rotina"]   := "CNTA300"
+						jAuxLog["tabela"]   := "CN9"
+						jAuxLog["recno"]    := 0
+						jAuxLog["data"]     := DToS(dDataBase)
+						jAuxLog["hora"]     := Time()
+						jAuxLog["msgresp"]  := "error"
+						jAuxLog["msgerr"]   := cLogErro
+						jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+						jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
 
-							jAuxLog["status"]  := "0"
-							jAuxLog["idinteg"] := ""
+						If !oLog:AddItem(jAuxLog)
+
+							ConOut(oLog:GetError())
+						EndIf
+					Else
+						cNumMed := CND->CND_NUMMED
+						oModel:DeActivate()
+						lRet := CN121Encerr(.T.) //Realiza o encerramento da medição
+						If lRet
+
+							cMsgOK  += cContrato + ' ' + "Medicao: " + cNumMed + " - " + cCompet + " - " + cRevisao + ' ' + 'Pedido: ' + SC7->C7_NUM + CRLF
+
+							FreeObj(jAuxLog)
+							jAuxLog     	   := JsonObject():New()
+							jAuxLog["status"]  := "1"
+							jAuxLog["idinteg"] := xIDInteg
 							jAuxLog["nomapi"]  := "POST_INCMED"
 							jAuxLog["rotina"]  := "CNTA121"
 							jAuxLog["tabela"]  := "CND"
-							jAuxLog["recno"]   := 0
+							jAuxLog["recno"]   := CND->(RecNo())
 							jAuxLog["data"]    := DToS(dDataBase)
 							jAuxLog["hora"]    := Time()
-							jAuxLog["msgresp"] := "error"
-							jAuxLog["msgerr"]  := cLogErro
+							jAuxLog["msgresp"] := "success"
+							jAuxLog["msgerr"]  := ""
 							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-							jAuxLog["jsonret"] := '{"result": "' + cLogErro + '"}'
+							jAuxLog["jsonret"] := '{"result": Medicao incluida com sucesso!!"}'
 
 							If !oLog:AddItem(jAuxLog)
 
 								ConOut(oLog:GetError())
-
 							EndIf
+
 						Else
-							cNumMed := CND->CND_NUMMED
-							oModel:DeActivate()
-							lRet := CN121Encerr(.T.) //Realiza o encerramento da medição
-							IF lRet .and. !Empty(Alltrim(cPedido)) // Gerou o pedido .. vou alimentar o pedido
-								SC5->(dbsetorder(10))
-								SC5->(dbgotop())
-								if SC5->(dbseek(xFilial('SC5')+cContrato+cNumMed+cNumPlan))
-									SC6->(dbsetorder(1))
-									SC6->(dbgotop())
-									if SC6->(dbseek(xFilial('SC6')+SC5->C5_NUM))
-										while SC6->(!EOF()) .AND. SC6->C6_FILIAL == SC5->C5_FILIAL .AND. SC6->C6_NUM == SC5->C5_NUM
-											Reclock("SC6",.F.)
-											SC6->C6_PEDCLI := cPedido
-											SC6->(MsUnlock())
-											SC6->(dbskip())
-										Enddo
-									Endif
-								Endif
-								FreeObj(jAuxLog)
-								jAuxLog     := JsonObject():New()
-								jAuxLog["status"]  := "1"
-								jAuxLog["idinteg"] := xIDInteg
-								jAuxLog["nomapi"]  := "POST_INCMED"
-								jAuxLog["rotina"]  := "CNTA121"
-								jAuxLog["tabela"]  := "CND"
-								jAuxLog["recno"]   := CND->(RecNo())
-								jAuxLog["data"]    := DToS(dDataBase)
-								jAuxLog["hora"]    := Time()
-								jAuxLog["msgresp"] := "success"
-								jAuxLog["msgerr"]  := ""
-								jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-								jAuxLog["jsonret"] := '{"result": Medicao incluida com sucesso!!"}'
+							cMsgErro   := "Medicao não encerrada!"
+							cLogErro   += cContrato + ' ' + "Medicao: " + cNumMed + " - " + cCompet + " - " + cRevisao + "Erro: " + cMsgErro + CRLF
+							lRet := .F.
 
-								If !oLog:AddItem(jAuxLog)
+							FreeObj(jAuxLog)
+							jAuxLog            := JsonObject():New()
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := xIDInteg
+							jAuxLog["nomapi"]  := "POST_INCMED"
+							jAuxLog["rotina"]  := "CNTA121"
+							jAuxLog["tabela"]  := "CND"
+							jAuxLog["recno"]   := CND->(RecNo())
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "success"
+							jAuxLog["msgerr"]  := ""
+							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+							jAuxLog["jsonret"] := '{"result": Medicao não encerrada!!"}'
 
-									ConOut(oLog:GetError())
+							If !oLog:AddItem(jAuxLog)
 
-								EndIf
-
-							Else
-								FreeObj(jAuxLog)
-								jAuxLog     := JsonObject():New()
-								jAuxLog["status"]  := "0"
-								jAuxLog["idinteg"] := xIDInteg
-								jAuxLog["nomapi"]  := "POST_INCMED"
-								jAuxLog["rotina"]  := "CNTA121"
-								jAuxLog["tabela"]  := "CND"
-								jAuxLog["recno"]   := CND->(RecNo())
-								jAuxLog["data"]    := DToS(dDataBase)
-								jAuxLog["hora"]    := Time()
-								jAuxLog["msgresp"] := "success"
-								jAuxLog["msgerr"]  := ""
-								jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-								jAuxLog["jsonret"] := '{"result": Medicao NAo Encerrada!!"}'
-
-							Endif
-						EndIf
-					Endif
+								ConOut(oLog:GetError())
+							EndIf
+						Endif
+					EndIf
 				Endif
+			Else
+
+				cMsgErro   := "Contrato nao encontrado ou nao esta vigente!"
+				cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+				lRet := .F.
+
+				FreeObj(jAuxLog)
+				jAuxLog     := JsonObject():New()
+				jAuxLog["status"]  := "0"
+				jAuxLog["idinteg"] := xIDInteg
+				jAuxLog["nomapi"]  := "POST_INCMED"
+				jAuxLog["rotina"]  := "CNTA121"
+				jAuxLog["tabela"]  := "CND"
+				jAuxLog["recno"]   := CND->(RecNo())
+				jAuxLog["data"]    := DToS(dDataBase)
+				jAuxLog["hora"]    := Time()
+				jAuxLog["msgresp"] := "success"
+				jAuxLog["msgerr"]  := ""
+				jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+				jAuxLog["jsonret"] := '{"result": Contrato não encontrado ou contrato não está vigente!!"}'
+
+				If !oLog:AddItem(jAuxLog)
+
+					ConOut(oLog:GetError())
+				EndIf
 			Endif
-		next
+		next nC
 
-	CATCH oError
+	Catch oError
 
-		Aviso(cTitApp, "Erro DEV" + Enter + oError:Description, {"Ok"}, 3, "",,, .T.)
-		lRet := .f.
-	ENDTRY
-	RestArea(aArea)
-Return lRet
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
 
-Static Function PrecoTab(cProduto, nQtde, cTabela, cMensagem,xRet)
-	Local aArea := GetArea()
-	Local NPRECOTABELA := 0
+	FWRestArea(aArea)
 
-	SZ0->(DBSETORDER( 1) )
-	if SZ0->(dbseek(xFilial("SZ0")+cTabela))
-		if SZ0->Z0_ATIVO <> '1'
-			cMensagem+= "Tabela de Preço não está ativa. Por favor verifique o Contrato"  + CRLF
-			xRet:= .f.
-		Endif
-		if !(dDatabase >= SZ0->Z0_DATDE .and. (SZ0->Z0_DATATE >= dDATABASE .OR. Empty(Alltrim(Dtos(SZ0->Z0_DATATE)))))
-			cMensagem+= "Tabela de Preço fora do período de vigencia. Por favor verifique o Contrato"  + CRLF
-			xRet:= .f.
-		Endif
-		SZ1->(dbsetorder(1))
-		if SZ1->(dbseek(xFilial("SZ1")+SZ0->Z0_CODTAB+cProduto))
-			lProd := .f.
-			While SZ1->Z1_FILIAL == SZ0->Z0_FILIAL .AND. SZ1->Z1_CODTAB == SZ0->Z0_CODTAB .AND. SZ1->Z1_CODPRO == cProduto
-				if SZ1->Z1_ATIVO == "1"
-					if nQtde >= SZ1->Z1_QTDDE .and. nQtde <= SZ1->Z1_QTDATE
-						nPrecoTabela := SZ1->Z1_PRCVEN
-						lProd := .t.
-						Exit
-					Endif
-				Endif
-				SZ1->(dbskip())
-			Enddo
-			if  !lProd
-				cMensagem+= "Produto não pertence a tabela de preço vinculada ao contrato. Por favor verifique o Contrato"  + CRLF
-				xRet:= .f.
-			Endif
-		Else
-			cMensagem+= "Produto não pertence a tabela de preço vinculada ao contrato. Por favor verifique o Contrato"  + CRLF
-			xRet:= .f.
-		Endif
-	Else
-		cMensagem+= "Tabela de Preço nao Encontrada. Por favor verifique o Contrato." + CRLF
-		xRet:= .f.
-	Endif
-	RestArea(aArea)
-Return nPrecoTabela
+Return(lRet)

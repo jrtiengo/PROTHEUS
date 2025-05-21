@@ -78,7 +78,7 @@ User Function PSNOTAVOL()
 			nLargura		:=	Posicione('SB5', 1, FWxFilial('SB5') + cProduto, 'B5_LARGLC')
 			nCompr			:=	Posicione('SB5', 1, FWxFilial('SB5') + cProduto, 'B5_COMPRLC')
 
-			nM3	+= nAltura * nLargura * nCompr / 1000000
+			nM3	+= Max(Round(nAltura * nLargura * nCompr / 1000000, 3), 0.001)
 
 			SD2->(dbSkip())
 		EndDo
@@ -113,13 +113,13 @@ User Function PSSTSTMS()
 				U_LogPsInt("Falha ao popular Json. Erro: " + cRetTry)
 			Else //Obteve Sucesso.
 
-				nFrete 	:= jTrataResp:GetJSonObject('FRETE_VALOR')
+				nFrete 	:= jTrataResp:GetJSonObject('VALOR_TOTAL_FRETE')
 				
 				If SF2->(MSSeek(cChave))
 
 					RecLock("SF2",.F.)
 					SF2->F2_ZSTSTMS 	:= '2'
-					SF2->F2_FRETE		:= nFrete //falta preecnher
+					SF2->F2_FRETE		:= nFrete 
 					SF2->(MSUnLock())
 
 					lGrava := .T.
@@ -129,7 +129,7 @@ User Function PSSTSTMS()
 					SC5->(DbSetOrder(20))
 					If SC5->(MSSeek(FWxFilial('SC5')+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA))
 						RecLock("SC5",.F.)
-						SC5->C5_FRETE	= nFrete
+						SC5->C5_FRETE	:= nFrete
 						SC5->(MSUnLock())
 					Endif
 				Endif

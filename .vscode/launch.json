@@ -100,8 +100,17 @@
 		},
 		{
 			"label": "u_PsImpPrd"
+		},
+		{
+			"label": "sogamdi"
+		},
+		{
+			"label": "u_U_PSINTMON"
+		},
+		{
+			"label": "u_xDocSchema"
 		}
 	],
-	"lastProgramExecuted": "U_PSINTMON",
+	"lastProgramExecuted": "sigamdi",
 	"lastProgramArguments": []
 }

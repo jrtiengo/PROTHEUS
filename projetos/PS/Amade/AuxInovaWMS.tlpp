@@ -404,7 +404,7 @@ Static Function fCancC5(jJsonRet)
 
 	Local cStatus	:= ""	as character
 
-	cStatus 		:= jJsonRet:GetJSonObject('STATUS')
+	cStatus 		:= jJsonRet:GetJSonObject('Status')
 
 	If SC5->(MSSeek(FWxFilial('SC5')+SC5->C5_NUM))
 

@@ -20,9 +20,9 @@ If cEmpAnt == "01"
 	                { "BR_PINK",	"Liberado para Expedição porém Pendente"},;
 					{ "BR_CINZA",   "PV Eliminado Residuo Por Completo"},;
 	                { "BR_BRANCO",	"Aguardando faturamento"},;
-					{ "BR_PRETO_1"   ,"Aguardando Cancelamento"},;                                                 
-					{ "BR_PRETO_2"   ,"Cancelamento Autorizado"},;
-					{ "BR_PRETO_3"   ,"Cancelamento Negado"};
+					{ "BR_PRETO_1", "Aguardando Cancelamento"},;                                                 
+					{ "BR_PRETO_2", "Cancelamento Autorizado"},;
+					{ "BR_PRETO_3", "Cancelamento Negado"};
 					}
 EndIf
 

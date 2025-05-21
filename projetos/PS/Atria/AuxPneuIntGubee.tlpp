@@ -93,8 +93,6 @@ User Function AtPedGB(jJsonPed)
 	Private cNameCli    := ''
 	Private lMsErroAuto := .F.
 
-	//cIDIntMag   := jJsonPed['entity_id']
-	//cIDMagento  := jJsonPed['increment_id']
 	cIDIntMag	  := jJsonPed['id']
 	cIDMagento	  := jJsonPed['externalId']
 
@@ -127,11 +125,8 @@ User Function AtPedGB(jJsonPed)
 	If ValType(jJsonPed['items']) == 'A'
 		For nItem := 1 to Len(jJsonPed['items'])
 
-			// Identificacao da filial de venda de acordo com os registros de sources
-			//nFil := aScan(aSources,{|x| Alltrim(x[2]) = Alltrim(jJsonPed['items'][nItem]['sku']) .and. x[3] = jJsonPed['items'][nItem]['qty_ordered'] })
-			//If nFil > 0
-			cFilVnd := '03' //aSources[nFil][1]
-			//EndIf
+			// Identificacao da filial de venda de acordo com o objeto warehouseId
+			cFilVnd := jJsonPed['items'][nItem]['warehouseId']
 
 			If !Empty(Alltrim(cFilVnd))
 				nFil := aScan(aItPV,{|x| Alltrim(x[1]) == Alltrim(cFilVnd) })
@@ -726,7 +721,6 @@ Static Function fClientePneusM(jCliente,lVenda,cNomeCliente)
 
 			fRetiraPont(@xConteudo)
 			aAdd(aDados,{'A1_PESSOA',xConteudo})
-
 		Endif
 	Endif
 
@@ -744,7 +738,6 @@ Static Function fClientePneusM(jCliente,lVenda,cNomeCliente)
 
 			fRetiraPont(@xConteudo)
 			aAdd(aDados,{'A1_TEL',xConteudo})
-
 		Endif
 	EndIf
 
@@ -1062,11 +1055,10 @@ Static Function fGravaIDZS3(cMetodo,cFilPed,cNumPed,cIDEcom)
 			// Ajusta a chave
 			cPedExist := StrTran(cPedExist,'|','')
 
-			// Posiciona para usar no envio de atualização para o magento
+			// Posiciona para usar no envio de atualizacao para o magento
 			DbSelectArea("SC5")
 			SC5->(DbSetOrder(1))
 			SC5->(DbSeek(cPedExist))
-
 		EndIf
 	EndIf
 
@@ -1438,3 +1430,273 @@ Static Function PmSndMai(aEstGer,cMensagem,cTitulo)
 	EndIf
 
 Return lRet
+
+User Function PSORIPROD()
+
+	Local oJsonPrd		:= JsonObject():New()		as object
+
+	oJsonPrd["alpha2Code"]		:= ""
+	oJsonPrd["alpha3Code"]		:= ""
+	oJsonPrd["name"]		    := "Brasil"
+
+Return(oJsonPrd)
+
+User Function PSESPPROD()
+
+	Local aItens		:= {}						as array
+
+	aAdd(aItens,JsonObject():New())
+
+	aItens[Len(aItens)]["name"]					:= "Aro"
+	aItens[Len(aItens)]["value"]				:= {'55'}
+
+Return(aItens)
+
+User Function PSVARPROD()
+
+	Local aItens		:= {}						as array
+
+	aAdd(aItens,JsonObject():New())
+
+	aItens[Len(aItens)]["condition"]						:= "NEW" 			//[NEW, USED]
+	aItens[Len(aItens)]["cost"]								:= 0
+	aItens[Len(aItens)]["description"]						:= SB1->B1_DESC
+
+	aAdd(aItens,JsonObject():New())
+
+	aItens[Len(aItens)]["dimension"]						:= JsonObject():New()
+	aItens[Len(aItens)]["dimension"]["depth"]				:= JsonObject():New()
+	aItens[Len(aItens)]["dimension"]["depth"]["type"]		:= "CENTIMETER"
+	aItens[Len(aItens)]["dimension"]["depth"]["value"]		:= 1
+
+	aItens[Len(aItens)]["dimension"]["depth"]				:= JsonObject():New()
+	aItens[Len(aItens)]["dimension"]["depth"]["type"]		:= "CENTIMETER"
+	aItens[Len(aItens)]["dimension"]["depth"]["value"]		:= 1
+
+	aItens[Len(aItens)]["dimension"]["weight"]				:= JsonObject():New()
+	aItens[Len(aItens)]["dimension"]["weight"]["type"]		:= "GRAM"
+	aItens[Len(aItens)]["dimension"]["weight"]["value"]		:= 1
+
+	aItens[Len(aItens)]["dimension"]["width"]				:= JsonObject():New()
+	aItens[Len(aItens)]["dimension"]["width"]["type"]		:= "CENTIMETER"
+	aItens[Len(aItens)]["dimension"]["width"]["value"]		:= 1
+
+	aItens[Len(aItens)]["ean"]								:= SB1->B1_POSIPI
+	aItens[Len(aItens)]["handlingTime"]						:= 1
+	aItens[Len(aItens)]["increaseValuePriceCalculation"]	:= 1
+	aItens[Len(aItens)]["main"]								:= true
+	aItens[Len(aItens)]["name"]								:= SB1->B1_DESC
+	aItens[Len(aItens)]["priceCalculationType"]				:= "1"
+	aItens[Len(aItens)]["sku"]								:= SB1->B1_COD
+	aItens[Len(aItens)]["skuId"]							:= SB1->B1_COD
+	aItens[Len(aItens)]["status"]							:= Iif(SB1->B1_MSBLQL <> 1, 'ACTIVE', 'INACTIVE')
+	aItens[Len(aItens)]["warrantyTime"]						:= 0
+
+Return(aItens)
+
+// Funcao para montar os dados do grupo extension_attributes para envio na Gubee
+User Function AtSldGB(cCodFil,cCodPrd,cTipBsc,cDestino)
+
+	Local cEmpBkp       := cEmpAnt
+	Local cFilBkp       := cFilAnt
+	Local cAliasQry 	:= "" as character
+	Local cQuery 		:= "" as character
+	Local oSaldo        := JsonObject():New()
+	Local nSaldo        := 0
+	Local aFilUse       := {}
+	Local nFil          := 1
+	Local cAlmUse       := ''
+	Default cCodFil 	:= cFilAnt
+	Default cCodPrd     := ''
+	Default cTipBsc     := 'CONSUMIDORA'
+
+	If cTipBsc = 'CONSUMIDORA'
+
+		DbSelectArea("ZB4")
+		// Adiciona a propria filial como utilização de 100% do estoque
+		aFilUse       := {{cEmpAnt,cCodFil,'*',100}}
+
+		// Passa para ver se tem consulta de estoque de outras filiais
+		ZB4->(DbSetOrder(1))
+		If ZB4->(DbSeek(xFilial("ZB4",cCodFil)+Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1])))
+			While ZB4->(!Eof()) .and. ZB4->ZB4_FILIAL = xFilial("ZB4",cCodFil) .and. ZB4->ZB4_BSCPRD = Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1])
+
+				// Evita que seja considerado registro duplicado e causar problema de saldos
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = Alltrim(ZB4->ZB4_BSCEMP) .and. Alltrim(x[2]) = Alltrim(ZB4->ZB4_BSCFIL) .and. ( Alltrim(x[3]) = Alltrim(ZB4->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{ZB4->ZB4_BSCEMP,ZB4->ZB4_BSCFIL,ZB4->ZB4_BSCALM,ZB4->ZB4_PEREST})
+				EndIf
+
+				ZB4->(DbSkip())
+			EndDo
+		EndIf
+
+	Else
+
+		cAliasQry := GetNextAlias()
+		cQuery := " SELECT ZB4.ZB4_FILIAL, ZB4.ZB4_BSCALM, ZB4.ZB4_PEREST "
+		cQuery += " FROM ZB4100 ZB4 " // Chumbado porque vai estar posicionado em outra empresa
+		cQuery += " WHERE ZB4.ZB4_BSCEMP = '" + cEmpAnt + "' "
+		cQuery += " AND ZB4.ZB4_BSCFIL = '" + cFilAnt + "' "
+		cQuery += " AND ZB4.ZB4_BSCPRD = '" + Padr(cCodPrd,TamSx3("ZB4_BSCPRD")[1]) + "' "
+		cQuery += " AND ZB4.D_E_L_E_T_ = ' '  "
+		cQuery := ChangeQuery( cQuery )
+		DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+		If  (cAliasQry)->( ! Eof() )
+
+			While (cAliasQry)->( ! Eof() )
+
+				// Adiciona o estoque da filial da PneusM como inteiro
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = '10' .and. Alltrim(x[2]) = Alltrim((cAliasQry)->ZB4_FILIAL) .and. ( Alltrim(x[3]) = Alltrim((cAliasQry)->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{'10',(cAliasQry)->ZB4_FILIAL,'*',100})
+				EndIf
+
+				// Adiciona o estoque dessa filial no envio
+				If aScan(aFilUse,{|x| Alltrim(x[1]) = cEmpAnt .and. Alltrim(x[2]) = cFilAnt .and. ( Alltrim(x[3]) = Alltrim((cAliasQry)->ZB4_BSCALM) .or. Alltrim(x[3]) = '*' ) }) <= 0
+					aAdd(aFilUse,{cEmpAnt,cFilAnt,(cAliasQry)->ZB4_BSCALM,(cAliasQry)->ZB4_PEREST})
+				EndIf
+
+				(cAliasQry)->(DbSkip())
+			EndDo
+		EndIf
+		(cAliasQry)->(DbCloseArea())
+
+	EndIf
+
+	For nFil := 1 to Len(aFilUse)
+
+		If aFilUse[nFil][1] <> cEmpAnt
+			cEmpAnt := aFilUse[nFil][1]
+		EndIf
+		If aFilUse[nFil][2] <> cFilAnt
+			cFilAnt := aFilUse[nFil][2]
+		EndIf
+
+		cAlmUse   := SuperGetMv("AT_ALMPM",.f.,'',cFilAnt)
+
+		cAliasQry := GetNextAlias()
+		cQuery := " SELECT SUM(SB2.B2_QATU-SB2.B2_RESERVA) SALDO "
+		cQuery += " FROM SB2" + cEmpAnt + "0 SB2 "
+		cQuery += " WHERE SB2.B2_FILIAL = '" + xFilial("SB2",cFilAnt) + "' "
+		cQuery += " AND SB2.B2_COD = '" + Alltrim(cCodPrd) + "' "
+		If !Empty(Alltrim(aFilUse[nFil][3])) .and. Alltrim(aFilUse[nFil][3]) <> '*'
+			cQuery += " AND SB2.B2_LOCAL = '" + aFilUse[nFil][3] + "' "
+		Endif
+		If !Empty(Alltrim(cAlmUse))
+			cQuery += " AND SB2.B2_LOCAL IN " + FormatIn(cAlmUse,';')
+		Endif
+		cQuery += " AND SB2.B2_QATU-SB2.B2_RESERVA > 0 "
+		cQuery += " AND SB2.D_E_L_E_T_ = ' '  "
+		cQuery += " GROUP BY SB2.B2_COD "
+		cQuery := ChangeQuery( cQuery )
+		DbUseArea(.T.,"TOPCONN",TCGenQry(,,cQuery),cAliasQry,.F.,.T.)
+
+		If  (cAliasQry)->( ! Eof() )
+			nSaldo += NoRound( ( (cAliasQry)->SALDO * aFilUse[nFil][4] ) / 100 , 0)
+		EndIf
+		(cAliasQry)->(DbCloseArea())
+
+	Next nFil
+
+	oSaldo['crossDockingTime']			:= JsonObject():New()
+	oSaldo['crossDockingTime']['type'] 	:= 'DAYS'
+	oSaldo['crossDockingTime']['value'] := -1
+	oSaldo['priority'] 			   		:= 0
+	oSaldo['qty'] 				   		:= nSaldo
+	oSaldo['sku'] 				   		:= cCodPrd
+	oSaldo['warehouseId'] 		   		:= SuperGetMv("PM_IDMGTS",.F.,'XX',cCodFil)
+
+	// Retorna backups
+	If cEmpBkp <> cEmpAnt
+		cEmpAnt := cEmpBkp
+	EndIf
+	If cFilBkp <> cFilAnt
+		cFilAnt := cFilBkp
+	EndIf
+
+Return(oSaldo)
+
+User Function PSNOTA(cTipo)
+
+	Local oJson		:= JsonObject():New()		as object
+	Local aItens	:= {}						as array
+	Local cChave	:= FWxFilial("SF2")+SF2->F2_DOC+SF2->F2_SERIE+SF2->F2_CLIENTE+SF2->F2_LOJA
+
+	DbSelectArea("SA1")
+	SA1->(DbSetOrder(1))
+
+	If cTipo == 'CLI'
+
+		If SA1->(MsSeek(FWxFilial("SA1")+SF2->F2_CLIENTE+SF2->F2_LOJA))
+
+			oJson["city"]        	:= SA1->A1_MUN
+			oJson["complement"]  	:= SA1->A1_COMPL
+			oJson["country"]     	:= IIf(SA1->A1_PAIS == '01058', 'Brasil', 'EX')
+			oJson["name"]        	:= SA1->A1_NOME
+			oJson["neighborhood"]	:= SA1->A1_BAIRRO
+			oJson["number"]      	:= 0
+			oJson["postcode"]    	:= SA1->A1_CEP
+			oJson["reference"]   	:= ""
+			oJson["region"]      	:= SA1->A1_REGIAO
+			oJson["state"]       	:= SA1->A1_EST
+			oJson["street"]      	:= SA1->A1_END
+
+			Return(oJson)
+		Endif
+
+	Elseif cTipo == 'DOC'
+
+		aAdd(aItens,JsonObject():New())
+
+		aItens[Len(aItens)]["id"]		:= SF2->F2_DOC
+		aItens[Len(aItens)]["value"]	:= SF2->F2_DOC
+
+		Return(aItens)
+
+	ElseIf cTipo == 'TEL'
+
+		If SA1->(MsSeek(FWxFilial("SA1")+SF2->F2_CLIENTE+SF2->F2_LOJA))
+			aAdd(aItens,JsonObject():New())
+
+			aItens[Len(aItens)]["areaCode"]		:= SA1->A1_DDD
+			//aItens[Len(aItens)]["extension"]	:=
+			aItens[Len(aItens)]["number"]		:= SA1->A1_TEL
+			aItens[Len(aItens)]["verified"]		:= TRUE
+
+			Return(aItens)
+		Endif
+
+	ElseIf cTipo == 'ITENS'
+
+		DbSelectArea("SD2")
+		DbSetOrder(3) //D2_FILIAL+D2_DOC+D2_SERIE+D2_CLIENTE+D2_LOJA+D2_COD+D2_ITEM
+
+		If SD2->(MSSeek(cChave))
+
+			While ! SD2->(Eof()) .and. cChave == FWxFilial("SD2")+SD2->D2_DOC+SD2->D2_SERIE+SD2->D2_CLIENTE+SD2->D2_LOJA
+
+				aAdd(aItens,JsonObject():New())
+
+				aItens[Len(aItens)]["discount"]									:= JsonObject():New()
+				aItens[Len(aItens)]["discount"]["discount"]						:= SD2->D2_DESC
+				aItens[Len(aItens)]["discount"]["percentage"]		   			:= .F.
+				aItens[Len(aItens)]["externalId"]	   							:= SD2->D2_DOC
+				aItens[Len(aItens)]["fulfillment"]								:= .T.
+				aItens[Len(aItens)]["originalPrice"]							:= 0
+				aItens[Len(aItens)]["qty"]										:= SD2->D2_QUANT
+				aItens[Len(aItens)]["salePrice"]								:= SD2->D2_PRCVEN
+				aItens[Len(aItens)]["skuId"]									:= SD2->D2_COD
+/*
+				aItens[Len(aItens)]["subItems"]									:= JsonObject():New()
+				aItens[Len(aItens)]["subItems"]["percentageOfTotal"]			:= SD2->D2_DESC
+				aItens[Len(aItens)]["subItems"]["qty"]							:= SD2->D2_DESC
+				aItens[Len(aItens)]["subItems"]["skuId"]						:= SD2->D2_DESC
+*/
+
+				SD2->(dbSkip())
+			EndDo
+			Return(aItens)
+		EndIf
+	Endif
+
+Return()

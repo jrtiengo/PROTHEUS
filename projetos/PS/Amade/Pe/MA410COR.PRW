@@ -6,26 +6,25 @@
 -----------------------------------------------------------------------------
 | Desc.     | PE acionado para manutencao de cores das legendas.            |
 -----------------------------------------------------------------------------
-//WMS -> 1=AGUARDANDO CANCELAMENTO;2=CANCELAMENTO AUTORIZADO;3=CANCELAMENTO NEGADO                                                       
 */
 User Function MA410COR()
 Local aCores := {}
 
 If cEmpAnt <> "03"
     SetKey(VK_F11, {||})
-	aCores := {	{ "Empty(C5_LIBEROK).And.Empty(C5_NOTA)"                       ,'ENABLE'    , "" },;		// Pedido em Aberto
-				{ "U_A410StatusMae(C5_NUM)"                                    ,"BR_PRETO"  , "" },;		// Pedido-Filho liberado para Expedição cujo PV-mãe não esteja.
-				{ "u_A410PedPedente(C5_NUM)"                                   ,"BR_PINK"   , "" },;		// Pedido-Filho liberado para Expedição e pendente
-				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='L'.And. Empty(C5_NOTA)",'BR_MARROM' , "" },;		// Pedido liberado para Expedição
-				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='Z'.And. Empty(C5_NOTA)",'BR_LARANJA', "" },;		// Recepção/Expedição
-				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='W'.And. Empty(C5_NOTA)",'BR_AZUL'   , "" },;		// Em Separação
-				{ "(!Empty(C5_NOTA).Or.C5_XLIBOK=='E').And.C5_X_VALOR>0.00"    ,'DISABLE'   , "" },;		// Pedido Encerrado
-				{ "Empty(C5_X_NOTA).And.C5_X_VALOR==0.00"                      ,'BR_CINZA'  , "" },;		// Pedido Encerrado por eliminação de residuo
-				{ "!Empty(C5_LIBEROK) .And. Empty(C5_XLIBOK)",	'BR_AMARELO'   , ""              },; 		// Pedido Liberado
-				{ "!Empty(C5_LIBEROK) .And. (!Empty(C5_XLIBOK) .And. !C5_XLIBOK $ 'W,Z,L' .And. Empty(C5_NOTA))",'BR_BRANCO', ""},;	// Pedido aguardando faturamento
-				{ "C5_ZCANCW == '1'"										   ,'BR_PRETO_1'	,""	 },;	// 1=AGUARDANDO CANCELAMENTO
-				{ "C5_ZCANCW == '2'"										   ,'BR_PRETO_2'	,""	 },;	// 2=CANCELAMENTO AUTORIZADO
-				{ "C5_ZCANCW == '3'"										   ,'BR_PRETO_3'	,""	 }}     // 3=CANCELAMENTO NEGADO
+	aCores := {	{ "Empty(C5_LIBEROK).And.Empty(C5_NOTA)"                       							,'ENABLE'    , "" },;		// Pedido em Aberto
+				{ "U_A410StatusMae(C5_NUM)"                                    						    ,"BR_PRETO"  , "" },;		// Pedido-Filho liberado para Expedição cujo PV-mãe não esteja.
+				{ "u_A410PedPedente(C5_NUM)"                                   						    ,"BR_PINK"   , "" },;		// Pedido-Filho liberado para Expedição e pendente
+				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='L'.And. Empty(C5_NOTA) .and. Empty(C5_ZCANCW) " ,'BR_MARROM' , "" },;		// Pedido liberado para Expedição
+				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='Z'.And. Empty(C5_NOTA) .and. Empty(C5_ZCANCW) " ,'BR_LARANJA', "" },;		// Recepção/Expedição
+				{ "!Empty(C5_LIBEROK) .And. C5_XLIBOK=='W'.And. Empty(C5_NOTA) .and. Empty(C5_ZCANCW) " ,'BR_AZUL'   , "" },;		// Em Separação
+				{ "(!Empty(C5_NOTA).Or.C5_XLIBOK=='E').And.C5_X_VALOR>0.00"    							,'DISABLE'   , "" },;		// Pedido Encerrado
+				{ "Empty(C5_X_NOTA).And.C5_X_VALOR==0.00"                      							,'BR_CINZA'  , "" },;		// Pedido Encerrado por eliminação de residuo
+				{ "!Empty(C5_LIBEROK) .And. Empty(C5_XLIBOK) .and. Empty(C5_ZCANCW) "				    ,'BR_AMARELO', "" },; 		// Pedido Liberado
+				{ "!Empty(C5_LIBEROK) .And. (!Empty(C5_XLIBOK) .And. !C5_XLIBOK $ 'W,Z,L' .And. Empty(C5_NOTA) .and. Empty(C5_ZCANCW) )",'BR_BRANCO', ""},;	// Pedido aguardando faturamento
+				{ "C5_ZCANCW == '1'"									       							,'BR_PRETO_1', "" },;		// 1=AGUARDANDO CANCELAMENTO
+				{ "C5_ZCANCW == '2'"										  							,'BR_PRETO_2', "" },;		// 2=CANCELAMENTO AUTORIZADO
+				{ "C5_ZCANCW == '3'"										  							,'BR_PRETO_3', "" }}     	// 3=CANCELAMENTO NEGADO
 Else
 	If AllTrim( FunName() ) $ "MATA410;XMATA410"
 		aCores := {	{ "U_A410Processo( C5_NUM )",					"BR_PINK", "" },;						// Em producao (Delim).
