@@ -109,8 +109,11 @@
 		},
 		{
 			"label": "u_xDocSchema"
+		},
+		{
+			"label": "u_GETSE1STATUS"
 		}
 	],
-	"lastProgramExecuted": "sigamdi",
+	"lastProgramExecuted": "u_GETSE1STATUS",
 	"lastProgramArguments": []
 }

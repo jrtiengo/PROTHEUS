@@ -1,0 +1,49 @@
+#Include "TOTVS.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+/*/{Protheus.doc} GETSE1STATUS
+Busca o status para o títulos a receber
+@version 1.0 
+@author Tiengo Junior
+@since 21/05/2025
+@type function
+@return lRet 
+/*/
+User Function GETSE1STATUS()
+
+	Local oRest         := Nil
+	Local cUrlAuth      := "https://appdmz-dev.unimedcampinas.com.br/gesfinspmapi"
+	Local cUrlPath      := "/authenticate/v1/gerartoken"
+	Local oRequest      := JsonObject():New()
+	Local oResponse     := Nil
+	Local aHeader       := {}
+	Local cToken        := ""
+
+	RPCSetEnv("99","01", "Administrador", "123")
+
+	aAdd(aHeader, "Accept: application/json")
+	aAdd(aHeader, "Content-Type: application/json; charset=UTF-8")
+
+	// Monta o JSON de autenticação
+	oRequest["clientID"]        := SuperGetMV( "ES_SPMUSR",.F., "TOTVS-PROTHEUS" )
+	oRequest["clientSecret"]    := SuperGetMV( "ES_USRPSW",.F., "5f73375c-ae3f-4e53-ae7d-20708def4859" )
+
+	//Converte o JSON para string em formato Json
+	cBody := EncodeUtf8(oRequest:ToJson())
+
+	// Instânciando a classse FWRest para fazer o POST
+	oRest := FWRest():New(cUrlAuth)
+	oRest:SetPath(cUrlPath)
+	oRest:SetPostParams(cBody)
+
+	// Executa o POST
+	If oResponse := oRest:Post(aHeader)
+		ConOut(oRest:GetResult())
+	Else
+		ConOut(oRest:GetLastError())
+	EndIf
+
+	RpcClearEnv() //Encerra o ambiente, fechando as devidas conexões
+
+Return(cToken)
