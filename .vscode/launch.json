@@ -112,8 +112,14 @@
 		},
 		{
 			"label": "u_GETSE1STATUS"
+		},
+		{
+			"label": "u_IntStatusSE1"
+		},
+		{
+			"label": "sigacfg"
 		}
 	],
-	"lastProgramExecuted": "u_GETSE1STATUS",
+	"lastProgramExecuted": "sigamdi",
 	"lastProgramArguments": []
 }
