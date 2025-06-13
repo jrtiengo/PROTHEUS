@@ -118,6 +118,13 @@
 		},
 		{
 			"label": "sigacfg"
+		},
+		{
+			"args": [],
+			"label": "u_IMP001"
+		},
+		{
+			"label": "u_SOL01CTR"
 		}
 	],
 	"lastProgramExecuted": "sigamdi",

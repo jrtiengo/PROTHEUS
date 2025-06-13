@@ -3,7 +3,7 @@
 #include "topconn.ch"
 
 /*/{Protheus.doc} RetSPMToken
-Retorna o token para acesso a API SPM
+Retorna o token para acesso a API SPM GAP-29
 @type function
 @version  V 1.0
 @author Marcio Martins  Pereira

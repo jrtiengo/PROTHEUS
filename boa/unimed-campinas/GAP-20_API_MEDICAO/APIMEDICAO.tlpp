@@ -9,7 +9,7 @@
 #Define Enter Chr(13) + Chr(10)
 
 /*/{Protheus.doc} IncMed
-Função de API no método POST de Inclusão da Medição de Contratos
+Função de API no método POST de Inclusão da Medição de Contratos GAP20
 @type function
 @version V 1.00
 @author Tiengo
@@ -137,9 +137,10 @@ User Function inclui_medicao() as Logical
 		EndIf
 
 	Catch oError
-
+		
+		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
 		oRest:SetStatusCode(501)
-		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oError:Description))
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
 		FreeObj(oBody)
 		FreeObj(oResult)
 	EndTry

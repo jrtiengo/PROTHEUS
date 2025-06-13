@@ -1,0 +1,50 @@
+#Include 'TOTVS.ch'
+#Include 'Topconn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Ponto de Entrada MT094END"
+#Define Enter Chr(13) + Chr(10)
+
+/*/{Protheus.doc} MT094END
+O ponto de entrada MT094END trás as seguintes informações: Número do Documento, Tipo do Documento, Operação que está sendo executada (Aprovação, Transferência e/ou Superior) e filial do documento com controle de alçadas, para serem usadas conforme necessidade do usuário. O mesmo não possui retorno e tem por finalidade somente mostrar as informações.
+Este Ponto de Entrada é executado antes da conclusão do tipo de operação que está em andamento (Liberar o Documento, Transferência do Documento, Transferência para Superior)
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 24/05/2025
+@obs PARAMIXB[1] Caracter Número do Documento
+@obs PARAMIXB[2] Caracter Tipo do documento (PC, NF, SA, IP, AE)
+@obs PARAMIXB[3] Numérico Operação a ser executada (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
+@obs PARAMIXB[4] Caracter Filial do documento
+@klink https://tdn.totvs.com/display/public/PROT/TUMXYE_DT_PONTO_ENTRADA_MT094END
+/*/
+User Function MT094END()
+
+	Local aArea         := FwGetArea()                  as Array
+	Local aAreaSC1      := SC1->(FwGetArea())           as Array
+	Local aAreaSC7      := SC7->(FwGetArea())           as Array
+	//Local cDocto        := PARAMIXB[1]                  as Character
+	Local cTipo         := PARAMIXB[2]                  as Character
+	Local nOpc          := PARAMIXB[3]                  as Numeric
+	//Local cFilDoc       := PARAMIXB[4]                  as Character
+	Local oError        := ErrorClass():New()           as Object
+
+	TRY
+
+		If cTipo == 'IP' .and. nOpc == 1
+			U_INTPCMV(nOpc,@cMsgErr)
+		Endif
+        
+	CATCH oError
+
+		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+	FwRestArea(aAreaSC1)
+	FwRestArea(aAreaSC7)
+	FwRestArea(aArea)
+
+Return()

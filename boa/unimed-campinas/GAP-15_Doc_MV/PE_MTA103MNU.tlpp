@@ -1,0 +1,32 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+/*/{Protheus.doc} MTA103MNU
+Ponto de entrada utilizado para inserir novas opções no array aRotina
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 29/05/2025
+@Param aRorina: Nome, Função, Operação (1-Pesquisa; 2-Visualização; 3-Inclusão; 4-Alteração; 5-Exclusão), acesso(.F.,.T.)
+@See https://tdn.totvs.com/pages/releaseview.action?pageId=6085406
+/*/
+
+User Function MTA103MNU
+
+	Local oError  := ErrorClass():New() as Object
+	Local aRotina := {}                 as Array
+
+	TRY
+		aAdd(aRotina,{ "Log de Integração", "U_VerLogSF1()", 0 , 2, 0, .F.})
+		aAdd(aRotina,{ "Reenviar Integração", "u_IntDocRv()", 0 , 2, 0, .F.})
+
+	CATCH oError
+
+		U_AdminMsg("[MTA103MNU] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return(aRotina)

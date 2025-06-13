@@ -1,0 +1,1850 @@
+#Include "TOTVS.ch"
+#Include "TopConn.ch"
+#Include "TBIConn.ch"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+#Define cTitApp "API Clientes"
+#Define Enter Chr(13) + Chr(10)
+
+/*/{Protheus.doc} InsCli
+Função de API no método POST de Inclusão de Clientes
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@return logical, Sempre Verdadeiro
+/*/
+@Post("/UnimedCampinas/Clientes/InsCli")
+User Function InsCli() as Logical
+
+	Local oError   := ErrorClass():New() as Object
+	Local oBody    := Nil                as Json
+	Local oResult  := Nil                as Json
+	Local oAux     := Nil                as Json
+	Local oLog     := Nil                as Object
+	Local jAuxLog  := Nil                as Json
+	Local aCliente := {}                 as Array
+	Local aCompl   := {}                 as Array
+	Local aTitDepen:= {}                 as Array
+	Local oVldSch  := Nil                as Object
+	Local cPathSch := ""                 as Character
+	Local xx       := 1                  as Numeric
+
+	Private cMsgErr  := ""                 as Character
+	Private cMsgRet  := ""                 as Character
+	Private cMsgOk   := ""                 as Character
+
+	TRY
+
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da RequisiÃ§Ã£o
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If !U_PrepEnvironment(cCNPJ)
+
+				cMsgRet := '{"erros": ["Erro ao preparar o ambiente com o CNPJ informado"]}'
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(AnswerFormat(602, "Erro ao preparar ambiente", cMsgRet))
+				Return .T.
+
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+
+				// Habilita o LOG de Integracoes
+				oLog    := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If !oLog:SetTab("SZL")
+
+					U_AdminMsg("[InsCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+					oRest:SetStatusCode(501)
+					cMsgRet := '{"erros": ["' + oLog:GetError() + '"]}'
+					oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+					Return .T.
+
+				EndIf
+
+				// Realiza a validação do JSON enviado com Schema
+				If File(cPathSch + "\inscli.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\inscli.json", @cMsgErr)
+
+						If !oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+							oRest:SetStatusCode(502)
+							oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "POST_INTCLIENTE"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Validacao de Schema"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+							If !oLog:AddItem(jAuxLog)
+
+								U_AdminMsg("[InsCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+							EndIf
+
+							Return .T.
+
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+						oRest:SetStatusCode(502)
+						oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Validacao de Schema"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+
+							U_AdminMsg("[InsCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+						EndIf
+
+						Return .T.
+
+					EndIf
+
+				EndIf
+
+				// Verifica se o ID Informado já existe no Protheus
+				For xx:= 1 to len(oBody["clientes"])
+					If U_ChkIDInt("SA1", Alltrim(oBody["clientes"][xx]:GetJSonObject("A1_XIDINT")) , @cMsgErr)
+
+						cMsgRet := '{"erros": [{"idint": "' + Alltrim(oBody["clientes"][xx]:GetJSonObject("A1_XIDINT")) + '", "error": "Chave xidint ja existe cadastrado no Protheus."}]}'
+						oRest:SetStatusCode(607)
+						oRest:SetResponse(AnswerFormat(607, "Chave IDint duplicada", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Chave IDint duplicada"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(607, "Chave IDint duplicada", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+
+							U_AdminMsg("[InsCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+						EndIf
+
+						Return .T.
+
+					EndIf
+				Next xx
+
+				If FillArrayCli(oBody, 3, @aCliente,@aCompl,@aTitDepen)
+
+					If Len(aCliente) > 0
+						If !Empty(cMsgErr)
+							cMsgRet:=""
+							cMsgRet += '{"erros": [' + cMsgErr + ']'
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(606)
+							oRest:SetResponse(AnswerFormat(606, "Cliente com erro no Processamento", cMsgRet))
+						EndIf
+
+						If !Empty(cMsgOk)
+							cMsgRet:=""
+							cMsgRet +=  '{"ok": [' + cMsgOk + ']
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(201)
+							oRest:SetResponse(AnswerFormat(201, "Cliente Processado",cMsgRet))
+						EndIf
+					Else
+						cMsgRet := '{"erros": ["Array do Cliente sem dados"]}'
+						oRest:SetStatusCode(603)
+						oRest:SetResponse(AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Erro nos dados do array para Cliente"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet)
+					EndIf
+				Else
+					cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+					oRest:SetStatusCode(604)
+					oRest:SetResponse(AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := Iif(oBody:HasProperty("idint"), oBody["idint"], "")
+					jAuxLog["nomapi"]  := "POST_INTCLIENTE"
+					jAuxLog["rotina"]  := "CRMA980"
+					jAuxLog["tabela"]  := "SA1"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Erro ao gerar array do Cliente"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet)
+				EndIf
+			EndIf
+		Else
+			cMsgRet := '{"erros": ["Nao foi informada a chave cnpj"]}'
+			oRest:SetStatusCode(601)
+			oRest:SetResponse(AnswerFormat(601, "Faltando chave cnpj", cMsgRet))
+			Return .T.
+		EndIf
+
+		If jAuxLog:HasProperty("status")
+			If !oLog:AddItem(jAuxLog)
+				U_AdminMsg("[InsCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+			EndIf
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[InsCli] " + DtoC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		cMsgRet := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+		FreeObj(oBody)
+		FreeObj(oResult)
+
+	ENDTRY
+
+Return .T.
+
+
+/*/{Protheus.doc} AltCli
+Função de API no método PUT de Alteração de Clientes
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@return logical, Sempre Verdadeiro
+/*/
+	@Put("/UnimedCampinas/Clientes/AltCli")
+User Function AltCli() as Logical
+
+	Local oError    := ErrorClass():New() as Object
+	Local oBody     := Nil                as Json
+	Local oResult   := Nil                as Json
+	Local oAux      := Nil                as Json
+	Local oLog      := Nil                as Object
+	Local jAuxLog   := Nil                as Json
+	Local aCliente  := {}                 as Array
+	Local ACOMPL    := {}                 as Array
+	Local aTitDepen := {}                 as Array
+	Local oVldSch   := Nil                as Object
+	Local cPathSch  := ""                 as Character
+	Local cCgc      := ""                 as Character
+
+	Private cMsgErr  := ""                 as Character
+	Private cMsgRet  := ""                 as Character
+	Private cMsgOk   := ""                 as Character
+
+
+	TRY
+
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da RequisiÃ§Ã£o
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If !U_PrepEnvironment(cCNPJ)
+				cMsgRet := '{"erros": ["Erro ao preparar o ambiente com o CNPJ informado"]}'
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(AnswerFormat(602, "Erro ao preparar ambiente", cMsgRet))
+				Return .T.
+			Else
+				cPathSch    := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				oLog        := CtrlLOG():New()
+				jAuxLog     := JsonObject():New()
+
+				If !oLog:SetTab("SZL")
+					U_AdminMsg("[AltCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+					oRest:SetStatusCode(501)
+					cMsgRet := '{"erros": ["' + oLog:GetError() + '"]}'
+					oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+					Return .T.
+				EndIf
+
+				// Realiza a validação do JSON enviado com Schema
+				If File(cPathSch + "\altcli.json")
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\altcli.json", @cMsgErr)
+						If !oVldSch:ValidJSON(oBody, @cMsgErr)
+							cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+							oRest:SetStatusCode(502)
+							oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "PUT_INTCLIENTE"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Validacao de Schema"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+							If !oLog:AddItem(jAuxLog)
+								U_AdminMsg("[AltCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+							EndIf
+
+							Return .T.
+						EndIf
+					Else
+
+						cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+						oRest:SetStatusCode(502)
+						oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "PUT_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Validacao de Schema"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+							U_AdminMsg("[AltCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+						EndIf
+
+						Return .T.
+					EndIf
+				EndIf
+
+				// Verifica se o ID Informado já existe no Protheus
+				If !ChkIDInt("SA1", Alltrim(oBody["clientes"][1]:GetJSonObject("A1_XIDINT")))
+					cMsgRet := '{"erros": [{"idint": "' +Alltrim(oBody["clientes"][1]:GetJSonObject("A1_XIDINT")) + '", "CNPJ": "' + Alltrim(oBody["clientes"][1]:GetJSonObject("A1_CGC"))+ '", "error": "Chave xidint nao existe cadastrado no Protheus."}]}'
+					oRest:SetStatusCode(607)
+					oRest:SetResponse(AnswerFormat(607, "Chave IDint inexistente", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "PUT_INTCLIENTE"
+					jAuxLog["rotina"]  := "CRMA980"
+					jAuxLog["tabela"]  := "SA1"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Chave IDint inexistente"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(607, "Chave IDint inexistente", cMsgRet)
+
+					If !oLog:AddItem(jAuxLog)
+						U_AdminMsg("[AltCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+					EndIf
+					Return .T.
+				EndIf
+
+				If FillArrayCli(oBody, 4, @aCliente,@aCompl,@aTitDepen,@cCgc)
+					If Len(aCliente) > 0
+						dbSelectArea("SA1")
+						SA1->(dbSetOrder(3))
+
+						If SA1->(dbSeek(xFilial(Alias()) + cCgc))
+
+							If !Empty(cMsgErr)
+								cMsgRet += '{"erros": [' + cMsgErr + ']'
+								cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+								oRest:SetStatusCode(606)
+								oRest:SetResponse(AnswerFormat(606, "Cliente com erro no Processamento", cMsgRet))
+							EndIf
+
+							If !Empty(cMsgOk)
+								cMsgRet +=  '{"ok": [' + cMsgOk + ']
+								cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+								oRest:SetStatusCode(201)
+								oRest:SetResponse(AnswerFormat(201, "Cliente Processado",cMsgRet))
+							EndIf
+						Else
+							cMsgRet := '{"erros": [' + cMsgErr + ']'
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(605)
+							oRest:SetResponse(AnswerFormat(605, "Cliente nao encontrado", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "PUT_INTCLIENTES"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Cliente nao encontrado"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(605, "Cliente nao encontrado", cMsgRet)
+						EndIf
+					Else
+
+						cMsgRet := '{"erros": ["Array do Cliente sem dados"]}'
+						oRest:SetStatusCode(603)
+						oRest:SetResponse(AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "PUT_INTCLIENTES"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Erro nos dados do array para Cliente"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet)
+					EndIf
+
+				Else
+
+					cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+					oRest:SetStatusCode(604)
+					oRest:SetResponse(AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := Iif(oBody:HasProperty("idint"), oBody["idint"], "")
+					jAuxLog["nomapi"]  := "PUT_INTCLIENTES"
+					jAuxLog["rotina"]  := "CRMA980"
+					jAuxLog["tabela"]  := "SA1"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Erro ao gerar array do Cliente"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet)
+
+				EndIf
+
+			EndIf
+
+		Else
+
+			cMsgRet := '{"erros": ["Nao foi informada a chave cnpj"]}'
+			oRest:SetStatusCode(601)
+			oRest:SetResponse(AnswerFormat(601, "Faltando chave cnpj", cMsgRet))
+
+			FreeObj(jAuxLog)
+			jAuxLog := JsonObject():New()
+
+			jAuxLog["status"]  := "0"
+			jAuxLog["idinteg"] := ""
+			jAuxLog["nomapi"]  := "PUT_INTCLIENTES"
+			jAuxLog["rotina"]  := "CRMA980"
+			jAuxLog["tabela"]  := "SA1"
+			jAuxLog["recno"]   := 0
+			jAuxLog["data"]    := DToS(dDataBase)
+			jAuxLog["hora"]    := Time()
+			jAuxLog["msgresp"] := "error"
+			jAuxLog["msgerr"]  := "Faltando chave cnpj"
+			jAuxLog["jsonbod"] := oBody:ToJSON()
+			jAuxLog["jsonret"] := AnswerFormat(601, "Faltando chave cnpj", cMsgRet)
+
+		EndIf
+
+		If jAuxLog:HasProperty("status")
+
+			If !oLog:AddItem(jAuxLog)
+
+				U_AdminMsg("[AltCli] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+			EndIf
+
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[InsCli] " + DtoC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		cMsgRet := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+		FreeObj(oBody)
+		FreeObj(oResult)
+
+	ENDTRY
+
+Return .T.
+
+
+/*/{Protheus.doc} ExcCli
+Função de API no método DELETE de Exclusão de Clientes
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@return logical, Sempre Verdadeiro
+/*/
+	@Delete("/UnimedCampinas/Clientes/ExcCli")
+User Function ExcCli() as Logical
+
+	Local oError   := ErrorClass():New() as Object
+	Local oBody    := Nil                as Json
+	Local oResult  := Nil                as Json
+	Local oAux     := Nil                as Json
+	Local oLog     := Nil                as Object
+	Local jAuxLog  := Nil                as Json
+	Local aCliente := {}                 as Array
+	Local aCompl   := {}                 as Array
+	Local aTitDepen:= {}                 as Array
+
+	Local oVldSch  := Nil                as Object
+	Local cPathSch := ""                 as Character
+	Local xx       := 1                  as Numeric
+
+	Private cMsgErr  := ""                 as Character
+	Private cMsgRet  := ""                 as Character
+	Private cMsgOk   := ""                 as Character
+
+	TRY
+
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da RequisiÃ§Ã£o
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If !U_PrepEnvironment(cCNPJ)
+
+				cMsgRet := '{"erros": ["Erro ao preparar o ambiente com o CNPJ informado"]}'
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(AnswerFormat(602, "Erro ao preparar ambiente", cMsgRet))
+				Return .T.
+
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If !oLog:SetTab("SZL")
+
+					U_AdminMsg("[ExcCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+					oRest:SetStatusCode(501)
+					cMsgRet := '{"erros": ["' + oLog:GetError() + '"]}'
+					oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+					Return .T.
+
+				EndIf
+
+				// Realiza a validação do JSON enviado com Schema
+				If File(cPathSch + "\exccli.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\exccli.json", @cMsgErr)
+
+						If !oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+							oRest:SetStatusCode(502)
+							oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "DELETE_INTCLIENTE"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Validacao de Schema"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+							If !oLog:AddItem(jAuxLog)
+								U_AdminMsg("[ExcCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+							EndIf
+
+							Return .T.
+
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+						oRest:SetStatusCode(502)
+						oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "DELETE_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Validacao de Schema"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+							U_AdminMsg("[ExcCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+						EndIf
+
+						Return .T.
+
+					EndIf
+
+				EndIf
+
+				// Verifica se o ID Informado já existe no Protheus
+				For xx:= 1 to len(oBody["clientes"])
+					If !U_ChkIDInt("SA1", Alltrim(oBody["clientes"][xx]:GetJSonObject("A1_XIDINT")) , @cMsgErr)
+						cMsgRet := '{"erros": [{"idint": "' +  Alltrim(oBody["clientes"][xx]:GetJSonObject("A1_XIDINT")) + '", "CNPJ": "' +  Alltrim(oBody["clientes"][xx]:GetJSonObject("A1_CGC")) + '", "error": "Chave xidint nao existe cadastrado no Protheus."}]}'
+						oRest:SetStatusCode(607)
+						oRest:SetResponse(AnswerFormat(607, "Chave IDint inexistente", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "DELETE_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Chave IDint inexistente"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(607, "Chave IDint inexistente", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+							U_AdminMsg("[ExcCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+						EndIf
+
+						Return .T.
+
+					EndIf
+				Next
+
+				If FillArrayCli(oBody, 5, @aCliente,@aCompl,@aTitDepen)
+
+					If Len(aCliente) > 0
+
+						If !Empty(cMsgErr)
+							cMsgRet += '{"erros": [' + cMsgErr + ']'
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(606)
+							oRest:SetResponse(AnswerFormat(606, "Cliente com erro no Processamento", cMsgRet))
+						EndIf
+
+						If !Empty(cMsgOk)
+							cMsgRet +=  '{"ok": [' + cMsgOk + ']
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(201)
+							oRest:SetResponse(AnswerFormat(201, "Cliente Processado",cMsgRet))
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["Array do Cliente sem dados"]}'
+						oRest:SetStatusCode(603)
+						oRest:SetResponse(AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "DELETE_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Erro nos dados do array para Cliente"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(603, "Erro nos dados do array para Cliente", cMsgRet)
+					EndIf
+				Else
+
+					cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+					oRest:SetStatusCode(604)
+					oRest:SetResponse(AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := Iif(oBody:HasProperty("idint"), oBody["idint"], "")
+					jAuxLog["nomapi"]  := "DELETE_INTCLIENTE"
+					jAuxLog["rotina"]  := "CRMA980"
+					jAuxLog["tabela"]  := "SA1"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Erro ao gerar array do Cliente"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(604, "Erro ao gerar array do Cliente", cMsgRet)
+
+				EndIf
+
+			EndIf
+
+		Else
+
+			cMsgRet := '{"erros": ["Nao foi informada a chave cnpj"]}'
+			oRest:SetStatusCode(601)
+			oRest:SetResponse(AnswerFormat(601, "Faltando chave cnpj", cMsgRet))
+
+			FreeObj(jAuxLog)
+			jAuxLog := JsonObject():New()
+
+			jAuxLog["status"]  := "0"
+			jAuxLog["idinteg"] := ""
+			jAuxLog["nomapi"]  := "DELETE_INTCLIENTES"
+			jAuxLog["rotina"]  := "CRMA980"
+			jAuxLog["tabela"]  := "SA1"
+			jAuxLog["recno"]   := 0
+			jAuxLog["data"]    := DToS(dDataBase)
+			jAuxLog["hora"]    := Time()
+			jAuxLog["msgresp"] := "error"
+			jAuxLog["msgerr"]  := "Faltando chave cnpj"
+			jAuxLog["jsonbod"] := oBody:ToJSON()
+			jAuxLog["jsonret"] := AnswerFormat(601, "Faltando chave cnpj", cMsgRet)
+
+		EndIf
+
+		If jAuxLog:HasProperty("status")
+
+			If !oLog:AddItem(jAuxLog)
+
+				U_AdminMsg("[ExcCli] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+			EndIf
+
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[InsCli] " + DtoC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		cMsgRet := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+		FreeObj(oBody)
+		FreeObj(oResult)
+
+	ENDTRY
+
+Return .T.
+
+
+/*/{Protheus.doc} VisCli
+Função de API no método GET de Visualização de Clientes
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@return logical, Sempre Verdadeiro
+/*/
+	@Get("/UnimedCampinas/Clientes/VisCli")
+User Function VisCli() as Logical
+
+	Local oError   := ErrorClass():New() as Object
+	Local oBody    := Nil                as Json
+	Local oResult  := Nil                as Json
+	Local jCampos  := Nil                as Json
+	Local oLog     := Nil                as Object
+	Local jAuxLog  := Nil                as Json
+	Local aCampos  := {}                 as Array
+	Local cMsgErr  := ""                 as Character
+	Local cMsgRet  := ""                 as Character
+	Local nI       := 0                  as Numeric
+	Local nn       := 0                  as Numeric
+	Local oVldSch  := Nil                as Object
+	Local cPathSch := ""                 as Character
+
+	TRY
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da RequisiÃ§Ã£o
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If !U_PrepEnvironment(cCNPJ)
+				cMsgRet := '{"erros": ["Erro ao preparar o ambiente com o CNPJ informado"]}'
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(AnswerFormat(602, "Erro ao preparar ambiente", cMsgRet))
+				Return .T.
+			Else
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+
+				If !oLog:SetTab("SZL")
+					U_AdminMsg("[VisCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+					oRest:SetStatusCode(501)
+					cMsgRet := '{"erros": ["' + oLog:GetError() + '"]}'
+					oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+					Return .T.
+				EndIf
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				// Realiza a validação do JSON enviado com Schema
+
+				If File(cPathSch + "\viscli.json")
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\viscli.json", @cMsgErr)
+						If !oVldSch:ValidJSON(oBody, @cMsgErr)
+							cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+							oRest:SetStatusCode(502)
+							oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "GET_INTCLIENTE"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Validacao de Schema"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+							If !oLog:AddItem(jAuxLog)
+								U_AdminMsg("[VisCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+							EndIf
+
+							Return .T.
+
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+						oRest:SetStatusCode(502)
+						oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "GET_INTCLIENTE"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Validacao de Schema"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+							U_AdminMsg("[VisCli] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+						EndIf
+
+						Return .T.
+
+					EndIf
+
+				EndIf
+
+				// Inicia o processo
+				For nn:=1 to len(oBody["clientes"])
+					If oBody["clientes"][nn]:HasProperty("campos")
+
+						jCampos := JsonObject():New()
+						jCampos := oBody["clientes"][nn]["campos"]
+						If Len(jCampos) > 0
+
+							For nI := 1 To Len(jCampos)
+
+								aAdd(aCampos, jCampos[nI])
+
+							Next nI
+
+						Else
+
+							cMsgRet := '{"erros": ["Nao foram passado os itens da chave campos"]}'
+							oRest:SetStatusCode(607)
+							oRest:SetResponse(AnswerFormat(607, "Erro na chave campos", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "GET_INTCLIENTES"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Erro na chave campos"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(607, "Erro na chave campos", cMsgRet)
+
+						EndIf
+
+						If  oBody["clientes"][nn]:HasProperty("A1_CGC")
+
+							oResult := JsonObject():New()
+
+							If xQrySA1(Alltrim(oBody["clientes"][nn]:GetJSonObject("A1_CGC")), aCampos, @oResult, @cMsgErr)
+
+								oRest:SetStatusCode(201)
+								oRest:SetResponse(oResult)
+
+								FreeObj(jAuxLog)
+								jAuxLog := JsonObject():New()
+
+								jAuxLog["status"]  := "1"
+								jAuxLog["idinteg"] := ""
+								jAuxLog["nomapi"]  := "GET_INTCLIENTES"
+								jAuxLog["rotina"]  := "CRMA980"
+								jAuxLog["tabela"]  := "SA1"
+								jAuxLog["recno"]   := 0
+								jAuxLog["data"]    := DToS(dDataBase)
+								jAuxLog["hora"]    := Time()
+								jAuxLog["msgresp"] := "success"
+								jAuxLog["msgerr"]  := ""
+								jAuxLog["jsonbod"] := oBody:ToJSON()
+								jAuxLog["jsonret"] := oResult:ToJSON()
+
+							Else
+
+								cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+								oRest:SetStatusCode(609)
+								oRest:SetResponse(AnswerFormat(609, "Erro no verbo GET", cMsgRet))
+
+								FreeObj(jAuxLog)
+								jAuxLog := JsonObject():New()
+
+								jAuxLog["status"]  := "0"
+								jAuxLog["idinteg"] := ""
+								jAuxLog["nomapi"]  := "GET_INTTCLIENTES"
+								jAuxLog["rotina"]  := "CRMA980"
+								jAuxLog["tabela"]  := "SA1"
+								jAuxLog["recno"]   := 0
+								jAuxLog["data"]    := DToS(dDataBase)
+								jAuxLog["hora"]    := Time()
+								jAuxLog["msgresp"] := "error"
+								jAuxLog["msgerr"]  := "Erro no verbo GET"
+								jAuxLog["jsonbod"] := oBody:ToJSON()
+								jAuxLog["jsonret"] := AnswerFormat(609, "Erro no verbo GET", cMsgRet)
+
+							EndIf
+
+						Else
+
+							cMsgRet := '{"erros": ["Nao foi passado a chave A1_CGC"]}'
+							oRest:SetStatusCode(606)
+							oRest:SetResponse(AnswerFormat(606, "Falta chave A1_CGC", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "GET_INTCLIENTES"
+							jAuxLog["rotina"]  := "CRMA980"
+							jAuxLog["tabela"]  := "SA1"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Falta chave A1_CGC"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(606, "Falta chave A1_CGC", cMsgRet)
+
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["Nao foi passado a chave campos"]}'
+						oRest:SetStatusCode(608)
+						oRest:SetResponse(AnswerFormat(608, "Falta chave campos", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "GET_INTCLIENTES"
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Falta chave campos"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(608, "Falta chave campos", cMsgRet)
+
+					EndIf
+				Next nn
+
+			EndIf
+
+		Else
+
+			cMsgRet := '{"erros": ["Nao foi informada a chave cnpj"]}'
+			oRest:SetStatusCode(601)
+			oRest:SetResponse(AnswerFormat(601, "Faltando chave cnpj", cMsgRet))
+
+			FreeObj(jAuxLog)
+			jAuxLog := JsonObject():New()
+
+			jAuxLog["status"]  := "0"
+			jAuxLog["idinteg"] := ""
+			jAuxLog["nomapi"]  := "GET_INTCLIENTES"
+			jAuxLog["rotina"]  := "CRMA980"
+			jAuxLog["tabela"]  := "SA1"
+			jAuxLog["recno"]   := 0
+			jAuxLog["data"]    := DToS(dDataBase)
+			jAuxLog["hora"]    := Time()
+			jAuxLog["msgresp"] := "error"
+			jAuxLog["msgerr"]  := "Faltando chave cnpj"
+			jAuxLog["jsonbod"] := oBody:ToJSON()
+			jAuxLog["jsonret"] := AnswerFormat(601, "Faltando chave cnpj", cMsgRet)
+
+		EndIf
+
+		If jAuxLog:HasProperty("status")
+
+			If !oLog:AddItem(jAuxLog)
+
+				U_AdminMsg("[VisCli] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+			EndIf
+
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[InsCli] " + DtoC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		cMsgRet := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+		FreeObj(oBody)
+		FreeObj(oResult)
+
+	ENDTRY
+
+Return .T.
+
+
+/*/{Protheus.doc} FillArrayCli
+Função que monta o Array com Cliente
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@param oBody, json, Json com dados
+@param nOpc, numeric, Opção para montagem 
+@param aCliente, array, Array com os dados para ExecAuto
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se montou array corretamente
+/*/
+Static Function FillArrayCli(oBody as Json, nOpc as  Numeric, aCliente as Array, aCompl as Array, aTitDepen as Array,cCgc as Character) as Logical
+
+	Local lRet      := .T.                as Logical
+	Local oError    := ErrorClass():New() as Object
+	Local nI        := 0                  as Numeric
+	Local xConteudo := Nil                as Variant
+	Local cCodCli   := ""                 as Character
+	Local nPosCnpj  := 0                  as Numeric
+	Local aWhen     := {}                 as Array
+	Local cExeWhen  := ""                 as Character
+	Local nPosWhen  := 0                  as Numeric
+	Local aArea     := FwGetArea()        as Array
+	Local aAreaSX3  := SX3->(FwGetArea()) as Array
+	Local nc        := 1                  as Numeric
+	Local cCampo    := ""                 as Character
+	Local na        := 1                  as Numeric
+	Local nw        := 1                  as Numeric
+	Local nb        := 1                  as Numeric
+	Local nDepente  := 1                  as Numeric
+	Local nD        := 1                  as Numeric
+	Local aDepOri   := {}                 as Array
+
+
+
+
+	TRY
+
+		//aCliente := Array(len(oBody["clientes"][1]:GetNames())-2 + Iif(nOpc = 3, 2, 1))
+
+		For nw := 1 To Len(oBody:GetNames())
+
+			If oBody:GetNames()[nw] == "clientes"
+				//Adiciona idint no cadastro do cliente
+				For nb:=1 to len(oBody["clientes"])
+					aCliente:={}
+					aTitDepen :={}
+					aDepOri :={}
+					aCompl  :={}
+					For nc:= 1 to  Len(oBody[oBody:GetNames()[nw]][nb]:GetNames())
+						If .not.(oBody[oBody:GetNames()[nw]][nb]:getnames()[nc] $"complemento|titdepen")
+							lRet         := U_xValidDic("SA1",oBody[oBody:GetNames()[nw]][nb]:GetNames()[nc], cMsgErr)
+							xConteudo    := U_TreatsData(oBody["clientes"][nb]:GetNames()[nc],  Alltrim(oBody["clientes"][nb][oBody["clientes"][1]:GetNames()[nc]]), "R")
+							aAdd(aCliente,{oBody["clientes"][nb]:GetNames()[nc], xConteudo, Nil})
+
+							//Adiciona o CNPJ caso seja aleração
+							If nOpc != 3 .AND. oBody[oBody:GetNames()[nw]][1]:GetNames()[nc] == "A1_CGC"
+								cCgc := xConteudo
+							EndIf
+							dbSelectArea("SX3")
+							SX3->(dbSetOrder(2))
+							If SX3->(dbSeek(Upper(AllTrim(oBody["clientes"][nb]:GetNames()[nc]))))
+
+								If !Empty(AllTrim(SX3->X3_WHEN)) .And. "M->" $ SX3->X3_WHEN
+
+									aAdd(aWhen, {Upper(AllTrim(oBody["clientes"][nb]:GetNames()[nc])), AllTrim(SX3->X3_WHEN)})
+
+								EndIf
+
+							EndIf
+
+							If oBody[oBody:GetNames()[nw]][1]:GetNames()[nc] == "A1_PESSOA"
+								If xConteudo == "F"
+									cContaCont := SuperGetMV('UB_CTACPFC', .F., "11010101001")
+								ElseIf xConteudo == "J"
+									cContaCont := SuperGetMV('UB_CTACPJC', .F., "11010103002")
+								EndIf
+								aAdd(aCliente, {"A1_CONTA", cContaCont, Nil})
+							EndIf
+						else
+							If oBody[oBody:GetNames()[nw]][nb]:getnames()[nc] $"complemento"
+								for na:= 1 to len(OBODY["clientes"][nb]["complemento"][na]:getnames())
+									lRet         := U_xValidDic("AI0",OBODY["clientes"][nb]["complemento"][1]:getnames()[na], @cMsgErr)
+									cCampo       := OBODY["clientes"][nb]["complemento"][1]:getnames()[na]
+									xConteudo    := U_TreatsData(OBODY["clientes"][nb]["complemento"][1]:getnames()[na],  Alltrim(oBody["clientes"][nb]["complemento"][1]:GetJSonObject(cCampo)), "R")
+									aAdd(aCompl,{OBODY["clientes"][nb]["complemento"][1]:getnames()[na], xConteudo, Nil})
+									//Caso seja CNPJ e alteração
+								Next na
+							EndIf
+							If oBody[oBody:GetNames()[nw]][nb]:getnames()[nc] $"titdepen"
+								nDepente :=  len(OBODY["clientes"][nb]["titdepen"])
+								For nD := 1 to nDepente
+									for na:= 1 to len(OBODY["clientes"][nb]["titdepen"][nD]:getnames())
+										lRet         := U_xValidDic("AI0",OBODY["clientes"][nb]["titdepen"][nD]:getnames()[na], @cMsgErr)
+										cCampo       := OBODY["clientes"][nb]["titdepen"][nD]:getnames()[na]
+										xConteudo    := U_TreatsData(OBODY["clientes"][nb]["titdepen"][nD]:getnames()[na],  Alltrim(oBody["clientes"][nb]["titdepen"][nD]:GetJSonObject(cCampo)), "R")
+										aAdd(aDepOri,{OBODY["clientes"][nb]["titdepen"][nD]:getnames()[na], xConteudo})
+									Next na
+
+									aAdd(aTitDepen,aDepOri)
+									aDepOri:={}
+								Next nD
+							EndIf
+						EndIf
+					Next nc
+
+					If Len(aCliente)
+						If lRet .And. nOpc = 3
+
+							cCodCli := GetSXeNum("SA1", "A1_COD")
+							aAdd(aCliente,{"A1_COD"   , cCodCli, Nil})
+							aAdd(aCliente,{"A1_LOJA"  , "01"   , Nil})
+
+
+							If __lSX8
+
+								ConfirmSX8()
+
+							EndIf
+
+						ElseIf lRet .And. nOpc != 3
+
+							dbSelectArea("SA1")
+							SA1->(dbSetOrder(3))
+							SA1->(dbSeek(xFilial(Alias()) + cCgc))
+							aAdd(aCliente,{"A1_COD"   , SA1->A1_COD, Nil})
+							aAdd(aCliente,{"A1_LOJA"  , SA1->A1_LOJA   , Nil})
+
+						EndIf
+
+						If lRet
+
+							aCliente := FWVetByDic(aCliente, "SA1")
+
+							// Realiza tratativa para campos com When no SX3 preenchido
+							For nI := 1 To Len(aWhen)
+
+								If oBody:HasProperty(AllTrim(SubStr(awhen[nI][2], Iif(At("_", aWhen[nI][2]) <= 4, 1, At("_", aWhen[nI][2]) - 2), 10)))
+
+									cExeWhen := StrTran(aWhen[1][2], "M->" + AllTrim(SubStr(awhen[1][2], Iif(At("_", aWhen[1][2]) <= 4, 1, At("_", aWhen[1][2]) - 2), 10)), '"' + oBody[AllTrim(SubStr(awhen[1][2], Iif(At("_", aWhen[1][2]) <= 4, 1, At("_", aWhen[1][2]) - 2), 10))] + '"')
+									If !&(cExeWhen)
+
+										nPosWhen := aScan(aCliente, {|x| Upper(AllTrim(x[1])) = aWhen[nI][1]})
+										If nPosWhen > 0
+
+											aDel(aCliente, nPosWhen)
+											aSize(aCliente, Len(aCliente) - 1)
+
+										EndIf
+
+									EndIf
+
+								EndIf
+
+							Next nI
+
+						EndIf
+
+
+						U_xExecCRMA980(aCliente,aTitDepen,aCompl, nOpc, oBody)
+						cMsgOk:= cMsgOk
+
+					EndIF
+				Next nb
+
+			Else
+
+				nPosCnpj := nI
+
+			EndIf
+
+		Next nw
+
+
+
+
+
+	CATCH oError
+
+		cMsgErr += "Erro na funcao FillArrayCli - " + oError:Description + Enter
+		lRet    := .F.
+
+	ENDTRY
+
+	FwRestArea(aAreaSX3)
+	FwRestArea(aArea)
+
+Return lRet
+
+
+/*/{Protheus.doc} xExecCRMA980
+Função que executa a Rotina CRMA980
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@param aCliente, array, Array com Dados
+@param nOpc, numeric, Opção para ExecAuto
+@param cMsgOk, character, Mensagem quando OK
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se executou corretamente
+/*/
+User Function xExecCRMA980(aCliente as Array,aTitdepen as Array,aAI0Auto as Array, nOpc as Numeric, jBody as Json) as Logical
+
+	Local lRet             := .T.                as Logical
+	Local oError           := ErrorClass():New() as Object
+	Local nI               := 0                  as Numeric
+	Local aErr             := {}                 as Array
+	Local oLog             := Nil                as Object
+	Local jAuxLog          := Nil                as Json
+	Local nPosIDInt        := 0                  as Numeric
+	Local cCodCli          := ""                 as Character
+	Local cLojCli          := ""                 as Character
+	Local cIDInt           := ""                 as Character
+	Local cErrMsg          := ""                 as Character
+	Local nPosCNPJ         := 0                  as Numeric
+	//Local nPosCPF          := 0                  as Numeric
+	Local nT               := 0					 as Numeric
+	Local dd               := 0					 as Numeric
+	Local cC               := 0                  as Numeric
+	Local cCGC             := "" 				 as Character
+	Local lAchou           := .T. 				 as Logical
+
+	Private lMsErroAuto    := .F.                as Logical
+	Private lMsHelpAuto    := .F.                as Logical
+	Private lAutoErrNoFile := .T.                as Logical
+
+	Default jBody := JsonObject():New()
+
+	TRY
+
+		If Len(aCliente) > 0
+
+			Begin Transaction
+
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If !oLog:SetTab("SZL")
+
+					U_AdminMsg("[xExecCRMA980] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+
+				EndIf
+
+				nPosIDInt  := aScan(aCliente, {|x| Upper(AllTrim(x[1])) = "A1_XIDINT"})
+				nPosCNPJ := aScan(aCliente, {|x| AllTrim(x[1]) = "A1_CGC"})
+				cCGC := aCliente[nPosCNPJ][02]
+
+				If nOpc = 4 .Or. nOpc = 5
+					dbSelectArea("SA1")
+					SA1->(dbSetOrder(3))
+					If SA1->(dbSeek(xFilial(Alias()) + cCGC))
+						cCodCli := SA1->A1_COD
+						cLojCli := SA1->A1_LOJA
+						cIDInt  := SA1->A1_XIDINT
+					else
+						lAchou := .F.
+					EndIf
+
+				EndIf
+
+				If nOpc = 3
+
+					nPosCNPJ := aScan(aCliente, {|x| AllTrim(Upper(X[1])) = "A1_COD"})
+					cCodCli  := aCliente[nPosCNPJ][02]
+					nPosCNPJ := aScan(aCliente, {|x| AllTrim(Upper(X[1])) = "A1_LOJA"})
+					cLojCli  := aCliente[nPosCNPJ][02]
+					nPosCNPJ := aScan(aCliente, {|x| AllTrim(Upper(X[1])) = "A1_XIDINT"})
+					cIDInt   := aCliente[nPosCNPJ][02]
+
+				EndIf
+
+				If lAchou
+					FreeObj(jAuxLog)
+					jAuxLog     := JsonObject():New()
+					aErr        := {}
+					lMsErroAuto := .F.
+					MSExecAuto({|x, y, z| CRMA980(x, y, z)}, aCliente, nOpc, aAI0Auto)
+
+					If lMsErroAuto
+
+						lRet    := .F.
+						aErr    := GetAutoGRLog()
+						If !Empty(cMsgErr)
+							cMsgErr +=","
+						EndIf
+						cMsgErr += '{"idint": "' + AllTrim(aCliente[nPosIDInt][2]) + '", "CNPJ": "'+ cCGC + '", "error": "'
+						cErrMsg := '{"idint": "' + AllTrim(aCliente[nPosIDInt][2]) + '", "CNPJ": "'+ cCGC + '", "error": "'
+
+						For nI := 1 To Len(aErr)
+
+							cMsgErr += StrTran(aErr[nI], Enter, " ") + " "
+							cErrMsg += StrTran(aErr[nI], Enter, " ") + " "
+
+						Next nI
+						cMsgErr += '"}'
+						cErrMsg += '"}'
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := Iif(nOpc = 3, "POST_INTCLIENTES", Iif(nOpc = 4, "PUT_INTCLIENTES", "DELETE_INTCLIENTES"))
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Erro no MsExecAuto"
+						jAuxLog["jsonbod"] := jBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(606, "Erro no MsExecAuto", cErrMsg)
+
+						cMsgErr := Iif(Right(cMsgErr, 1) = ",", SubStr(cMsgErr, 1, Len(cMsgErr) - 1), cMsgErr)
+
+						If !oLog:AddItem(jAuxLog)
+
+							U_AdminMsg("[xExecCRMA980] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+						EndIf
+
+						DisarmTransaction()
+
+					Else
+
+						cCodCli := SA1->A1_COD
+						cLojCli := SA1->A1_LOJA
+
+						dbSelectArea("SZ1")
+						SZ1->(dbSetOrder(1))
+
+						If SA1->A1_PESSOA == "F" .AND. !SZ1->(dbSeek(xFilial("SZ1")+SA1->A1_COD+SA1->A1_LOJA+SA1->A1_CGC)) .AND. Len(aTitdepen) > 0 .AND. nOpc == 3
+
+							For nT := 1 to Len(aTitdepen)
+								Reclock("SZ1",.T.)
+								SZ1->Z1_FILIAL  := SA1->A1_FILIAL
+								SZ1->Z1_CODCLI  := SA1->A1_COD
+								SZ1->Z1_LOJA    := SA1->A1_LOJA
+								For cC := 1 to len(aTitdepen[nT])
+									&("SZ1->"+aTitdepen[nT][cC][1]) :=aTitdepen[nT][cC][2]
+								Next cc
+								SZ1->(MsUnlock())
+							Next nT
+						EndIf
+
+						If nOpc == 4
+							If len(aTitdepen) > 0
+								//Alteração no GAP 144, deletar os dependentes para depois inserir novamente
+								If SZ1->(dbSeek(xFilial("SZ1")+SA1->A1_COD+SA1->A1_LOJA))
+									While SZ1->(!EOF()) .AND. SZ1->Z1_FILIAL == xFilial("SZ1") .AND. SZ1->Z1_CODCLI == SA1->A1_COD .AND. SZ1->Z1_LOJA == SA1->A1_LOJA
+											Reclock("SZ1",.F.)
+											SZ1->(dbdelete())
+											SZ1->(MsUnlock())
+											SZ1->(dbSkip())
+									EndDo
+								EndIF
+
+								For dd:=1 to len(aTitdepen)
+
+										Reclock("SZ1",.T.)
+										SZ1->Z1_FILIAL  := SA1->A1_FILIAL
+										SZ1->Z1_CODCLI  := SA1->A1_COD
+										SZ1->Z1_LOJA    := SA1->A1_LOJA
+										For cC := 1 to len(aTitdepen[dd])
+											&("SZ1->"+aTitdepen[dd][cC][1]) :=aTitdepen[dd][cC][2]
+										Next cc
+										SZ1->(MsUnlock())
+
+									/*
+									nPosCPF :=nPosField := AScan(aTitdepen[dd], {|x| AllTrim(x[1]) == "Z1_CPF"})
+									If SZ1->(dbSeek(xFilial("SZ1")+SA1->A1_COD+SA1->A1_LOJA+aTitdepen[dd][nPosCPF][2]))
+										Reclock("SZ1",.F.)
+										For cC := 1 to len(aTitdepen[dd])
+											&("SZ1->"+aTitdepen[dd][cC][1]) :=aTitdepen[dd][cC][2]
+										Next cc
+										SZ1->(MsUnlock())
+									else
+										Reclock("SZ1",.T.)
+										SZ1->Z1_FILIAL  := SA1->A1_FILIAL
+										SZ1->Z1_CODCLI  := SA1->A1_COD
+										SZ1->Z1_LOJA    := SA1->A1_LOJA
+										For cC := 1 to len(aTitdepen[dd])
+											&("SZ1->"+aTitdepen[dd][cC][1]) :=aTitdepen[dd][cC][2]
+										Next cc
+										SZ1->(MsUnlock())
+
+									EndIf
+									*/
+								Next dd
+							EndIF
+						EndIf
+
+						If nOpc == 5
+							If SZ1->(dbSeek(xFilial("SZ1")+SA1->A1_COD+SA1->A1_LOJA))
+								While SZ1->(!EOF()) .AND. SZ1->Z1_FILIAL == xFilial("SZ1") .AND. SZ1->Z1_CODCLI == SA1->A1_COD .AND. SZ1->Z1_LOJA == SA1->A1_LOJA
+									Reclock("SZ1",.F.)
+									SZ1->(dbdelete())
+									SZ1->(MsUnlock())
+									SZ1->(dbSkip())
+								EndDo
+							EndIF
+						EndIf
+
+						If !Empty(cMsgOk)
+							cMsgOk+= ","
+						EndIf
+
+						cMsgOk += '{"idint": "' + SA1->A1_XIDINT + '", "A1_COD": "' + SA1->A1_COD + '", "A1_LOJA": "' + SA1->A1_LOJA + '", "CNPJ": "' + SA1->A1_CGC + '"}'
+
+
+						jAuxLog["status"]  := "1"
+						jAuxLog["idinteg"] := SA1->A1_XIDINT
+						jAuxLog["nomapi"]  := Iif(nOpc = 3, "POST_INTCLIENTES", Iif(nOpc = 4, "PUT_INTCLIENTES", "DELETE_INTCLIENTES"))
+						jAuxLog["rotina"]  := "CRMA980"
+						jAuxLog["tabela"]  := "SA1"
+						jAuxLog["recno"]   := SA1->(RecNo())
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "success"
+						jAuxLog["msgerr"]  := ""
+						jAuxLog["jsonbod"] := jBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(201, "Processo concluído", cMsgOk)
+
+					EndIf
+
+
+
+
+					If !oLog:AddItem(jAuxLog)
+
+						U_AdminMsg("[xExecCRMA980] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+					EndIf
+				
+				EndIf
+
+
+				//cMsgErr += "xExecCRMA980 - Array de Cliente esta sem dados"
+				//lRet    := .F.
+
+			End Transaction
+		EndIF
+
+
+	CATCH oError
+
+		cMsgErr += oError:Description
+		lRet    := .F.
+
+	ENDTRY
+
+Return lRet
+
+
+/*/{Protheus.doc} xQrySA1
+Função que realiza a Query e monta Json de Retorno
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@param cCGCCli, character, CNPJ/CPF do Cliente
+@param aCampos, array, Campos para montar a query
+@param oResult, json, Json com retorno da query
+@param cMsgErr, character, Mensagem de erro
+@return logical, Verdadeiro se executou corretamente
+/*/
+Static Function xQrySA1(cCGCCli as Character, aCampos as Array, oResult as Json, cMsgErr as Character) as Logical
+
+	Local lRet      := .T.                as Logical
+	Local oError    := ErrorClass():New() as Object
+	Local cAliasTmp := GetNextAlias()     as Character
+	Local cCampos   := ""                 as Character
+	Local nI        := 0                  as Numeric
+	Local jTemp     := Nil                as Json
+	Local cQuery    := ""                 as Character
+	Local lDados    := .F.                as Logical
+
+	TRY
+
+		// Monta o Select (Campos)
+		If Len(aCampos) > 0
+
+			For nI := 1 To Len(aCampos)
+
+				cCampos += "SA1." + aCampos[nI] + Iif(nI < Len(aCampos), ",", "")
+
+			Next nI
+
+		Else
+
+			lRet    := .F.
+			cMsgErr += "xQrySA1 - Sem campos para retorno da Query"
+			Return lRet
+
+		EndIf
+
+		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
+
+		cQuery := "SELECT"                                                  + Enter
+		cQuery += cCampos                                                   + Enter
+		cQuery += "FROM"                                                    + Enter
+		cQuery += RetSQLName("SA1") + " SA1"                                + Enter
+		cQuery += "WHERE"                                                   + Enter
+		cQuery += "SA1.A1_FILIAL = '" + xFilial("SA1") + "' AND"            + Enter
+		cQuery += "SA1.A1_CGC = '" + cCGCCli + "' AND"                      + Enter
+		cQuery += "SA1.D_E_L_E_T_ = ' '"
+
+		cQuery := ChangeQuery(cQuery)
+
+		TcQuery cQuery New Alias (cAliasTmp)
+
+		dbSelectArea(cAliasTmp)
+		dbGoTop()
+
+		If (cAliasTmp)->(!EOF())
+
+			jTemp := JsonObject():New()
+			While (cAliasTmp)->(!EOF())
+
+				For nI := 1 To Len(aCampos)
+
+					jTemp[aCampos[nI]] := U_TreatsData(aCampos[nI], &("(cAliasTmp)->" + aCampos[nI]), "U")
+					lDados:=.T.
+				Next nI
+
+				(cAliasTmp)->(dbSkip())
+
+			EndDo
+
+		EndIf
+		If lDados
+			oResult["result"] := jTemp
+		else
+			oResult["result"] := "Cliente não encontrado!"
+		EndIf
+
+	CATCH oError
+
+		lRet    := .F.
+		cMsgErr += oError:Description
+
+	ENDTRY
+
+Return lRet
+
+
+
+/*/{Protheus.doc} AnswerFormat
+Funcao que monta a resposta de retorno do oRest
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@param statusCode, numeric, Codigo de retorno
+@param message, character, Mensagem do retorno
+@param detailed, character, Detalhe do retorno 
+@return json, Json com resposta montada
+/*/
+Static Function AnswerFormat(statusCode As Numeric, message As Character, detailed As Character) as Json
+
+	Local oError := ErrorClass():New() as Object
+	Local jAux   := JsonObject():New() as JSON
+	Local jRet   := JsonObject():New() as JSON
+
+	TRY
+
+		jAux:FromJson(detailed)
+
+		jRet["result"]     := Iif(statusCode < 300, .T., .F.)
+		jRet["statusCode"] := statusCode
+		jRet["message"]    := message
+		jRet["response"]   := jAux
+
+	CATCH oError
+
+		U_AdminMsg("[AnswerFormat] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return jRet
+
+
+
+/*/{Protheus.doc} ChkIDInt
+Função para checar de o ID existe ou nao na base 
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/03/2025
+@param cTabela, character, Tabela a ser analisada
+@param cID, character, ID passado no JSON
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se existe o ID
+/*/
+Static Function ChkIDInt(cTabela as Character, cID as Character, cMsgErr as Character, aDados as Array) as Logical
+
+	Local lRet      := .T.                as Logical
+	Local oError    := ErrorClass():New() as Object
+	Local cQuery    := ""                 as Character
+	Local cAliasTmp := GetNextAlias()     as Character
+	Local cTabRed   := ""                 as Character
+
+	Default cMsgErr := ""
+	Default aDados  := {}
+
+	TRY
+
+		If Len(cTabela) > 3
+
+			lRet := .F.
+			cMsgErr += "Tabela informada deve ter apenas 3 caracteres."
+			Return lRet
+
+		EndIf
+
+		If Left(cTabela, 1) = "S"
+
+			cTabRed := SubStr(cTabela, 2, 2)
+
+		Else
+
+			cTabRed := SubStr(cTabela, 1,3)
+
+		EndIf
+
+		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
+
+		If Len(aDados) <= 0 .Or. (Len(aDados) > 0 .And. Upper(AllTrim(aDados[2])) != "CNC" .And. Left(cTabela, 2) != "SE")
+
+			cQuery := "SELECT"                                                      + Enter
+			cQuery += " COUNT(*) AS NREG"                                           + Enter
+			cQuery += "FROM"                                                        + Enter
+			cQuery += " " + RetSQLName(cTabela) + " " + cTabela                     + Enter
+			cQuery += "WHERE"                                                       + Enter
+			cQuery += " " + cTabRed + "_FILIAL = '" + xFilial(cTabela) + "' AND"    + Enter
+			cQuery += " " + cTabRed + "_XIDINT = '" + cID + "' AND"                 + Enter
+			cQuery += " " + cTabela + ".D_E_L_E_T_ = ' '"
+			If cTabela == "SD3"
+				cQuery += " AND D3_ESTORNO <> 'S' "     // Tratamento para SD3 na Inclusão
+			Endif
+
+		ElseIf Len(aDados) > 0
+
+			cQuery := "SELECT"                                                      + Enter
+			cQuery += " COUNT(*) AS NREG"                                           + Enter
+			cQuery += "FROM"                                                        + Enter
+			cQuery += " " + RetSQLName(cTabela) + " " + cTabela                     + Enter
+			cQuery += "WHERE"                                                       + Enter
+			cQuery += " " + cTabRed + "_FILIAL = '" + xFilial(cTabela) + "' AND"    + Enter
+			cQuery += " " + cTabRed + "_XIDINT = '" + aDados[01] + "' AND"          + Enter
+			If Left(cTabela, 2) = "SE"
+				cQuery += " " + cTabRed + "_PREFIXO = '" + aDados[02] + "' AND"         + Enter
+			EndIf
+			If cTabela = "SE1" .And. Upper(AllTrim(aDados[2])) = "CNC"
+				cQuery += " " + cTabRed + "_CLIENTE = '" + aDados[03] + "' AND"         + Enter
+				cQuery += " " + cTabRed + "_LOJA = '" + aDados[04] + "' AND"            + Enter
+			ElseIf cTabela = "SE2" .And. Upper(AllTrim(aDados[2])) = "CNC"
+				cQuery += " " + cTabRed + "_FORNECE = '" + aDados[03] + "' AND"         + Enter
+				cQuery += " " + cTabRed + "_LOJA = '" + aDados[04] + "' AND"            + Enter
+			EndIf
+			cQuery += " " + cTabela + ".D_E_L_E_T_ = ' '"
+
+		EndIf
+
+		cQuery := ChangeQuery(cQuery)
+
+		TcQuery cQuery New Alias (cAliasTmp)
+		dbSelectArea(cAliasTmp)
+		(cAliasTmp)->(dbGoTop())
+
+		If (cAliasTmp)->NREG > 0
+
+			lRet := .T.
+			//cMsgErr += "ID já existe no Protheus. ID: " + Iif(Len(aDados) > 0, aDados[01], cID)
+
+		Else
+
+			lRet := .F.
+			//cMsgErr += "ID não existe no Protheus. ID: " + Iif(Len(aDados) > 0, aDados[01], cID)
+
+		EndIf
+
+		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
+
+	CATCH oError
+
+		cMsgErr += "ChkIDInt - Erro DEV: " + oError:Description
+		lRet    := .F.
+
+	ENDTRY
+
+Return lRet

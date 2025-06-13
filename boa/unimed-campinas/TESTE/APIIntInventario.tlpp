@@ -1,0 +1,564 @@
+#Include "TOTVS.ch"
+#Include "TopConn.ch"
+#Include "TBIConn.ch"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+#Define cTitApp "API Inventario"
+#Define Enter Chr(13) + Chr(10)
+
+NAMESPACE intInventario
+
+/*/{Protheus.doc} InsInv
+Função de API no método POST de Inclusão de movimento de inventario
+
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/04/2025
+@return logical, Sempre Verdadeiro
+/*/
+
+@Post("/UnimedCampinas/estoque/inventario")
+
+User Function InsInventario() as Logical
+
+	Local oError   := ErrorClass():New() as Object
+	Local oBody    := Nil                as Json
+	Local oResult  := Nil                as Json
+	Local oAux     := Nil                as Json
+	Local oLog     := Nil                as Object
+	Local jAuxLog  := Nil                as Json
+	Local aInv     := {}                 as Array
+	Local cMsgRet  := ""                 as Character
+	Local oVldSch  := Nil                as Object
+	Local cPathSch := ""                 as Character
+
+	Private cMsgOk   := ""               as Character
+	Private cMsgErr := ""                as Character
+	Private cErrMsg := ""                as Character
+
+	TRY
+
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da Requisição
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If !U_PrepEnvironment(cCNPJ)
+
+				cMsgRet := '{"erros": ["Erro ao preparar o ambiente com o CNPJ informado"]}'
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(AnswerFormat(602, "Erro ao preparar ambiente", cMsgRet))
+				Return .T.
+
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+
+				// Habilita o LOG de Integracoes
+				oLog    := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If !oLog:SetTab("SZL")
+
+					U_AdminMsg("[Insinventario] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+					oRest:SetStatusCode(501)
+					cMsgRet := '{"erros": ["' + oLog:GetError() + '"]}'
+					oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+					Return .T.
+
+				EndIf
+ 
+				// Realiza a validação do JSON enviado com Schema
+				If File(cPathSch + "\Insinv.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\Insinv.json")
+
+						If !oVldSch:ValidJSON(oBody,@cMsgErr)
+
+							cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+							oRest:SetStatusCode(502)
+							oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "POST_INTINVENTARIO"
+							jAuxLog["rotina"]  := "MATA270"
+							jAuxLog["tabela"]  := "SB7"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Validacao de Schema"
+							jAuxLog["jsonbod"] := oBody:ToJSON()
+							jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+							If !oLog:AddItem(jAuxLog)
+
+								U_AdminMsg("[Insinventario] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+							EndIf
+
+							Return .T.
+
+						EndIf
+
+					Else
+
+						cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+						oRest:SetStatusCode(502)
+						oRest:SetResponse(AnswerFormat(502, "Validacao de Schema", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INTINVENTARIO"
+						jAuxLog["rotina"]  := "MATA270"
+						jAuxLog["tabela"]  := "SB7"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Validacao de Schema"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(502, "Validacao de Schema", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+
+							U_AdminMsg("[InsInventario] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+						EndIf
+
+						Return .T.
+
+					EndIf
+
+				EndIf
+
+				// Verifica se o ID Informado já existe no Protheus
+
+				If U_ChkIDInt("SB7", oBody["idint"])
+
+					cMsgRet := '{"erros": [{ "Documento": "' + oBody["B7_DOC"] + '", "error": "Chave xidint ja existe cadastrado no Protheus."}]}'
+					oRest:SetStatusCode(607)
+					oRest:SetResponse(AnswerFormat(607, "Chave IDint duplicada", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "POST_INVENTARIO"
+					jAuxLog["rotina"]  := "MATA270"
+					jAuxLog["tabela"]  := "SB7"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Chave IDint duplicada"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(607, "Chave IDint duplicada", cMsgRet)
+
+					If !oLog:AddItem(jAuxLog)
+
+						U_AdminMsg("[InsInv] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+					EndIf
+
+					Return .T.
+
+				EndIf
+
+				If FillArrayInv(oBody, 3, @aInv)
+
+					If Len(aInv) > 0
+						//Verifica se gerou a SB7
+						If !Empty(cMsgOk)
+							MATA340(.T., AllTrim(oBody["B7_DOC"]),.F.)
+						EndIf
+						If !Empty(cMsgErr)
+							cMsgRet += '{"erros": [' + cMsgErr + ']'
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(606)
+							oRest:SetResponse(AnswerFormat(606, "Inventario com erro no Processamento", cMsgRet))
+
+						EndIf
+						If !Empty(cMsgOk)
+							cMsgRet +=  '{"ok": [' + cMsgOk + ']
+							cMsgRet := Iif(Right(cMsgRet, 1) = "}", cMsgRet, cMsgRet += "}")
+							oRest:SetStatusCode(201)
+							oRest:SetResponse(AnswerFormat(201, ":Inventário Processado",cMsgRet))
+						EndIf
+
+
+					Else
+
+						cMsgRet := '{"erros": ["Array do inventario sem dados"]}'
+						oRest:SetStatusCode(603)
+						oRest:SetResponse(AnswerFormat(603, "Erro nos dados do array para inventario", cMsgRet))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INVENTARIO"
+						jAuxLog["rotina"]  := "MATA270"
+						jAuxLog["tabela"]  := "SB7"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Erro nos dados do array para inventario"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := AnswerFormat(603, "Erro nos dados do array para inventario", cMsgRet)
+
+					EndIf
+
+				Else
+
+					cMsgRet := '{"erros": ["' + cMsgErr + '"]}'
+					oRest:SetStatusCode(604)
+					oRest:SetResponse(AnswerFormat(604, "Erro ao gerar array do inventario", cMsgRet))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := Iif(oBody:HasProperty("idint"), oBody["idint"], "")
+					jAuxLog["nomapi"]  := "POST_INTINVENTARIO"
+					jAuxLog["rotina"]  := "MATA270"
+					jAuxLog["tabela"]  := "SB7"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Erro ao gerar array do inventario"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(604, "Erro ao gerar array do inventario", cMsgRet)
+
+				EndIf
+
+			EndIf
+
+		Else
+
+			cMsgRet := '{"erros": ["Nao foi informada a chave cnpj"]}'
+			oRest:SetStatusCode(601)
+			oRest:SetResponse(AnswerFormat(601, "Faltando chave cnpj", cMsgRet))
+			Return .T.
+
+		EndIf
+
+		If jAuxLog:HasProperty("status")
+
+			If !oLog:AddItem(jAuxLog)
+
+				U_AdminMsg("[InsInv] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+			EndIf
+
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[InsInv] " + DtoC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		cMsgRet := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(AnswerFormat(501, "Erro DEV", cMsgRet))
+		FreeObj(oBody)
+		FreeObj(oResult)
+
+	ENDTRY
+
+Return .T.
+
+
+/*/{Protheus.doc} FillArrayInv
+Função que monta o Array com inventario
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/04/2025
+@param oBody, json, Json com dados
+@param nOpc, numeric, Opção para montagem 
+@param aInvt, array, Array com os dados para ExecAuto
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se montou array corretamente
+/*/
+Static Function FillArrayInv(oBody as Json, nOpc as  Numeric, aInvet as Array, cMsgErr as Character) as Logical
+
+	Local lRet      := .T.                as Logical
+	Local oError    := ErrorClass():New() as Object
+	Local nI        := 0                  as Numeric
+	Local xConteudo := Nil                as Variant
+	Local aWhen     := {}                 as Array
+	Local cExeWhen  := ""                 as Character
+	Local nPosWhen  := 0                  as Numeric
+	Local aArea     := FwGetArea()        as Array
+	Local aAreaSX3  := SX3->(FwGetArea()) as Array
+	Local nc        := 1                  as numeric
+	Local nw        := 1                  as numeric
+	Local nb        := 1                  as numeric
+
+
+	TRY
+		For nw := 1 To Len(oBody:GetNames())
+			If oBody:GetNames()[nw] == "itens"
+				//Adiciona idint no cadastro do cliente
+				For nb:=1 to len(oBody["itens"])
+					aInvet :={}
+					For nc:= 1 to  Len(oBody[oBody:GetNames()[nw]][nb]:GetNames())
+						lRet         := U_xValidDic("SB7",oBody[oBody:GetNames()[nw]][nb]:GetNames()[nc], cMsgErr)
+						xConteudo    := U_TreatsData(oBody["itens"][nb]:GetNames()[nc],  Alltrim(oBody["itens"][nb][oBody["itens"][1]:GetNames()[nc]]), "R")
+						aAdd(aInvet,{oBody["itens"][nb]:GetNames()[nc], xConteudo, Nil})
+
+						dbSelectArea("SX3")
+						SX3->(dbSetOrder(2))
+						If SX3->(dbSeek(Upper(AllTrim(oBody["itens"][nb]:GetNames()[nc]))))
+							If !Empty(AllTrim(SX3->X3_WHEN)) .And. "M->" $ SX3->X3_WHEN
+								aAdd(aWhen, {Upper(AllTrim(oBody["itens"][nb]:GetNames()[nc])), AllTrim(SX3->X3_WHEN)})
+							EndIf
+						EndIf
+					Next nc
+
+					If Len(aInvet)
+						//Adiciona o B7_DOC
+						Aadd(aInvet,{"B7_DOC", oBody["B7_DOC"], Nil})
+
+                        nPosPrd  := aScan(aInvet, {|x| Upper(AllTrim(x[1])) = "B7_COD"})
+
+						SB1->(DbSetOrder(1))
+						SB1->(MsSeek(xFilial("SB1")+aInvet[nPosPrd][2]))
+						If SB1->B1_QTDSER <> "1"
+							aadd(aInvet,{"B7_QTSEGUM",1 , nil})
+						EndIf
+
+						If lRet
+							aInvet := FWVetByDic(aInvet, "SB7")
+							// Realiza tratativa para campos com When no SX3 preenchido
+							For nI := 1 To Len(aWhen)
+								If oBody:HasProperty(AllTrim(SubStr(awhen[nI][2], Iif(At("_", aWhen[nI][2]) <= 4, 1, At("_", aWhen[nI][2]) - 2), 10)))
+									cExeWhen := StrTran(aWhen[1][2], "M->" + AllTrim(SubStr(awhen[1][2], Iif(At("_", aWhen[1][2]) <= 4, 1, At("_", aWhen[1][2]) - 2), 10)), '"' + oBody[AllTrim(SubStr(awhen[1][2], Iif(At("_", aWhen[1][2]) <= 4, 1, At("_", aWhen[1][2]) - 2), 10))] + '"')
+									If !&(cExeWhen)
+										nPosWhen := aScan(aInvet, {|x| Upper(AllTrim(x[1])) = aWhen[nI][1]})
+										If nPosWhen > 0
+											aDel(aInvet, nPosWhen)
+											aSize(aInvet, Len(aInvet) - 1)
+										EndIf
+									EndIf
+								EndIf
+							Next nI
+						EndIf
+
+
+						U_ExecM270(aInvet,oBody)
+						cMsgOk:= cMsgOk
+					EndIF
+				Next nb
+
+			EndIf
+		Next nw
+
+	CATCH oError
+
+		cMsgErr += "Erro na funcao FillArrayInv - " + oError:Description + Enter
+		lRet    := .F.
+
+	ENDTRY
+
+	FwRestArea(aAreaSX3)
+	FwRestArea(aArea)
+
+Return lRet
+
+
+/*/{Protheus.doc} xExecMATA270
+Função que executa a Rotina MATA270
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/04/2025
+@param aInvet, array, Array com Dados
+@param nOpc, numeric, Opção para ExecAuto
+@param cMsgOk, character, Mensagem quando OK
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se executou corretamente
+/*/
+User Function ExecM270(aInvet as Array, jBody as Json) as Logical
+
+	Local lRet             := .T.                as Logical
+	Local oError           := ErrorClass():New() as Object
+	Local nI               := 0                  as Numeric
+	Local aErr             := {}                 as Array
+	Local oLog             := Nil                as Object
+	Local jAuxLog          := Nil                as Json
+	Local cErrMsg          := ""                 as Character
+
+
+
+
+	Private lMsErroAuto    := .F.                as Logical
+	Private lMsHelpAuto    := .F.                as Logical
+	Private lAutoErrNoFile := .T.                as Logical
+
+	Default jBody := JsonObject():New()
+
+	TRY
+
+		If Len(aInvet) > 0
+
+			Begin Transaction
+
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If !oLog:SetTab("SZL")
+
+					U_AdminMsg("[xExecMATA270] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+
+				EndIf
+
+				nPosPrd  := aScan(aInvet, {|x| Upper(AllTrim(x[1])) = "B7_COD"})
+
+
+
+				FreeObj(jAuxLog)
+				jAuxLog     := JsonObject():New()
+				aErr        := {}
+				lMsErroAuto := .F.
+				MsExecAuto({|a,b,c| MATA270(a,b,c)}, aInvet, .T., 3)
+
+				If lMsErroAuto
+
+					lRet    := .F.
+					aErr    := GetAutoGRLog()
+					cMsgErr += '{"Documento": "' + AllTrim(jBody["B7_DOC"]) + '", "Produto": "'+ AllTrim(aInvet[nPosPrd][2]) + '", "error": "'
+					cErrMsg := '{"Documento": "' + AllTrim(jBody["B7_DOC"]) + '", "Produto": "'+ AllTrim(aInvet[nPosPrd][2]) + '", "error": "'
+
+					For nI := 1 To Len(aErr)
+
+						cMsgErr += StrTran(aErr[nI], Enter, " ") + " "
+						cErrMsg += StrTran(aErr[nI], Enter, " ") + " "
+
+					Next nI
+					cMsgErr += '"},'
+					cErrMsg += '"}'
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "INTINVENTARIO"
+					jAuxLog["rotina"]  := "MATA270"
+					jAuxLog["tabela"]  := "SB7"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Erro no MsExecAuto"
+					jAuxLog["jsonbod"] := jBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(606, "Erro no MsExecAuto", cErrMsg)
+
+					If !oLog:AddItem(jAuxLog)
+
+						U_AdminMsg("[xExecMATA270] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+					EndIf
+
+					DisarmTransaction()
+
+				Else
+
+
+					cMsgOk += '{"B7_DOC": "' + AllTrim(jBody["B7_DOC"]) + '"}'//
+
+					jAuxLog["status"]  := "1"
+					jAuxLog["idinteg"] := AllTrim(jBody["B7_DOC"])
+					jAuxLog["nomapi"]  := "POST_INVENTARIO"
+					jAuxLog["rotina"]  := "MATA270"
+					jAuxLog["tabela"]  := "SB7"
+					jAuxLog["recno"]   := SB7->(RecNo())
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "success"
+					jAuxLog["msgerr"]  := ""
+					jAuxLog["jsonbod"] := jBody:ToJSON()
+					jAuxLog["jsonret"] := AnswerFormat(201, "Processo concluído", cMsgOk)
+
+					If !oLog:AddItem(jAuxLog)
+
+						U_AdminMsg("[xExecMATA270] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+
+					EndIf
+
+				EndIf
+
+			End Transaction
+
+		Else
+
+			cMsgErr += "xExecMATA270 - Array de inventario esta sem dados"
+			lRet    := .F.
+
+		EndIf
+
+		cMsgErr := Iif(Right(cMsgErr, 1) = ",", SubStr(cMsgErr, 1, Len(cMsgErr) - 1), cMsgErr)
+		cMsgOk  := Iif(Right(cMsgOk, 1) = ",", SubStr(cMsgOk, 1, Len(cMsgOk) - 1), cMsgOk)
+
+	CATCH oError
+
+		cMsgErr += oError:Description
+		lRet    := .F.
+
+	ENDTRY
+
+Return lRet
+
+/*/{Protheus.doc} AnswerFormat
+Funcao que monta a resposta de retorno do oRest
+@type function
+@version V 1.00
+@author Michel Sander
+@since 21/04/2025
+@param statusCode, numeric, Codigo de retorno
+@param message, character, Mensagem do retorno
+@param detailed, character, Detalhe do retorno 
+@return json, Json com resposta montada
+/*/
+Static Function AnswerFormat(statusCode As Numeric, message As Character, detailed As Character) as Json
+
+	Local oError := ErrorClass():New() as Object
+	Local jAux   := JsonObject():New() as JSON
+	Local jRet   := JsonObject():New() as JSON
+
+	TRY
+
+		jAux:FromJson(detailed)
+
+		jRet["result"]     := Iif(statusCode < 300, .T., .F.)
+		jRet["statusCode"] := statusCode
+		jRet["message"]    := message
+		jRet["response"]   := jAux
+
+	CATCH oError
+
+		U_AdminMsg("[AnswerFormat] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return jRet

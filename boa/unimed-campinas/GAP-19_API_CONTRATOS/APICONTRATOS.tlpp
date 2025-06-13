@@ -7,7 +7,7 @@
 #Define Enter Chr(13) + Chr(10)
 
 /*/{Protheus.doc} inclui_contratos
-API para Inclusão de Contratos
+API para Inclusão de Contratos GAP19
 @version V 1.00
 @author Tiengo
 @since 11/04/2025
@@ -135,8 +135,9 @@ User Function inclui_contratos() as logical
 
 	Catch oError
 
+		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
 		oRest:SetStatusCode(501)
-		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oError:Description))
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
 		FreeObj(oBody)
 		FreeObj(oResult)
 	EndTry
@@ -148,6 +149,7 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 
 	Local aArea             := FWGetArea()          as Array
 	Local oModel            := Nil                  as Object
+	Local oModelCNB         := Nil                  as Object
 	Local cContrAux         := ""                   as Character
 	Local aMsgDeErro        := {}                   as Array
 	Local jAuxLog           := Nil                  as Json
@@ -224,22 +226,31 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_FORNEC'       ,jContrato[nC]["CNC_CODIGO"])
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_LJFORN'       ,jContrato[nC]["CNC_LOJA"])
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_TIPPLA'       ,jContrato[nC]["CNA_TIPPLA"])
-				oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
+				If cCtrFixo <> '1' 
+					oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
+				Endif
 
 				//Itens da Planilha do Contrato
 				If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
 					If Valtype(jContrato[nC]:GetJsonObject("planilha_itens")) == 'A'
+						
+						oModelCNB := oModel:GetModel("CNBDETAIL")
+
 						For nI := 1 to Len(jContrato[nC]["planilha_itens"])
 
-							oModel:SetValue(    'CNBDETAIL'    , 'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
-							oModel:SetValue(    'CNBDETAIL'     ,'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
+							If nI > 1
+								oModelCNB:AddLine()
+							EndiF
+
+							oModelCNB:SetValue(    'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
+							oModelCNB:SetValue(    'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
 							If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
-								oModel:SetValue(    'CNBDETAIL'     ,'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
+								oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
 							Endif
-							oModel:SetValue(    'CNBDETAIL'     ,'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
-							oModel:SetValue(    'CNBDETAIL'     ,'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
-							oModel:SetValue(    'CNBDETAIL'     ,'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
-							oModel:SetValue(    'CNBDETAIL'     ,'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
+							oModelCNB:SetValue(    'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
+							oModelCNB:SetValue(    'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
+							oModelCNB:SetValue(    'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
+							oModelCNB:SetValue(    'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
 						Next nI
 					Endif
 				Endif

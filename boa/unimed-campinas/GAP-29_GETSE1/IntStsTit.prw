@@ -41,6 +41,7 @@ User Function IntStsTit(aParam)
 		Else
 			FWMsgRun(, {|| fBuscaSts()}, "Processando", "Aguarde a execução...")
 			unlockByName(cLockChv)
+			FWAlertSuccess('Processamento concluído','Integração SPM - Status Cliente')
 		EndIf
 	Else
 		conout("IntStatusSE1 - Nao conseguiu lock")
@@ -76,8 +77,8 @@ Static Function fBuscaSts()
 		//Query em títulos vencidos, para os clientes que não estão restritos ( A1_XDTIRES e A1_XDTFRES )
 		cQuery := " SELECT DISTINCT SE1.E1_FILIAL, 												"
 		cQuery += "					SA1.A1_COD, 												"
-		cQuery += "					SA1.A1_LOJA 												"
-		//cQuery += "					SA1.A1_XIDINT												"
+		cQuery += "					SA1.A1_LOJA, 												"
+		cQuery += "					SA1.A1_XIDINT												"
 		cQuery += "	FROM "+ RetSqlName("SE1") +" SE1                                            "
 		cQuery += "	INNER JOIN "+ RetSqlName("SA1") +" SA1 ON                                   "
 		cQuery += "     SE1.E1_CLIENTE = SA1.A1_COD       										"
@@ -87,12 +88,14 @@ Static Function fBuscaSts()
 		cQuery += "	AND ((SA1.A1_XDTFRES = ''                                                   "
 		cQuery += "	      OR '"+ DtoS(dDataBase)+"' > SA1.A1_XDTFRES))                          "
 		cQuery += "	AND	SA1.A1_FILIAL = '"+ FWxFilial('SA1') +"'                                "
-		//cQuery += "	AND	SA1.A1_ORINT = 'SPM'                               						"
+		cQuery += "	AND	SA1.A1_XORINT  = 'SPM'                               					"
 		cQuery += "	AND SA1.D_E_L_E_T_ = ''                                                     "
 		cQuery += "	WHERE SE1.D_E_L_E_T_ = ''                                                   "
 		cQuery += "	  AND SE1.E1_VENCREA < '"+ DtoS(dDataBase)+"'                               "
 		cQuery += "	  AND SE1.E1_BAIXA = ''                                                     "
 		cQuery += "	  AND SE1.E1_FILIAL = '"+ FWxFilial('SE1') +"'                              "
+
+		cQuery := ChangeQuery(cQuery)
 
 		MPSysOpenQuery(cQuery, 'TMP')
 
@@ -104,8 +107,7 @@ Static Function fBuscaSts()
 				aAdd( aHeader, "Accept: application/json" )
 				aAdd( aHeader, "Authorization: Bearer " + cToken)
 
-				//cCodSPM := TMP->A1_XIDINT
-				cCodSPM := TMP->A1_COD
+				cCodSPM := TMP->A1_XIDINT
 
 				oRest := FWRest():New(cUrl)
 				oRest:SetPath( "/clientes/v1/inadimplencia/" + cCodSPM )
@@ -138,10 +140,13 @@ Static Function fBuscaSts()
 						SE1->(DbSetOrder(2)) //E1_FILIAL+E1_CLIENTE+E1_LOJA+E1_PREFIXO+E1_NUM+E1_PARCELA+E1_TIPO
 						If SE1->(MSSeek(cChave))
 
-							While ! SE1->(Eof()) .and. Empty(SE1->E1_BAIXA) .and. SE1->E1_VENCREA < dDataBase
+							While ! SE1->(Eof()) .and. SE1->(E1_FILIAL + E1_CLIENTE + E1_LOJA) == cChave
 
-								SE1->(Reclock("SE1", .F.))
-								SE1->E1_XSTCTSP := cStatus
+								If Empty(SE1->E1_BAIXA) .and. SE1->E1_VENCREA < dDataBase
+
+									SE1->(Reclock("SE1", .F.))
+									SE1->E1_XSTCTSP := cStatus
+								Endif
 
 								SE1->(DbSkip())
 							Enddo
