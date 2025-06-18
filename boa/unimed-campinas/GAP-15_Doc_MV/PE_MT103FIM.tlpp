@@ -37,7 +37,7 @@ User Function MT103FIM()
 		// Inclusão -> Gero endereçamento automático
 		// Exclusão -> Gero novamente o endereçamento pois foi estornado no MT103NFE
 		//====================================================================================================================
-		If (nConfirma == 1 .and. nOpcao == 3 .or. nOpcao == 4) //Inclusão ou Classificação
+		If nConfirma == 1 .and. (nOpcao == 3 .or. nOpcao == 4) //Inclusão ou Classificação
 			U_XMT103265(nOpc,nConfirmado)
 			U_INTDOCMV(nOpc,@cMsgErr)
 		ElseIf nConfirmado == 0 .And. nOpc == 5

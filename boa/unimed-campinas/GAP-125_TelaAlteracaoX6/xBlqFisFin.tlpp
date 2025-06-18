@@ -1,0 +1,76 @@
+#Include 'TOTVS.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Controle de Bloqueios Fiscal/Financeiro"
+#Define Enter Chr(13) + Chr(10)
+
+
+
+/*/{Protheus.doc} xBlqFisFin
+Rotina para alterar as datas de bloqueio Fiscal e Financeiro
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 23/08/2024
+/*/
+User Function xBlqFisFin()
+
+Local oError    := ErrorClass():New()                       as Object
+Local dDtFisc   := SuperGetMV("MV_DATAFIS", .F., dDatabase) as Date
+Local dDtFin    := SuperGetMV("MV_DATAFIN", .F., dDatabase) as Date
+Local cPermUser := SuperGetMV("EZ_USUFECH", .F., "000000")  as Character
+Local aPerg     := {}                                       as Array
+Local aResp     := {"", dDtFisc, dDtFin}                    as Array
+Local lRet      := .T.                                      as Logical
+Local cMsgErr   := ""                                       as Character
+
+TRY
+
+    If !(__cUserID $ cPermUser)
+
+        Aviso(cTitApp, "Usuário sem permissão para usar esta rotina!", {"Ok"}, 1, "",, "edh_cross", .F., 5000)
+        Return
+
+    EndIf
+
+    aAdd(aPerg,{9, "Data de Bloqueio", 080, 050, .T.})
+    aAdd(aPerg,{1, "Data Limite Fiscal"     , aResp[02], "@D", ".T.", "", ".T.", 050, .T.})
+    aAdd(aPerg,{1, "Data Limite Financeiro"	, aResp[03], "@D", ".T.", "", ".T.", 050, .T.})
+
+    If !ParamBox(aPerg, cTitApp, @aResp,,, .T.,,,,, .T., .T.)
+
+        Aviso(cTitApp, "Cancelado pelo usuário", {"Ok"}, 1, "",, "edh_cross", .F., 5000)
+        Return
+
+    EndIf
+
+    If !PutMV("MV_DATAFIS", aResp[02])
+
+        lRet    := .F. 
+        cMsgErr += "MV_DATAFIS - Erro ao tentar alterar parâmetro." + Enter
+
+    EndIf
+
+    If !PutMV("MV_DATAFIN", aResp[03])
+
+        lRet := .F. 
+        cMsgErr += "MV_DATAFIN - Erro ao tentar alterar parâmetro." + Enter
+
+    EndIf
+
+    If !lRet
+
+        cMsgErr += "Erro no processo:" + Enter + cMsgErr
+        Aviso(cTitApp, cMsgErr, {"Ok"}, 1, "",, "edh_cross", .F., 5000)
+
+    EndIf
+
+CATCH oError
+
+    U_AdminMsg("[xBlqFisFin] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind())
+
+ENDTRY
+
+Return

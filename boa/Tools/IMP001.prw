@@ -3028,7 +3028,7 @@ ProcRegua(Len(aDados))
 
 					//Incrementa na tela a mensagem
 					nLinhaAtu++
-					IncProc('Analisando linha ' + cValToChar(nLinhaAtu) + ' de ' + cValToChar(nTotLinhas) + '...')
+					IncProc('Analisando linhas ...')
 
 					// Se não for primeira/segunda linha ele alimenta o array
 					If nLinhaAtu = 1 .or. nLinhaAtu = 2
@@ -3047,6 +3047,7 @@ ProcRegua(Len(aDados))
 
 				//Valida o cabeçalho do arquivo
 				For nI := 1 to Len(aCabec)
+					IncProc('Analisando Cabeçalho ...')
 					cCampo := AllTrim(Upper(aCabec[nI]))
 					//Só irá validar se for campo
 					If SubStr(cCampo,1,3) <> 'PAR'
@@ -3065,7 +3066,6 @@ ProcRegua(Len(aDados))
 				Next nI
 
 				//Função para gravar o contrato
-				//fContrato(aDados, @cMsgErro)
 				fThreadCtr(aDados, @cMsgErro)
 
 				//Grava arquivo de Log
@@ -3181,12 +3181,17 @@ User Function fContrato(aDados, cMsgErro)
 	Local cContrato		 	:= ""                   	as Character
 	Local cNumPla	   		:= ""                   	as Character
 	Local cMsgAux			:= ""                   	as Character
+	Local cMsgErr			:= ""                   	as Character
+	Local cEspCtr			:= ""                   	as Character
+	Local cTpAnt 			:= ""                   	as Character
 
-	//Ordena o array pelo número de contrato, para evitar duplicidade
-	aSort(aDados, , , {|x, y| x[1] <  y[1] })
+	//Ordena o array pelo número de contrato e numero da planilha
+	aSort(aDados, , , {|x, y| x[1] + x[25] <  y[1] + y[25] })
 
 	//Começando na terceira linha para não ler o cabeçalho
 	For nC := 1 to Len(aDados)
+
+		IncProc("Importando arquivo...")
 
 		If cContrato <> aDados[nC][1]
 
@@ -3207,9 +3212,6 @@ User Function fContrato(aDados, cMsgErro)
 					Endif
 				Next nI
 
-				//Ordena os itens do contrato pelo número da planilha
-				aSort(aItens, , , {|x, y| x[25] <  y[25] })
-
 				//Busca o tipo do contrato
 				CN1->(DbSetOrder(1)) //CN1_FILIAL+CN1_CODIGO+CN1_ESPCTR
 				If CN1->(MSSeek(FWxFilial("CN1") + cTpContr))
@@ -3217,149 +3219,160 @@ User Function fContrato(aDados, cMsgErro)
 					cEspCtr  := CN1->CN1_ESPCTR
 				Endif
 
-				oModel := FWLoadModel("CNTA300") 			//Carrega o modelo
-				oModel:SetOperation(MODEL_OPERATION_INSERT) //Seta operacao de inclusao
-				oModel:Activate() 							//Ativa o Modelo
-
-				//Cabecalho do contrato
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_NUMERO'        ,PadL(aDados[nC][1], TamSX3('CN9_NUMERO')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCTO'         ,cTpContr)
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_DESCRI'        ,Alltrim(aDados[nC][3]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_DTINIC'        ,CtoD(aDados[nC][4]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,aDados[nC][5])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,Val(aDados[nC][6]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_MOEDA'         ,PadL(Val(aDados[nC][7]), TamSX3('CN9_MOEDA')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,PadL(aDados[nC][8], TamSX3('CN9_CONDPG')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGREJ'        ,aDados[nC][9])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_INDICE'        ,PadL(aDados[nC][10], TamSX3('CN9_INDICE')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGCAU'        ,aDados[nC][11])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_OBJCTO'        ,Alltrim(aDados[nC][12]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,Alltrim(aDados[nC][13]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_VLDCTR'        ,aDados[nC][14])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,aDados[nC][15])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,aDados[nC][16])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_NATURE'        ,PadL(aDados[nC][17], TamSX3('CN9_NATURE')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_DEPART'        ,PadL(aDados[nC][18], TamSX3('CN9_DEPART')[01], '0'))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_PERI'          ,Val(aDados[nC][19]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNPERI'        ,aDados[nC][20])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_MODORJ'        ,aDados[nC][21])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_PRORAT'        ,aDados[nC][22])
-
-				oModelCNC := oModel:GetModel("CNCDETAIL")
-				oModelCNA := oModel:GetModel("CNADETAIL")
-				oModelCNB := oModel:GetModel("CNBDETAIL")
-
-				//Cliente/Fornecedor do Contrato
-				For nF := 1 to Len(aItens)
-
-					If nF > 1 .and. ! Empty (aItens[nF][23])
-						oModelCNC:AddLine()
-					Endif
+				//Valida o contrato venda/compra anterior com o atual para evitar erro
+				If cEspCtr == cTpAnt .or. Empty(cTpAnt)
 
 					If cEspCtr == '1' //Compra
-						oModelCNC:SetValue(    'CNC_CODIGO'        ,PadL(aItens[nF][23], TamSX3('CNC_CODIGO')[01], '0'))
-						oModelCNC:SetValue(    'CNC_LOJA'          ,PadL(aItens[nF][24], TamSX3('CNC_LOJA')[01], '0'))
+						oModel := FWLoadModel('CNTA300') //Carrega o modelo
+						cTpAnt := '1'
 					Else
-						oModelCNC:SetValue(    'CNC_CLIENT'        ,PadL(aItens[nF][23], TamSX3('CNC_CLIENT')[01], '0'))
-						oModelCNC:SetValue(    'CNC_LOJACL'         ,PadL(aItens[nF][24], TamSX3('CNC_LOJACL')[01], '0'))
+						oModel := FWLoadModel('CNTA301') //Carrega o modelo
+						cTpAnt := '2'
 					Endif
-				Next nF
+					oModel:SetOperation(MODEL_OPERATION_INSERT) //Seta operacao de inclusao
+					oModel:Activate() 							//Ativa o Modelo
 
-				//Planilhas do Contrato
-				For nP := 1 to Len(aItens)
+					//Cabecalho do contrato
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_NUMERO'        ,PadL(aDados[nC][1], TamSX3('CN9_NUMERO')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCTO'         ,cTpContr)
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_DESCRI'        ,Alltrim(aDados[nC][3]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_DTINIC'        ,CtoD(aDados[nC][4]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,aDados[nC][5])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,Val(aDados[nC][6]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_MOEDA'         ,PadL(Val(aDados[nC][7]), TamSX3('CN9_MOEDA')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,PadL(aDados[nC][8], TamSX3('CN9_CONDPG')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGREJ'        ,aDados[nC][9])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_INDICE'        ,PadL(aDados[nC][10], TamSX3('CN9_INDICE')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGCAU'        ,aDados[nC][11])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_OBJCTO'        ,Alltrim(aDados[nC][12]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,Alltrim(aDados[nC][13]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_VLDCTR'        ,aDados[nC][14])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,aDados[nC][15])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,aDados[nC][16])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_NATURE'        ,PadL(aDados[nC][17], TamSX3('CN9_NATURE')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_DEPART'        ,PadL(aDados[nC][18], TamSX3('CN9_DEPART')[01], '0'))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_PERI'          ,Val(aDados[nC][19]))
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_UNPERI'        ,aDados[nC][20])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_MODORJ'        ,aDados[nC][21])
+					oModel:SetValue(    'CN9MASTER'    ,'CN9_PRORAT'        ,aDados[nC][22])
 
-					If cNumPla <> aItens[nP][25]
+					oModelCNC := oModel:GetModel("CNCDETAIL")
+					oModelCNA := oModel:GetModel("CNADETAIL")
+					oModelCNB := oModel:GetModel("CNBDETAIL")
 
-						cNumPla :=  aItens[nP][25]
+					//Cliente/Fornecedor do Contrato
+					For nF := 1 to Len(aItens)
 
-						If nP > 1
-							If oModelCNA:VldData()
-								aMsgDeErro := oModel:GetErrorMessage()
-								cMsgAux   := aMsgDeErro[6]
-								cMsgAux   += 'Contrato: ' + cContrato + ' ' +  "Erro: " + cMsgAux + CRLF
-								PutGlbValue(cMsgErro ,cMsgAux)
-								Exit
-							Else
+						If nF > 1 .and. ! Empty (aItens[nF][23])
+							oModelCNC:AddLine()
+						Endif
+
+						If cEspCtr == '1' //Compra
+							oModelCNC:SetValue(    'CNC_CODIGO'        ,PadL(aItens[nF][23], TamSX3('CNC_CODIGO')[01], '0'))
+							oModelCNC:SetValue(    'CNC_LOJA'          ,PadL(aItens[nF][24], TamSX3('CNC_LOJA')[01], '0'))
+						Else
+							oModelCNC:SetValue(    'CNC_CLIENT'        ,PadL(aItens[nF][23], TamSX3('CNC_CLIENT')[01], '0'))
+							oModelCNC:SetValue(    'CNC_LOJACL'        ,PadL(aItens[nF][24], TamSX3('CNC_LOJACL')[01], '0'))
+						Endif
+					Next nF
+
+					//Planilhas do Contrato
+					For nP := 1 to Len(aItens)
+
+						If cNumPla <> aItens[nP][25]
+
+							cNumPla :=  aItens[nP][25]
+
+							If nP > 1
 								oModelCNA:AddLine()
 							Endif
-						Endif
 
-						oModelCNA:LoadValue(	'CNA_CONTRA'       ,PadL(aDados[nC][1],  TamSX3('CNA_CONTRA')[01], '0'))
-						oModelCNA:LoadValue( 	'CNA_NUMERO'       ,PadL(aItens[nP][25], TamSX3('CNA_NUMERO')[01], '0'))
-						If cEspCtr == '1' //Compra
-							oModelCNA:SetValue( 	'CNA_FORNEC'       ,PadL(aItens[nP][26], TamSX3('CNA_FORNEC')[01], '0'))
-							oModelCNA:SetValue( 	'CNA_LJFORN'       ,PadL(aItens[nP][27], TamSX3('CNA_LJFORN')[01], '0'))
-						Else
-							oModelCNA:SetValue( 	'CNA_CLIENT'       ,PadL(aItens[nP][26], TamSX3('CNA_CLIENT')[01], '0'))
-							oModelCNA:SetValue( 	'CNA_LOJACL'       ,PadL(aItens[nP][27], TamSX3('CNA_LOJACL')[01], '0'))
-						Endif
-						oModelCNA:SetValue( 	'CNA_TIPPLA'       ,PadL(aItens[nP][28], TamSX3('CNA_TIPPLA')[01], '0'))
+							oModelCNA:LoadValue(	'CNA_CONTRA'       ,PadL(aDados[nC][1],  TamSX3('CNA_CONTRA')[01], '0'))
+							oModelCNA:LoadValue( 	'CNA_NUMERO'       ,PadL(aItens[nP][25], TamSX3('CNA_NUMERO')[01], '0'))
+							If cEspCtr == '1' //Compra
+								oModelCNA:SetValue( 	'CNA_FORNEC'       ,PadL(aItens[nP][23], TamSX3('CNA_FORNEC')[01], '0'))
+								oModelCNA:SetValue( 	'CNA_LJFORN'       ,PadL(aItens[nP][24], TamSX3('CNA_LJFORN')[01], '0'))
+							Else
+								oModelCNA:SetValue( 	'CNA_CLIENT'       ,PadL(aItens[nP][23], TamSX3('CNA_CLIENT')[01], '0'))
+								oModelCNA:SetValue( 	'CNA_LOJACL'       ,PadL(aItens[nP][24], TamSX3('CNA_LOJACL')[01], '0'))
+							Endif
+							oModelCNA:SetValue( 	'CNA_TIPPLA'       ,PadL(aItens[nP][28], TamSX3('CNA_TIPPLA')[01], '0'))
 
-						nItem := 0
+							If cCtrFixo <> '1'
+								oModel:SetValue(    'CNA_VLTOT'        ,PadL(aItens[nP][29], TamSX3('CNA_VLTOT')[01], '0'))
+							Endif
 
-						//Itens da Planilha do Contrato
-						If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
-							For nI := 1 to Len(aItens)
+							nItem := 0
 
-								If cNumPla == aItens[nI][29]
-									nItem ++
+							//Itens da Planilha do Contrato
+							If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
+								For nI := 1 to Len(aItens)
 
-									If nItem > 1
-										oModelCNB:AddLine()
-									EndiF
-									oModelCNB:LoadValue(	'CNB_ITEM'         ,PadL(nItem, TamSX3("CNB_ITEM")[1], '0'))
-									oModelCNB:SetValue(		'CNB_PRODUT'       ,PadL(aItens[nI][30], TamSX3('CNB_PRODUT')[01], '0'))
-									If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
-										oModelCNB:SetValue(		'CNB_QUANT'        ,Val(aItens[nI][31]))
+									If cNumPla == aItens[nI][30]
+										nItem ++
+
+										If nItem > 1
+											oModelCNB:AddLine()
+										EndiF
+										oModelCNB:LoadValue(	'CNB_ITEM'         ,PadL(nItem, TamSX3("CNB_ITEM")[1], '0'))
+										oModelCNB:SetValue(		'CNB_PRODUT'       ,PadL(aItens[nI][31], TamSX3('CNB_PRODUT')[01], '0'))
+										If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
+											oModelCNB:SetValue(		'CNB_QUANT'        ,Val(aItens[nI][32]))
+										Endif
+										oModelCNB:SetValue(    'CNB_VLUNIT'       ,Val(aItens[nI][33]))
+										oModelCNB:SetValue(    'CNB_CONTA'        ,aItens[nI][34])
+										If  cEspCtr == '1' //Compra
+											oModelCNB:SetValue(    'CNB_TE'           ,PadL(aItens[nI][35], TamSX3('CNB_TE')[01], '0'))
+										Else
+											oModelCNB:SetValue(    'CNB_TS'           ,PadL(aItens[nI][35], TamSX3('CNB_TS')[01], '0'))
+										Endif
+										oModelCNB:SetValue(    'CNB_CC'           ,aItens[nI][36])
+
+										//Cronograma Financeiro
+										If cCtrFixo == '1' //Contrato FIXO gera cronograma
+
+											SetMVValue("CN300CRG"       ,"MV_PAR01"     ,Val(aItens[nI][37]))									//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
+											SetMVValue("CN300CRG"       ,"MV_PAR02"     ,Val(aItens[nI][38]))  									//Número de dias para avançar nas parcelas do cronograma
+											SetMVValue("CN300CRG"       ,"MV_PAR03"     ,Val(aItens[nI][39]))  									//1- Dt não existir: Quando a data calculada pelo intervalo de dias informados não existir no referido mês. 2- Não: Quando a data calculada pelo sistema não existir, utiliza o primeiro dia do mês seguinte. 3- Sempre: Ultiliza sempre o ultimo dia do mês na data prevista de medição, quando a periodicidade é mensal.
+											SetMVValue("CN300CRG"       ,"MV_PAR04"     ,aItens[nI][40])		    							//Deve ser composta por mês/ano no formato MM/AAAA(Exemplo: 12/2018)
+											SetMVValue("CN300CRG"       ,"MV_PAR05"     ,CtoD(aItens[nI][41]))									//Data prevista para que ocorra a primeira medição(exemplo: 20/12/2018 )
+											SetMVValue("CN300CRG"       ,"MV_PAR06"     ,Val(aItens[nI][42]))									//Número de parcelas do cronograma
+											SetMVValue("CN300CRG"       ,"MV_PAR07"     ,PadL(aItens[nI][43], TamSX3('CN9_CONDPG')[01], '0'))	//Código da condição de pagamento que as parcelas do cronograma devem ser geradas
+											SetMVValue("CN300CRG"       ,"MV_PAR08"     ,Val(aItens[nI][44]))									//Taxa de Juros para cálculo do valor presente
+
+											Pergunte("CN300CRG",.F.)
+											CN300PrCF(.T.) //Incluir cronograma financeiro/fisico
+										Endif
 									Endif
-									oModelCNB:SetValue(    'CNB_VLUNIT'       ,Val(aItens[nI][32]))
-									oModelCNB:SetValue(    'CNB_CONTA'        ,aItens[nI][33])
-									If  cEspCtr == '1' //Compra
-										oModelCNB:SetValue(    'CNB_TE'           ,PadL(aItens[nI][34], TamSX3('CNB_TE')[01], '0'))
-									Else
-										oModelCNB:SetValue(    'CNB_TS'           ,PadL(aItens[nI][34], TamSX3('CNB_TS')[01], '0'))
-									Endif
-									oModelCNB:SetValue(    'CNB_CC'           ,aItens[nI][35])
-
-									//Cronograma Financeiro
-									If cCtrFixo == '1' //Contrato FIXO gera cronograma
-
-										SetMVValue("CN300CRG"       ,"MV_PAR01"     ,Val(aItens[nI][36]))									//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
-										SetMVValue("CN300CRG"       ,"MV_PAR02"     ,Val(aItens[nI][37]))  									//Número de dias para avançar nas parcelas do cronograma
-										SetMVValue("CN300CRG"       ,"MV_PAR03"     ,Val(aItens[nI][38]))  									//1- Dt não existir: Quando a data calculada pelo intervalo de dias informados não existir no referido mês. 2- Não: Quando a data calculada pelo sistema não existir, utiliza o primeiro dia do mês seguinte. 3- Sempre: Ultiliza sempre o ultimo dia do mês na data prevista de medição, quando a periodicidade é mensal.
-										SetMVValue("CN300CRG"       ,"MV_PAR04"     ,aItens[nI][39])		    							//Deve ser composta por mês/ano no formato MM/AAAA(Exemplo: 12/2018)
-										SetMVValue("CN300CRG"       ,"MV_PAR05"     ,CtoD(aItens[nI][40]))									//Data prevista para que ocorra a primeira medição(exemplo: 20/12/2018 )
-										SetMVValue("CN300CRG"       ,"MV_PAR06"     ,Val(aItens[nI][41]))									//Número de parcelas do cronograma
-										SetMVValue("CN300CRG"       ,"MV_PAR07"     ,PadL(aItens[nI][42], TamSX3('CN9_CONDPG')[01], '0'))	//Código da condição de pagamento que as parcelas do cronograma devem ser geradas
-										SetMVValue("CN300CRG"       ,"MV_PAR08"     ,Val(aItens[nI][43]))									//Taxa de Juros para cálculo do valor presente
-
-										Pergunte("CN300CRG",.F.)
-										CN300PrCF(.T.) //Incluir cronograma financeiro/fisico
-									Endif
-								Endif
-							Next nI
+								Next nI
+							Endif
 						Endif
+					Next nP
+
+					//Usuario de acesso com controle TOTAL
+					If aDados[nC][14] <> '1'
+						oModel:LoadValue(   'CNNDETAIL'     ,'CNN_CONTRA'       ,PadL(aDados[nC][1], TamSX3('CN9_NUMERO')[01], '0'))
+						oModel:LoadValue(   'CNNDETAIL'     ,'CNN_USRCOD'       ,PadL(aDados[nC][44], TamSX3('CNN_USRCOD')[01], '0'))
+						oModel:SetValue(    'CNNDETAIL'     ,'CNN_TRACOD'       ,"001")
 					Endif
-				Next nP
 
-				//Usuario de acesso com controle TOTAL
-				oModel:LoadValue(   'CNNDETAIL'     ,'CNN_CONTRA'       ,PadL(aDados[nC][1], TamSX3('CN9_NUMERO')[01], '0'))
-				oModel:LoadValue(   'CNNDETAIL'     ,'CNN_USRCOD'       ,PadL(aDados[nC][44], TamSX3('CNN_USRCOD')[01], '0'))
-				oModel:SetValue(    'CNNDETAIL'     ,'CNN_TRACOD'       ,"001")
+					//Validacao e Gravacao dos dados e LOG
+					If oModel:VldData()
+						If oModel:CommitData()
 
-				//Validacao e Gravacao dos dados e LOG
-				If oModel:VldData()
-					If oModel:CommitData()
-
-						//cMsgSuces	+=  'Contrato: ' + cContrato + ' ' +  "Incluído com Sucesso: " + CRLF
-					Endif
+							//cMsgSuces	+=  'Contrato: ' + cContrato + ' ' +  "Incluído com Sucesso: " + CRLF
+						Endif
+					Else
+						//Caso nao tenha sido gravado o contrato, verifica o erro
+						aMsgDeErro := oModel:GetErrorMessage()
+						cMsgErr    := aMsgDeErro[6]
+						cMsgAux    += 'Contrato: ' + cContrato + ' ' +  "Erro: " + cMsgErr + CRLF
+						PutGlbValue(cMsgErro ,cMsgAux)
+					EndIf
 				Else
-					//Caso nao tenha sido gravado o contrato, verifica o erro
-					aMsgDeErro := oModel:GetErrorMessage()
-					cMsgAux   := aMsgDeErro[6]
-					cMsgAux   += 'Contrato: ' + cContrato + ' ' +  "Erro: " + cMsgAux + CRLF
+					cMsgAux   += 'Contrato: ' + cContrato + ' ' +  "Erro: " + 'Contrato com tipo divergente! Selecione somente contratos de compras ou vendas.' + CRLF
 					PutGlbValue(cMsgErro ,cMsgAux)
-				EndIf
+				Endif
 			Else
 				cMsgAux   += 'Contrato: ' + cContrato + ' ' +  "Erro: " + 'Número de Contrato já existente!' + CRLF
 				PutGlbValue(cMsgErro ,cMsgAux)
@@ -3368,14 +3381,14 @@ User Function fContrato(aDados, cMsgErro)
 	Next nC
 
 	If Empty(cMsgAux)
-        PutGlbValue(cMsgErro ,"")
-    Endif
+		PutGlbValue(cMsgErro ,"")
+	Endif
 
 	FWRestArea(aArea)
 
 Return()
 
-//Função para controlar THread
+//Função para executar via Thread, necessário para não entrar nas validações de tela do modelo
 Static Function fThreadCtr(aDados,cMsgErro)
 
 	Local oIPC
@@ -3387,8 +3400,8 @@ Static Function fThreadCtr(aDados,cMsgErro)
 	oIPC:SetThreads(nThreadIPC)
 	oIPC:SetEnvironment(FWGrpCompany(),FWCodFil())
 	oIPC:Start("u_fContrato")
-	oIPC:StopProcessOnError(.T.)
-	oIPC:SetNoErrorStop(.T.) //Se der erro em alguma thread sai imediatamente
+	oIPC:StopProcessOnError(.F.)
+	oIPC:SetNoErrorStop(.F.) //Se der erro em alguma thread sai imediatamente
 	oIPC:Go(aDados,cMsgErro)
 
 	If oIPC <> nil
