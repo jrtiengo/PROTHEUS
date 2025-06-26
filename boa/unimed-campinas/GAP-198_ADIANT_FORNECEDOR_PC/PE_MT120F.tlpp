@@ -1,0 +1,70 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+/*/{Protheus.doc} MT120F
+description pós a gravação dos itens do pedido de compras, no final da função A120GRAVA, pode ser usado para manipular os dados gravados do pedido de compras na tabela SC7, recebe como parametro a filial e numero do pedido.
+@type function
+@version  
+@author Tiengo Junior
+@since 22/06/2025
+@obs PARAMIXB String com xFilial("SC7") e Numero do Pedido.
+@See https://tdn.totvs.com/display/public/PROT/MT120F+-+Manipula+os+dados+no+pedido+de+Compras+na+tabela+SC7
+/*/
+
+User Function MT120F()
+
+	Local cFilPed           := PARAMIXB                     as Character
+	Local aAreaSC7          := SC7->(FwGetArea())           as Array
+	Local aAreaFIE          := FIE->(FwGetArea())           as Array
+	Local aAreaSCR          := SCR->(FwGetArea())           as Array
+	Local lADiant           := .F.                          as Logical
+	Local lAprov			:= .F.                          as Logical
+	Local oError            := ErrorClass():New()           as Object
+
+	TRY
+		//GAP 198 Não cair para aprovação caso os pedidos tenham a origem do comprador GTPLAN e for vinculado a um adiantamento
+		If ! INCLUI
+			Return()
+		EndIf
+
+		If SC7->(MSSeek(cFilPed)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
+
+			lADiant := FIE->(MsSeek(FWxFilial('FIE') + 'P' + SC7->C7_NUM)) //FIE_FILIAL+FIE_CART+FIE_PEDIDO
+			lAprov  := SCR->(MsSeek(FWxFilial('SCR') + SCR->CR_TIPO + SC7->C7_NUM)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_NIVEL
+
+			If Alltrim(SC7->C7_XCOMPRA) == "GTPLAN" .and. lADiant
+
+				While SC7->(!EOF()) .And. SC7->C7_FILIAL + Alltrim(SC7->C7_NUM) == cFilPed
+
+					RecLock("SC7",.F.)
+					SC7->C7_APROV   := ''
+					SC7->C7_CONAPRO := 'L'
+					SC7->(MsUnlock())
+
+					SC7->(DbSkip())
+				EndDo
+
+				If lAprov
+					While SCR->(!EOF()) .AND. SCR->CR_FILIAL + Alltrim(SCR->CR_NUM) == cFilPed
+						Reclock("SCR",.F.)
+						SCR->(dbdelete())
+						SCR->(MsUnlock())
+						SCR->(dbSkip())
+					EndDo
+				Endif
+			Endif
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+	ENDTRY
+
+	FwRestArea(aAreaSC7)
+	FwRestArea(aAreaFIE)
+	FwRestArea(aAreaSCR)
+
+Return()

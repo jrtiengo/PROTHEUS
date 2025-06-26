@@ -25,7 +25,7 @@ User Function MT120FIM()
 	Local oError    := ErrorClass():New()           as Object
 
 	TRY
-
+/*JUNIOR - DESCOMENTAR CASO TENHA QUE COMPILAR NA PRODUCA UNIMED CAMPINAS
 		If !FwIsInCallStack("U_INSPC")
 			// GAP 001 - Caso o objeto C7_XENTPAC =  “N” E C7_XORINT = "MV" o Pedido de Compra deve ser enviado para o Sistema MV por integração
 
@@ -33,7 +33,7 @@ User Function MT120FIM()
 				U_ENVIAPCMV()   // Fonte: ENVIAPCMV.tlpp
 			Endif
 		Endif
-
+*/
 		//GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
 		If nOpcA == 1 .and. (nOpcao == 3 .or. nOpcao == 9)
 			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
