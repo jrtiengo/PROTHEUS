@@ -9,12 +9,17 @@
 #include "TBICONN.CH"
 
 /*/{Protheus.doc} CNTA300
-Ponto de Entrada para envio de documentos de aprovacao para o Fluig
+Ponto de Entrada MVC CNTA300
 @type function
 @version 1.0 
 @author Tiengo Jr.
 @since 05/05/2025
+@Obs PARAMIXB[1] O - FORMCOMMITTTSPOS - Objeto do formulário ou do modelo, conforme o caso
+@Obs PARAMIXB[2] C - FORMCOMMITTTSPOS - ID do local de execução do ponto de entrada
+@Obs PARAMIXB[3] C - FORMCOMMITTTSPOS - ID do formulário
+@Obs PARAMIXB[4] L - FORMCOMMITTTSPOS - Se .T. indica novo registro (Inclusão) se .F. registro já existente (Alteração / Exclusão)
 /*/
+
 User Function CNTA300()
 
 	Local aParam  		:= PARAMIXB
@@ -24,9 +29,9 @@ User Function CNTA300()
 	Local cIdModel		:= ''
 	//Private cDocId    	:= SUPERGETMV( "EZ_IDFLDFO",.f.,"85")
 	//Private cCompId 	:= SUPERGETMV( 'EZ_DEVCOMP',.f.,'2') // Identificação das empresa com direitos a executar a tarefa
-	Private cUsername  	:= SUPERGETMV( 'EZ_DEVUSER', .f., 'poc.admin') // usuario utilizado para o XML \ SOAP
-	Private cPassword  	:= SUPERGETMV( 'EZ_DEVPASS', .f., 'Ez4@Admin@') // Password utilizado para o XML \ SOAP
-	Private cURL    	:= SUPERGETMV( "EZ_DEVURLF",.f., "https://10.33.195.8/webdesk/ECMFolderService?wsdl") //URL WS de criação de Folder
+	//Private cUsername  	:= SUPERGETMV( 'EZ_DEVUSER', .f., 'poc.admin') // usuario utilizado para o XML \ SOAP
+	//Private cPassword  	:= SUPERGETMV( 'EZ_DEVPASS', .f., 'Ez4@Admin@') // Password utilizado para o XML \ SOAP
+	//Private cURL    	:= SUPERGETMV( "EZ_DEVURLF",.f., "https://10.33.195.8/webdesk/ECMFolderService?wsdl") //URL WS de criação de Folder
 	//Private cURLDOC    	:= SUPERGETMV( "EZ_DEVURLD",.f., "https://10.33.195.8/webdesk/ECMDocumentService?wsdl") //URL WS de criação de Folder
 
 	If aParam <> NIL
@@ -35,7 +40,43 @@ User Function CNTA300()
 		cIdPonto   := aParam[2]
 		cIdModel   := aParam[3]
 
+		If     cIdPonto == 'MODELPOS'
+		ElseIf cIdPonto == 'FORMPOS'
+
+		ElseIf cIdPonto == 'FORMLINEPRE'
+
+		ElseIf cIdPonto == 'FORMLINEPOS'
+
+		ElseIf cIdPonto == 'MODELCOMMITTTS'
+
+		ElseIf cIdPonto == 'MODELCOMMITNTTS'
+
+		ElseIf cIdPonto == 'FORMCOMMITTTSPOS' //Após a gravação da tabela do formulário.
+
+			lOperacao := aParam[4]
+
+			//GAP112 - Se o contrato tiver origem do novo fluxo de compras, irá nascer como 2N = Em Elaboração Area Negócio.
+			If FWIsInCallStack('PGCA010')
+				If lOperacao .and. cIdModel == 'CN9MASTER'
+					Reclock("CN9", .F.)
+					CN9->CN9_XSITUA := '2N'
+					CN9->(msUnlock())
+				Endif
+			Else
+				Reclock("CN9", .F.)
+				CN9->CN9_XSITUA := CN9->CN9_SITUAC
+				CN9->(msUnlock())
+			Endif
+
+		ElseIf cIdPonto == 'MODELCANCEL'
+
+		ElseIf cIdPonto == 'BUTTONBAR' //Para a inclusão de botões na ControlBar.
+
+		EndIf
+
+/*
 		If  cIdPonto == 'FORMCOMMITTTSPOS' //Chamada apos a gravação da tabela do formulário
+
 			//Verifica se o contrato está aguardando aprovação
 			If CN9->CN9_SITUAC == '4' .or. CN9->CN9_SITUAC == '9' .and. ! Empty(CN9->CN9_APROV)
 
@@ -45,13 +86,15 @@ User Function CNTA300()
 				ELse
 					FWLogMsg("INFO",,"FLUIG INTEG",,,,"Solicitação de Aprovação não enviada para o Fluig",,,)
 				Endif
-
 			EndIf
 		EndIf
+*/
 	Endif
 
 Return(xRet)
 
+
+/*
 Static Function fEnviaAprov(cContrato,cUsername,cPassword,cURL)
 
 	Local lRet			:= .T.	as logical
@@ -88,17 +131,17 @@ Static Function fEnviaAprov(cContrato,cUsername,cPassword,cURL)
 		SCR->(DbSkip())
 	Enddo
 
-		If aXMLRetDoc[1]
-			cDocFluig := aXMLRetDoc[2]
-			cDocFluSol := u_SXTagCont("documentId",cDocFluig)
-			cTexto:= "Nr. Documento Fluig criado: " + cDocFluSol + " Processo Fluig Diretório"
-			FWLogMsg("INFO",,"FLUIG INTEG",,,,cTexto,,,)
-			lRet := .t.
-		Else
-			lRet := .F.
-		Endif
+	If aXMLRetDoc[1]
+		cDocFluig := aXMLRetDoc[2]
+		cDocFluSol := u_SXTagCont("documentId",cDocFluig)
+		cTexto:= "Nr. Documento Fluig criado: " + cDocFluSol + " Processo Fluig Diretório"
+		FWLogMsg("INFO",,"FLUIG INTEG",,,,cTexto,,,)
+		lRet := .t.
+	Else
+		lRet := .F.
+	Endif
 
-		Return (lRet)
+Return (lRet)
 
 Static function startDoc(cXMLRetDoc,cUrl)
 
