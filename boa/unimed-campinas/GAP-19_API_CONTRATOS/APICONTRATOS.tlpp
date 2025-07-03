@@ -195,8 +195,6 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCTO'         ,cTpContr)
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_DTINIC'        ,CtoD(jContrato[nC]["CN9_DTINIC"]))
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_XDTORI'        ,CtoD(jContrato[nC]["CN9_XDTORI"]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_XCLICO'        ,jContrato[nC]["CN9_XCLICO"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_XLOJCO'        ,jContrato[nC]["CN9_XLOJCO"])
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,jContrato[nC]["CN9_UNVIGE"])
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,jContrato[nC]["CN9_VIGE"])
 				oModel:SetValue(    'CN9MASTER'    ,'CN9_MOEDA'         ,jContrato[nC]["CN9_MOEDA"])
@@ -566,8 +564,6 @@ Static Function fRevContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro
 						If cTipRev == 'G' //Tipo Revisao Aberta
 
 							oModel:SetValue(    'CN9MASTER'    ,'CN9_XDTORI'        ,CtoD(jContrato[nC]:GetJsonObject("CN9_XDTORI")))
-							oModel:SetValue(    'CN9MASTER'    ,'CN9_XCLICO'        ,jContrato[nC]:GetJsonObject("CN9_XCLICO"))
-							oModel:SetValue(    'CN9MASTER'    ,'CN9_XLOJCO'        ,jContrato[nC]:GetJsonObject("CN9_XLOJCO"))
 							oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,jContrato[nC]:GetJsonObject("CN9_UNVIGE"))
 							oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,jContrato[nC]:GetJsonObject("CN9_VIGE"))
 							oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,jContrato[nC]:GetJsonObject("CN9_CONDPG"))

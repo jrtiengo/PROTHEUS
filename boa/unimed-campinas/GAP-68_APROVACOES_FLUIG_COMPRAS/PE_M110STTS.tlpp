@@ -1,0 +1,45 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Ponto de Entrada M110STTS"
+
+/*/{Protheus.doc} M110STTS
+Inclusão de interface após gravar a solicitação
+Eventos
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 30/06/2025
+@Param PARAMIXB[1] - C - Numero da Solicitação
+@Param PARAMIXB[2] - N - Operação: 1 = Inclusão, 2 = Alteração, 3 = Exclusão
+@Param PARAMIXB[3] - L - Se a Solicitação de Compra é originada de uma cópia (tipo: LÓGICO)
+@see https://tdn.totvs.com/pages/releaseview.action?pageId=6085312
+/*/
+User Function M110STTS()
+
+	Local aArea         := FwGetArea()            as Array
+    Local aAreaSC1      := SC1->(FwGetArea())     as Array
+    Local oError        := ErrorClass():New()     as Object
+	Local cNumSc        := PARAMIXB[1]            as Character
+	Local nOpc          := PARAMIXB[2]            as Numeric
+	Local cTipo         := 'SC'                   as Character
+
+	TRY
+		//GAP 068 - Envio de Aprovações Fluig Compras
+		If nOpc == 3 .or. nOpc == 4 .or. nOpc == 5
+			U_IntAprovFluig(nOpc, cTipo, cNumSc, '', '', SC1->C1_XIDFLU)
+		Endif
+
+	CATCH oError
+
+		U_AdminMsg("[M110STTS] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+	FwRestArea(aArea)
+    FwRestArea(aAreaSC1)
+
+Return()

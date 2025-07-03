@@ -1,0 +1,46 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Ponto de Entrada MT120FIM"
+
+/*/{Protheus.doc} MT120FIM
+Após a restauração do filtro da FilBrowse depois de fechar a operação realizada no pedido de compras, é a ultima instrução da função A120Pedido.
+Eventos
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 30/06/2025
+@Param PARAMIXB[1] - Opção Escolhida pelo usuario no aRotina [03]Inclusão, [04]Alteração, [05]exclusão, [09]cópia
+@Param PARAMIXB[2] - Numero do Pedido de Compras
+@Param PARAMIXB[3] - Indica se a ação foi Cancelada 
+@see https://tdn.totvs.com/display/public/PROT/MT120FIM
+/*/
+User Function MT120FIM()
+	
+	Local aArea         := FwGetArea()            as Array
+	Local aAreaSC7      := SC7->(FwGetArea())     as Array
+	Local oError        := ErrorClass():New()     as Object
+	Local nOpc          := PARAMIXB[1]            as Numeric
+	Local cNumPc        := PARAMIXB[2]            as Character
+	Local nConfirma     := PARAMIXB[3]            as Numeric
+    Local cTipo         := 'PC'                   as Character
+
+	TRY
+		//GAP 068 - Envio de Aprovações Fluig Compras
+		If nConfirma == 1 .and. (nOpc == 3 .or. nOpc == 4 .or. nOpc == 5 .or.  nOpc == 9) 
+			U_IntAprovFluig(nOpc, cTipo, cNumPc, '', '', SC7->C7_XIDFLU)
+		Endif
+
+	CATCH oError
+
+		U_AdminMsg("[MT120FIM] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+	FwRestArea(aAreaSC7)
+	FwRestArea(aArea)
+
+Return()

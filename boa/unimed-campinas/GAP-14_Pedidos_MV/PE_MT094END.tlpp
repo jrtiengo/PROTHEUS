@@ -5,7 +5,6 @@
 #Include 'tlpp-rest.th'
 
 #Define cTitApp "Ponto de Entrada MT094END"
-#Define Enter Chr(13) + Chr(10)
 
 /*/{Protheus.doc} MT094END
 O ponto de entrada MT094END trás as seguintes informações: Número do Documento, Tipo do Documento, Operação que está sendo executada (Aprovação, Transferência e/ou Superior) e filial do documento com controle de alçadas, para serem usadas conforme necessidade do usuário. O mesmo não possui retorno e tem por finalidade somente mostrar as informações.
@@ -25,18 +24,41 @@ User Function MT094END()
 	Local aArea         := FwGetArea()                  as Array
 	Local aAreaSC1      := SC1->(FwGetArea())           as Array
 	Local aAreaSC7      := SC7->(FwGetArea())           as Array
-	//Local cDocto        := PARAMIXB[1]                  as Character
-	Local cTipo         := PARAMIXB[2]                  as Character
+	Local cDocto        := PARAMIXB[1]                  as Character
+	Local cTpDoc        := PARAMIXB[2]                  as Character
 	Local nOpc          := PARAMIXB[3]                  as Numeric
 	//Local cFilDoc       := PARAMIXB[4]                  as Character
 	Local oError        := ErrorClass():New()           as Object
+	Local cTipo 		:= 'APROV'					    as Character
 
 	TRY
 
-		If cTipo == 'IP' .and. nOpc == 1
-			U_INTPCMV(nOpc,@cMsgErr)
+		//GAP 014 - Envio de PC para MV
+		If cTpDoc == 'IP' .and. nOpc == 1
+			//U_INTPCMV(nOpc,@cMsgErr)
 		Endif
-        
+		//GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição
+		If nOpc == 1 .or. nOpc == 5
+
+			Do Case
+			Case cTpDoc == 'PC' .or. cTpDoc == 'IP'
+				cIdFluig := SC7->C7_XIDFLU
+			Case cTpDoc == 'SC'
+				cIdFluig := SC1->C1_XIDFLU
+/*
+			Case cTpDoc == 'CT' .or. cTpDoc == 'RV'
+				cIdFluig := CN9->CN9_XIDFLU
+			Case cTpDoc == 'MD'
+				cIdFluig := CND->CND_XIDFLU
+*/
+			EndCase
+
+			If ! Empty(cIdFluig)
+
+				U_IntAprovFluig(nOpc, cTipo, cDocto, '', '', cIdFluig)
+			Endif
+		Endif
+
 	CATCH oError
 
 		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)

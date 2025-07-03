@@ -17,7 +17,6 @@ Ponto de entrada utilizado para inserir novas opções no array aRotina
 User Function MTA103MNU
 
 	Local oError  := ErrorClass():New() as Object
-	Local aRotina := {}                 as Array
 
 	TRY
 		aAdd(aRotina,{ "Log de Integração", "U_VerLogSF1()", 0 , 2, 0, .F.})
@@ -29,4 +28,4 @@ User Function MTA103MNU
 
 	ENDTRY
 
-Return(aRotina)
+Return()

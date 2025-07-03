@@ -1,0 +1,55 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Ponto de Entrada MTA110MNU"
+
+/*/{Protheus.doc} MTA110MNU
+O Ponto de Entrada MTA110MNU permite adicionar botões ao menu principal
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 29/05/2025
+@See https://tdn.totvs.com/pages/releaseview.action?pageId=6085755
+@Return aRotina: Array com os botões do menu
+/*/
+
+User Function MTA110MNU()
+
+	Local oError  		:= ErrorClass():New() 	as Object
+	Local aSubFluig 	:= {}					as Array
+
+	TRY	
+		//GAP 068 - Envio de Aprovações Fluig Compras
+		aAdd(aRotina,{"#Integração Fluig"			,aSubFluig															,0, 2, 0, NIL})
+
+		aAdd(aSubFluig,{'#Log Integração Fuig'		,"U_LogSc1Fluig()"													,0, 2, 0, Nil})
+		aAdd(aSubFluig,{"#Envia Integração Fluig"	,"U_IntAprovFluig(1, 'SC', SC1->C1_NUM, '', '', SC1->C1_XIDFLU)"	,0, 2, 0, Nil})
+
+	CATCH oError
+
+		U_AdminMsg("[MTA110MNU] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return(aRotina)
+
+User Function LogSc1Fluig()
+
+	Local oLogAPI As Object
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		oLogAPI := CtrlLOG():New()
+		oLogAPI:ViewLog('SZL', SC1->C1_XIDFLU, 'MATA110', "SC1", SC1->(RecNo()))
+
+	CATCH oError
+
+		U_AdmMsg("[LOGSC1FLUIG] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()

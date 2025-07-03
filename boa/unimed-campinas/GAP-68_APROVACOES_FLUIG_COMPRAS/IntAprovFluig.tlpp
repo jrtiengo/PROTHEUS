@@ -1,0 +1,447 @@
+#include "totvs.ch"
+#Include 'TopConn.ch'
+#include "restful.ch"
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+//-------------------------------------------------------------------
+/*/{Protheus.doc} AprovFluig
+Função para enviar aprovadores da tabela SCR para o Fluig via REST - GAP068
+@type function
+@author Junior Tiengo
+@since 30/06/2025
+@Param _nOpc    N - Inclusão, Alteração, Exclusão, Cópia 
+@Param cTipo    C - PC = Pedido de Compras, SC = Solicitação de Compras, CTR = Contrato, MED = Medição
+@Param cNum     C - Número do Pedido de Compras, Solicitação de Compras, Contrato ou Medição
+@Param cRevisao C - Revisão do Contrato (apenas para cTipo = CTR)
+@Param cMed     C - Número da Medição (apenas para cTipo = MED)
+@Param cIdFluig C - ID do Fluig 
+/*/
+//-------------------------------------------------------------------
+User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+
+	Local oError        := ErrorClass():New()     				as Object
+	Local oLog          := Nil                 		            as Object
+
+	TRY
+
+		oLog := CtrlLOG():New()
+
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		If cTipo == 'PC' .or. cTipo == 'SC' .or. cTipo == 'CTR' .or. cTipo == 'MED'
+
+			fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+
+		Elseif cTipo == 'APROV'
+
+			fAprovaFluig(_nOpc, cIdFluig)
+		Endif
+
+	CATCH oError
+
+		U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()
+
+//Envia dados para o Fluig
+Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+
+	Local cQuery		:= ""						            as Character
+	Local cBody         := ""						            as Character
+	Local oJSon         := JsonObject():New()		            as Object
+	Local oAprov        := Nil                                  as Object
+	Local cLogErro      := ""						            as Character
+	Local lContinua     := .T.                                  as Logical
+	Local jAuxLog  		:= Nil                 		            as jSon
+	Local oLog          := Nil                 		            as Object
+	Local oError        := ErrorClass():New()     				as Object
+	Local cProces       := GetNewPar('EZ_XPROCES'   ,'')        as Character
+	Local jSonRet		:= JsonObject():New()					as jSon
+	Local cTabela	    := ""                                   as Character
+
+	Try
+
+		oLog := CtrlLOG():New()
+
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+		//Caso já tenha um ID de Fluig, irá cancelar primeiro no Fluig.
+		If ! Empty(cIdFluig)
+
+			lContinua := fCancFluig(cIdFluig)
+		EndIf
+
+		//Só irá processar se a operação não for uma exclusão.
+		If lContinua .and. _nOpc <> 5
+
+			//Monta query para buscar aprovadores
+			cQuery := " SELECT SCR.CR_FILIAL,                           "
+			cQuery += "        SCR.CR_NUM,                              "
+			cQuery += "        SCR.CR_TIPO,                             "
+			cQuery += "        SCR.CR_USER,                             "
+			cQuery += "        SCR.CR_APROV,                            "
+			cQuery += "        SCR.CR_NIVEL,                            "
+			cQuery += "        SCR.CR_STATUS                            "
+			cQuery += "FROM " + RetSQLName("SCR") + " SCR               "
+			cQuery += "WHERE SCR.D_E_L_E_T_ = ' '                       "
+			cQuery += "AND SCR.CR_FILIAL = '" + FWxFilial("SCR") + "'   "
+			cQuery += "AND SCR.CR_NUM = '" + cNum + "'                  "
+
+			cQuery := ChangeQuery(cQuery)
+
+			MPSysOpenQuery(cQuery, 'TMP')
+
+			If ! TMP->(EoF())
+
+				//Cria o objeto formFields se ainda não existir
+				If ! oJSon:HasProperty("formFields")
+					oJSon["formFields"] := JsonObject():New()
+				EndIf
+
+				Do Case
+
+				Case cTipo == 'PC'
+					// SC7->(DbSetOrder(1)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
+					// SC7->(MsSeek(FWxFilial("SC7") + cNum))
+
+					cTabela := 'SC7'
+					nRecno 	:= SC7->(RecNo())
+
+					cFornec := SC7->C7_FORNECE
+					cLoja   := SC7->C7_LOJA
+					nTotal  := SC7->C7_TOTAL
+
+					oJSon["comment"] := "Solicitação de Aprovação de Pedido: " + cNum
+
+					oJSon["formFields"]["C7_NUM"]     := cNum
+					oJSon["formFields"]["C7_TOTAL"]   := nTotal
+					oJSon["formFields"]["C7_FORNECE"] := cFornec
+					oJSon["formFields"]["C7_LOJA"]    := cLoja
+					oJSon["formFields"]["A2_NOME"]    := Posicione('SA2','1', FWxFilial("SA2"), SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME")
+
+				Case cTipo == 'SC'
+					// SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+					// SC1->(MsSeek(FWxFilial("SC1") + cNum))
+
+					cTabela := 'SC1'
+					nRecno 	:= SC1->(RecNo())
+
+					oJSon["comment"] := "Solicitação de Aprovação de SC: " + cNum
+
+					oJSon["formFields"]["C1_NUM"]       := cNum
+					oJSon["formFields"]["C1_EMISSAO"]   := nTotal
+
+				Case cTipo == 'CTR'
+
+					// CNC->(DBSetOrder(1))//CNC_FILIAL+CNC_NUMERO+CNC_REVISA+CNC_CODIGO+CNC_LOJA
+					// CNC->(MsSeek(FWxFilial("CNC") + cNum + cRevisao))
+
+					cTabela := 'CN9'
+					nRecno 	:= CN9->(RecNo())
+
+					cFornec := CNA->CNA_FORNECE
+					cLoja   := CNA->CNA_LOJA
+
+					oJSon["comment"] := "Solicitação de Aprovação de Contrato: " + cNum
+
+				Case cTipo == 'MED'
+
+					// CNX->(DbSetOrder(3)) //CXN_FILIAL+CXN_CONTRA+CXN_NUMMED+CXN_NUMPLA
+					// CNX->(MsSeek(FWxFilial("CNX") + cNum + cMed ))
+
+					cTabela := 'CND'
+					nRecno 	:= CND->(RecNo())
+
+					cFornec := CNX->CNX_FORNECE
+					cLoja   := CNX->CNX_LOJA
+
+					oJSon["comment"] := "Solicitação de Aprovação de Medição: " + cNum
+				Endcase
+
+				//Percorrer a query para montar os aprovadores
+				While ! TMP->(EoF())
+
+					//Cria o array de aprovadores se ainda não existir
+					If ! oJSon["formFields"]:HasProperty("aprovadores")
+						oJSon["formFields"]["aprovadores"] := {}
+					EndIf
+
+					oAprov := JsonObject():New()
+
+					//Adiciona o aprovador atual ao array
+					oAprov["CR_NUM"]    := TMP->CR_NUM
+					oAprov["CR_TIPO"]   := TMP->CR_TIPO
+					oAprov["CR_USER"]   := TMP->CR_USER
+					oAprov["CR_APROV"]  := TMP->CR_APROV
+					oAprov["CR_NIVEL"]  := TMP->CR_NIVEL
+					oAprov["CR_STATUS"] := TMP->CR_STATUS
+
+					// Adiciona ao array
+					aAdd(oJson["formFields"]["aprovadores"], oAprov)
+
+					TMP->(dbSkip())
+				EndDo
+			Else
+				ConOut("AprovFluig: Nenhum documento encontrado")
+				Return()
+			Endif
+
+			//Chma a função para autenticar e enviar o POST
+			cBody := oJson:toJson()
+			jSonRet := u_RetFluigEnv('POST',"'/v2/processes/"+cProces+"/start'",cBody) // Chama a função para obter o token e enviar o POST
+
+			If jSonRet:HasProperty("processInstanceId")
+
+				FreeObj(jAuxLog)
+				jAuxLog             := JsonObject():New()
+				jAuxLog["status"]   := "1"
+				jAuxLog["idinteg"]  := ""
+				jAuxLog["nomapi"]   := "POST_EnvFluig"
+				jAuxLog["rotina"]   := FunName()
+				jAuxLog["tabela"]   := cTabela
+				jAuxLog["recno"]    := nRecno
+				jAuxLog["data"]     := DToS(dDataBase)
+				jAuxLog["hora"]     := Time()
+				jAuxLog["msgresp"]  := "success"
+				jAuxLog["msgerr"]   := ""
+				jAuxLog["jsonbod"]  := jSonRet
+				jAuxLog["jsonret"]  := '{"result": Post Gerado com sucesso!"}'
+
+				If ! oLog:AddItem(jAuxLog)
+					ConOut(oLog:GetError())
+				EndIf
+
+				Do Case
+				Case cTipo == 'PC'
+					SC7->(Reclock("SC7", .F.))
+					SC7->C7_XIDFLU := jSonRet['processInstanceId']
+					SC7->(MsUnlock())
+				Case cTipo == 'SC'
+					SC1->(Reclock("SC1", .F.))
+					SC1->C1_XIDFLU := jSonRet['processInstanceId']
+					SC1->(MsUnlock())
+				Case cTipo == 'CTR
+					CN9->(Reclock("CN9", .F.))
+					CN9->CN9_XIDFLU := jSonRet['processInstanceId']
+					CN9->(MsUnlock())
+				Case cTipo == 'MED
+					CND->(Reclock("CND", .F.))
+					CND->CND_XIDFLU := jSonRet['processInstanceId']
+					CND->(MsUnlock())
+				EndCase
+			Else
+				cLogErro   := jSonRet['message']
+
+				FreeObj(jAuxLog)
+				jAuxLog             := JsonObject():New()
+				jAuxLog["status"]   := "0"
+				jAuxLog["idinteg"]  := ""
+				jAuxLog["nomapi"]   := "POST_EnvFluig"
+				jAuxLog["rotina"]   := FunName()
+				jAuxLog["tabela"]   := cTabela
+				jAuxLog["recno"]    := nRecno
+				jAuxLog["data"]     := DToS(dDataBase)
+				jAuxLog["hora"]     := Time()
+				jAuxLog["msgresp"]  := "error"
+				jAuxLog["msgerr"]   := cLogErro
+				jAuxLog["jsonbod"]  := jSonRet
+				jAuxLog["jsonret"]  := jSonRet
+
+				If ! oLog:AddItem(jAuxLog)
+					ConOut(oLog:GetError())
+				EndIf
+
+				U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
+
+			EndIf
+		Endif
+
+CATCH oError
+
+	U_AdminMsg("["+FunName()+"] " + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+ENDTRY
+
+Return()
+
+//Cancela o processo no Fluig
+Static Function fCancFluig(cIDFluig)
+
+	Local oJsonCancel 	:=  JsonObject():New()                  as Object
+	Local lCancela    	:= .T.                                  as Logical
+	Local cBody		 	:= ''					            	as Character
+	Local oError        := ErrorClass():New()     				as Object
+	Local oLog          := Nil                 		            as Object
+
+	Try
+
+		//Montando o Body do cancelamento
+		oJsonCancel["processInstanceId"] := cIDFluig
+		oJsonCancel["cancelText"]        := "Solicitação Cancelada Automaticamente pelo ERP Protheus"
+		oJsonCancel["replacedId"]        := "integrador"
+
+		cBody := oJsonCancel:toJson()
+
+		//Chma a função para autenticar e enviar o POST
+		cBody := oJson:toJson()
+		jSonRet := u_RetFluigEnv('POST',"/2.0/workflows/cancelInstance'",cBody)
+
+		If jSonRet:HasProperty("processInstanceId")
+
+			FreeObj(jAuxLog)
+			jAuxLog             := JsonObject():New()
+			jAuxLog["status"]   := "1"
+			jAuxLog["idinteg"]  := ""
+			jAuxLog["nomapi"]   := "POST_CancFluig"
+			jAuxLog["rotina"]   := FunName()
+			jAuxLog["tabela"]   := cTabela
+			jAuxLog["recno"]    := nRecno
+			jAuxLog["data"]     := DToS(dDataBase)
+			jAuxLog["hora"]     := Time()
+			jAuxLog["msgresp"]  := "success"
+			jAuxLog["msgerr"]   := ""
+			jAuxLog["jsonbod"]  := jSonRet
+			jAuxLog["jsonret"]  := '{"result": Post Gerado com sucesso!"}'
+
+			If ! oLog:AddItem(jAuxLog)
+				ConOut(oLog:GetError())
+			EndIf
+		Else
+			cLogErro   := jSonRet['message']
+
+			FreeObj(jAuxLog)
+			jAuxLog             := JsonObject():New()
+			jAuxLog["status"]   := "0"
+			jAuxLog["idinteg"]  := ""
+			jAuxLog["nomapi"]   := "POST_CancFluig"
+			jAuxLog["rotina"]   := FunName()
+			jAuxLog["tabela"]   := cTabela
+			jAuxLog["recno"]    := nRecno
+			jAuxLog["data"]     := DToS(dDataBase)
+			jAuxLog["hora"]     := Time()
+			jAuxLog["msgresp"]  := "error"
+			jAuxLog["msgerr"]   := cLogErro
+			jAuxLog["jsonbod"]  := jSonRet
+			jAuxLog["jsonret"]  := jSonRet
+
+			If ! oLog:AddItem(jAuxLog)
+				ConOut(oLog:GetError())
+			EndIf
+
+			U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
+
+			lCancela := .F.
+
+		EndIf
+
+CATCH oError
+
+	U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+ENDTRY
+
+Return(lCancela)
+
+//Aprovação de processo Fluig 
+Static Function fAprovaFluig(_nOpc, cIdFluig)
+
+	Local cBody         := ""						            as Character
+	Local oAprov        := Nil                                  as Object
+	Local cLogErro      := ""						            as Character
+	Local jAuxLog  		:= Nil                 		            as jSon
+	Local oLog          := Nil                 		            as Object
+	Local oError        := ErrorClass():New()     				as Object
+	//Local cProcAprov    := GetNewPar('EZ_XTARGA'   ,'')        	as Character //irá informar para qual atividade deverá ser movimentado o processo do Fluig em caso de aprovação
+	//Local cProcReprv    := GetNewPar('EZ_XTARGR'   ,'')        	as Character //irá informar para qual atividade deverá ser movimentado o processo do Fluig em caso de reprovação
+	Local jSonRet		:= JsonObject():New()					as jSon
+
+	Try
+
+		oLog := CtrlLOG():New()
+
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		//Só irá processar se a operação não for uma exclusão. (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
+		If _nOpc <> 1 .and. ! Empty(cIdFluig)
+
+			oAprov := JsonObject():New()
+			oAprov["movementSequence"]      		:= 26
+			oAprov["assignee"]              		:= "daniel.camilo"
+			oAprov["targetState"]           		:= 62
+			oAprov["targetAssignee"]        		:= "daniel.camilo"
+			oAprov["subProcessTargetState"] 		:= 0
+			oAprov["comment"]               		:= "string"
+			oAprov["asManager"]             		:= .F.
+			oAprov["formFields"]            		:= JsonObject():New()
+			oAprov["formFields"]["additionalProp1"] := "string"
+			oAprov["formFields"]["additionalProp2"] := "string"
+			oAprov["formFields"]["additionalProp3"] := "string"
+
+			//Chma a função para autenticar e enviar o POST
+			cBody := oAprov:toJson()
+			jSonRet := u_RetFluigEnv('POST',"'/v2/requests/"+cIdFluig+"/move'",cBody) // Chama a função para obter o token e enviar o POST
+
+			If jSonRet:HasProperty("processInstanceId")
+
+				FreeObj(jAuxLog)
+				jAuxLog             := JsonObject():New()
+				jAuxLog["status"]   := "1"
+				jAuxLog["idinteg"]  := ""
+				jAuxLog["nomapi"]   := "POST_AprovaFluig"
+				jAuxLog["rotina"]   := FunName()
+				jAuxLog["tabela"]   := 'SCR'
+				jAuxLog["recno"]    := SCR->(RecNo())
+				jAuxLog["data"]     := DToS(dDataBase)
+				jAuxLog["hora"]     := Time()
+				jAuxLog["msgresp"]  := "success"
+				jAuxLog["msgerr"]   := ""
+				jAuxLog["jsonbod"]  := jSonRet
+				jAuxLog["jsonret"]  := '{"result": Post Gerado com sucesso!"}'
+
+				If ! oLog:AddItem(jAuxLog)
+					ConOut(oLog:GetError())
+				EndIf
+			Else
+				cLogErro   := jSonRet['message']
+
+				FreeObj(jAuxLog)
+				jAuxLog             := JsonObject():New()
+				jAuxLog["status"]   := "0"
+				jAuxLog["idinteg"]  := ""
+				jAuxLog["nomapi"]   := "POST_AprovaFluig"
+				jAuxLog["rotina"]   := FunName()
+				jAuxLog["tabela"]   := 'SCR'
+				jAuxLog["recno"]    := SCR->(RecNo())
+				jAuxLog["data"]     := DToS(dDataBase)
+				jAuxLog["hora"]     := Time()
+				jAuxLog["msgresp"]  := "error"
+				jAuxLog["msgerr"]   := cLogErro
+				jAuxLog["jsonbod"]  := jSonRet
+				jAuxLog["jsonret"]  := jSonRet
+
+				If ! oLog:AddItem(jAuxLog)
+					ConOut(oLog:GetError())
+				EndIf
+
+				U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
+			Endif
+		Endif
+
+	CATCH oError
+
+		U_AdminMsg("["+FunName()+"] " + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()

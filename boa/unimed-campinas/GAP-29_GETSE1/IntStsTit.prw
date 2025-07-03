@@ -129,6 +129,10 @@ Static Function fBuscaSts()
 					jAuxLog["jsonbod"]  := oRest:GetResult()
 					jAuxLog["jsonret"]  := '{"result": Consulta Gerada com sucesso!"}'
 
+					If ! oLog:AddItem(jAuxLog)
+						ConOut(oLog:GetError())
+					EndIf
+
 					oJsonRet:FromJson(oRest:cResult) //converte o retorno para Json para manipulação
 					cStatus := oJsonRet['resultado']['status']
 

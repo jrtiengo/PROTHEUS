@@ -1,0 +1,75 @@
+#include "protheus.ch"
+#include "restful.ch"
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+/*/{Protheus.doc} RetFluigEnv
+Retorna o token para acesso a API FLUIG GAP-68
+@type function
+@version  V 1.0
+@author Junior Tiengo
+@since 20/06/2025
+@param cTipo,       C, Tipo da integração (por enquanto feito apenas com POST)
+@param cEPFluig,    C, EndPoint da Função no Fluig
+@param cBody,       C, Body da requisição usada na integração
+@return jInfoRet, JSON, Informações que serão retornadas da API
+/*/
+
+User Function RetFluigEnv(cTipo, cEPFluig, cBody)
+
+    Local cStringJson   := ''               as Character
+    Local jInfoRet      := Nil              as jSon
+    Local cResultado    := ''               as Character
+    Local oClientFluig  := Nil              as Object
+    Local lContinua     := .T.              as Logical
+    Local cUrl          := GetNewPar('EZ_XFRMAPR'   ,'https://devfluig.xplanning.com.br')                                           //Armazenará a URL base da API do Fluig (ex: https://seuservidor.fluig.com/api).
+	Local cProces       := GetNewPar('EZ_XPROCES'   ,'WKF_CADASTRO_DE_CLIENTES')                                                    //Armazenará o processId (identificador do processo) no Fluig que será iniciado.
+	Local cCkey         := GetNewPar('EZ_XCKEY'     ,'integrador')                                                                  //Consumer Key para autenticação OAuth 1.0a.
+	Local cCsecret      := GetNewPar('EZ_XCSECR'    ,'integrador')                                                                  //Consumer Secret para autenticação OAuth 1.0a.
+	Local cToken        := GetNewPar('EZ_XTOKE'     ,'2c6f6753-fdb8-4e2a-9ee4-40698e77e814')                                        //Access Token para autenticação OAuth 1.0a.
+	Local cTSecret      := GetNewPar('EZ_XSECRE'    ,'5c1a2e24-e77c-4db1-8ff1-5db45dd14e55e7bc8d46-34fa-44e6-9ccb-752986aafa16')    //Token Secret para autenticação OAuth 1.0a.
+
+	//Pega o JSON do Body
+	jInfoRet            := JsonObject():New()
+	cStringJson         := jInfoRet:FromJson(cBody)
+
+	//Se houve falha na transformação do body em JsonObject, flaga para não continuar
+	If ! Empty(cStringJson)
+		jInfoRet:FromJson('{"code":"ERRO", "mensagem":"' + cStringJson + '"}')
+		lContinua := .F.
+	EndIf
+
+	//Se tiver tudo ok
+	If lContinua
+		//Aciona a integração com o Fluig
+		oClientFluig := FWoAuth1Fluig():New(cCkey,;        //Consumer Key
+		cCsecret,;                                         //Consumer Secret
+		cUrl,;                                             //Endereco
+		'')                                                //Callback
+
+		//Define o Token e o SecretToken
+		oClientFluig:SetToken(cToken)            //Access Token
+		oClientFluig:SetSecretToken(cTSecret)    //Token Secret
+
+		//Se for POST, executa a instrução de autenticação
+		If  (cTipo == 'POST')
+			//cResultado:= oClientFluig:Post(cUrl+cEPFluig,"",cBody)
+            cResultado:= oClientFluig:Post(cUrl + "/process-management/api/v2/processes/WKF_CADASTRO_DE_CLIENTES/start","",cBody)
+
+		Else
+			jInfoRet:FromJson('{"code":"ERRO", "message":"Metodo nao implementado"}')
+			lContinua := .F.
+		EndIf
+	EndIf
+
+	//Se deu tudo certo com a autenticação
+	If lContinua
+		cStringJson          := jInfoRet:FromJson(cResultado)
+
+		//Se não houve falha na transforação do resultado em JSON
+		If ! Empty(cStringJson)
+			jInfoRet:FromJson('{"code":"ERRO", "message":"' + cStringJson + '"}')
+		EndIf
+	EndIf
+
+Return(jInfoRet)

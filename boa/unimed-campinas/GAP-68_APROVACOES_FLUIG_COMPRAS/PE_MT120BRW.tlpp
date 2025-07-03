@@ -1,0 +1,55 @@
+#Include 'TOTVS.ch'
+#Include 'TopConn.ch'
+#Include 'Protheus.ch'
+#Include 'tlpp-core.th'
+#Include 'tlpp-rest.th'
+
+#Define cTitApp "Ponto de Entrada MT120BRW"
+
+/*/{Protheus.doc} MT120BRW
+Ponto de entrada utilizado para inserir novas opções no array aRotina 
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 29/05/2025
+@Param aRorina: Nome, Função, Operação (1-Pesquisa; 2-Visualização; 3-Inclusão; 4-Alteração; 5-Exclusão), acesso(.F.,.T.)
+@See https://tdn.totvs.com/pages/releaseview.action?pageId=6085467
+/*/
+
+User Function MT121BRW()
+
+	Local oError  		:= ErrorClass():New() 	as Object
+	Local aSubFluig 	:= {}					as Array
+
+	TRY	
+		//GAP 068 - Envio de Aprovações Fluig Compras
+		aAdd(aRotina,{"#Integração Fluig"			,aSubFluig															,0, 2, 0, NIL})
+
+		aAdd(aSubFluig,{'#Log Integração Fuig'		,"U_LogSc7Fluig()"													,0, 2, 0, Nil})
+		aAdd(aSubFluig,{"#Envia Integração Fluig"	,"U_IntAprovFluig(1, 'PC', SC7->C7_NUM, '', '', SC7->C7_XIDFLU)"	,0, 2, 0, Nil})
+
+	CATCH oError
+
+		U_AdminMsg("[MT120BRW] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()
+
+User Function LogSc7Fluig()
+
+	Local oLogAPI As Object
+	Local oError := ErrorClass():New() as Object
+
+	TRY
+
+		oLogAPI := CtrlLOG():New()
+		oLogAPI:ViewLog('SZL', SC7->C7_XIDFLU, 'MATA120', "SC7", SC7->(RecNo()))
+
+	CATCH oError
+
+		U_AdmMsg("[LOGSC7FLUIG] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()
