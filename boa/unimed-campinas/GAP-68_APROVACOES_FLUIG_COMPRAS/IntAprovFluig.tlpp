@@ -372,9 +372,8 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
-		//Só irá processar se a operação não for uma exclusão. (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
-		If _nOpc <> 1 .and. ! Empty(cIdFluig)
-
+		//Só irá processar se a operação for 1 e 5 (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
+		If _nOpc == 1 .or. _nOpc == 5  
 			oAprov := JsonObject():New()
 			oAprov["movementSequence"]      		:= 26
 			oAprov["assignee"]              		:= "daniel.camilo"

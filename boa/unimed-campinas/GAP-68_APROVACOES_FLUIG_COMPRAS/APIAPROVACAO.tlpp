@@ -1,0 +1,453 @@
+#Include "TOTVS.ch"
+#Include "TopConn.ch"
+#INCLUDE 'RWMAKE.CH'
+#INCLUDE 'TBICONN.CH'
+#Include "FWmvcdef.CH"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+#Define cTitApp "API Aprovação"
+
+/*/{Protheus.doc} aprovacao
+Função de API no método POST para aprovação de documentos na tabela SCR -> GAP068
+@type function
+@version V 1.00
+@author Tiengo
+@since 09/07/2025
+@return logical, Sempre verdadeiro
+@See https://tdn.totvs.com/pages/releaseview.action?pageId=543090187
+/*/
+@post(endpoint="/UnimedCampinas/Aprovacao", description='Servico rest para aprovacao de documentos - metodo post')
+
+User Function aprovacao() as Logical
+
+	Local oError   		:= ErrorClass():New()   as Object
+	Local oDetail 		:= JsonObject():New()   as Object
+	Local oLog     		:= Nil                  as Object
+	Local oVldSch  		:= Nil                	as Object
+	Local oBody    		:= Nil                  as jSon
+	Local oAux     		:= Nil                  as jSon
+	Local oResult 		:= Nil                  as jSon
+	Local jAuxLog  		:= Nil                  as jSon
+	Local cMsgErr  		:= ""                   as Character
+	Local cMsgOk   		:= ""                   as Character
+	Local cPathSch 		:= ""                   as Character
+	Local jDocAprov		:= Nil      			as jSon
+	Local lRet     		:= .T.                  as Logical
+	Local cDocAprov		:= ""                   as Character
+	Local cCNPJ			:= ""                   as Character
+
+	Try
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da Requisicao
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		//Chama função para preparar o ambiente pelo CNPJ
+		If oBody:HasProperty("cnpj")
+
+			cCNPJ := oBody["cnpj"]
+			If ! U_PrepEnvironment(cCNPJ) //! fValidEmp(cCNPJ)
+
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(U_AnswerFormat(602, "Erro ao preparar ambiente", "Erro ao preparar o ambiente com o CNPJ informado"))
+				Return(.T.)
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+
+				If ! oLog:SetTab("SZL")
+
+					ConOut(oLog:GetError())
+					oRest:SetStatusCode(501)
+					oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oLog:GetError()))
+					Return(.T.)
+				EndIf
+
+				// Realiza a Validacao do JSON enviado com Schema
+				If File(cPathSch + "\AprovDoc.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\AprovDoc.json", @cMsgErr)
+
+						If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							oRest:SetStatusCode(502)
+							oDetail['detalhes']	:= cMsgErr
+							cMsgErr := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+							Return (.T.)
+						EndIf
+
+					Else
+						oRest:SetStatusCode(502)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+						Return (.T.)
+					EndIf
+				EndIf
+
+				// Inicia o processo
+				oAux := JsonObject():New()
+				If oBody:HasProperty("documentos")
+
+					fGeraAprovacao(@cDocAprov, oBody, jDocAprov, @lRet, @cMsgOk, @cMsgErr)
+
+					if ! lRet
+						oRest:SetStatusCode(606)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos" + CHR(13) + CHR(10) + cMsgOk + CHR(13) + CHR(10) + "Contratos nao Incluidos" + CHR(13) + CHR(10) + cMsgErr, "Contratos nao Incluidos" + CHR(13) + CHR(10) + cMsgErr)
+						cMsgOk 	:= oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(606, "Operacao concluida com erro", cMsgOk))
+					Else
+						oRest:SetStatusCode(201)
+						oDetail['detalhes']	:= cMsgOk
+						cMsgOk := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(201, "Operacao concluida com sucesso!", cMsgOk))
+					Endif
+				Else
+					oRest:SetStatusCode(602)
+					oDetail['detalhes']	:= cMsgErr
+					cMsgErr := oDetail:ToJson()
+					oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto documentos", "Objeto documentos invalido"))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "POST_APROVDOC"
+					jAuxLog["rotina"]  := "MATA094"
+					jAuxLog["tabela"]  := "SCR"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Nao informado o objeto documentos"
+					jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+					jAuxLog["jsonret"] := '{"result": "Nao foi informada objeto Documentos"}'
+				Endif
+			Endif
+		EndIf
+
+	Catch oError
+
+		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
+		FreeObj(oBody)
+		FreeObj(oResult)
+	EndTry
+
+Return(.T.)
+
+//Função para Geração do Execauto para aprovar e rejeitar via MVC 
+Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogErro)
+
+	Local aArea         := FWGetArea()          as Array
+	Local oModel    	:= Nil                  as Object
+	Local cTpOper     	:= ""                   as Character
+	Local cAprovador	:= ""                   as Character
+	Local cJustif		:= ""                   as Character
+	Local cTpDoc		:= ""					as Character
+	Local aMsgDeErro    := {}                   as Array
+	Local nc            := 1                    as numeric
+	Local jAuxLog       := Nil                  as Json
+	Local oLog          := Nil                  as Object
+	Local cChave		:= ""                   as Character
+	Local lEstorno		:= .F.                  as Logical
+
+	TRY
+		oLog := CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+		If !oLog:SetTab("SZL")
+
+			U_AdminMsg("[CNTA121] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		jDocAprov := jBody:GetJsonObject("documentos")
+
+		For nc:= 1 to Len(jDocAprov)
+
+			cDocAprov 	:= jDocAprov[nc]['CR_NUM']
+			cAprovador 	:= jDocAprov[nc]['CR_APROV']
+			cTpOper		:= jDocAprov[nc]['TipoOperacao']
+			cJustif 	:= jDocAprov[nc]['CR_OBS']
+			cTpDoc		:= jDocAprov[nc]['CR_TIPO']
+
+			SAK->(dbSetOrder(1)) //AK_FILIAL+AK_COD
+			If SAK->(MsSeek(xFilial("SAK") + cAprovador))
+				__cUserId := SAK->AK_USER
+
+				SCR->(DbSetOrder(3)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_APROV
+				cChave := FWxFilial("SCR") + cTpDoc + Padr(cDocAprov, TamSX3("CR_NUM")[1]) + cAprovador
+
+				If SCR->(MsSeek(cChave))
+
+					//Caso seja o tipo seja IP preciso percorrer a tabela para gravação da aprovação
+					IF SCR->CR_STATUS == "02" .and. cTpOper == "001" .and. cTpDoc = 'IP'
+
+						While ! SCR->(Eof()) .And. SCR->CR_FILIAL + SCR->CR_TIPO + SCR->CR_NUM + SCR->CR_APROV == cChave
+
+							A094SetOp(cTpOper) //"001" - Liberado, "002" - Estornar, "003" - Superior, "004" - Transferir Superior, "005" - Rejeitado, "006" - Bloqueio, "007" - Visualizacao
+
+							oModel := FWLoadModel('MATA094')
+							oModel:SetOperation(MODEL_OPERATION_UPDATE)
+							oModel:Activate()
+
+							oModel:GetModel('FieldSCR'):SetValue('CR_OBS', cJustif)
+
+							If (oModel:VldData())
+								oModel:CommitData()
+							EndIf
+
+							If(oModel:HasErrorMessage())
+
+								aMsgDeErro := oModel:GetErrorMessage()
+								cMsgErro   := aMsgDeErro[6]
+								cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+
+								lRet := .F.
+
+								FreeObj(jAuxLog)
+								jAuxLog             := JsonObject():New()
+								jAuxLog["status"]   := "0"
+								jAuxLog["idinteg"]  := ""
+								jAuxLog["nomapi"]   := "POST_APROVDOC"
+								jAuxLog["rotina"]   := "MATA094"
+								jAuxLog["tabela"]   := "SCR"
+								jAuxLog["recno"]    := 0
+								jAuxLog["data"]     := DToS(dDataBase)
+								jAuxLog["hora"]     := Time()
+								jAuxLog["msgresp"]  := "error"
+								jAuxLog["msgerr"]   := cLogErro
+								jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+								jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
+
+								If !oLog:AddItem(jAuxLog)
+
+									ConOut(oLog:GetError())
+								EndIf
+							Else
+
+								cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+
+								FreeObj(jAuxLog)
+								jAuxLog     	   := JsonObject():New()
+								jAuxLog["status"]  := "1"
+								jAuxLog["idinteg"] := "0"
+								jAuxLog["nomapi"]  := "POST_APROVDOC"
+								jAuxLog["rotina"]  := "MATA094"
+								jAuxLog["tabela"]  := "SCR"
+								jAuxLog["recno"]   := SCR->(RecNo())
+								jAuxLog["data"]    := DToS(dDataBase)
+								jAuxLog["hora"]    := Time()
+								jAuxLog["msgresp"] := "success"
+								jAuxLog["msgerr"]  := ""
+								jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+								jAuxLog["jsonret"] := '{"result": Aprovacao/Rejeicao realizada com sucesso!!"}'
+
+								If !oLog:AddItem(jAuxLog)
+
+									ConOut(oLog:GetError())
+								EndIf
+
+							Endif
+							oModel:DeActivate()
+							SCR->(dbSkip())
+						EndDo
+
+					//Caso não seja IP e também seja rejeição
+					ElseIf SCR->CR_STATUS == "02" .and. cTpDoc <>'IP' .and. (cTpOper == "001" .or. cTpOper == "005" )
+
+						A094SetOp(cTpOper) //"001" - Liberado, "002" - Estornar, "003" - Superior, "004" - Transferir Superior, "005" - Rejeitado, "006" - Bloqueio, "007" - Visualizacao
+
+						oModel := FWLoadModel('MATA094')
+						oModel:SetOperation(MODEL_OPERATION_UPDATE)
+						oModel:Activate()
+
+						oModel:GetModel('FieldSCR'):SetValue('CR_OBS', cJustif)
+
+						If (oModel:VldData())
+							oModel:CommitData()
+						EndIf
+
+						If(oModel:HasErrorMessage())
+
+							aMsgDeErro := oModel:GetErrorMessage()
+							cMsgErro   := aMsgDeErro[6]
+							cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+
+							lRet := .F.
+
+							FreeObj(jAuxLog)
+							jAuxLog             := JsonObject():New()
+							jAuxLog["status"]   := "0"
+							jAuxLog["idinteg"]  := ""
+							jAuxLog["nomapi"]   := "POST_APROVDOC"
+							jAuxLog["rotina"]   := "MATA094"
+							jAuxLog["tabela"]   := "SCR"
+							jAuxLog["recno"]    := 0
+							jAuxLog["data"]     := DToS(dDataBase)
+							jAuxLog["hora"]     := Time()
+							jAuxLog["msgresp"]  := "error"
+							jAuxLog["msgerr"]   := cLogErro
+							jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+							jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
+
+							If !oLog:AddItem(jAuxLog)
+
+								ConOut(oLog:GetError())
+							EndIf
+						Else
+
+							cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+
+							FreeObj(jAuxLog)
+							jAuxLog     	   := JsonObject():New()
+							jAuxLog["status"]  := "1"
+							jAuxLog["idinteg"] := "0"
+							jAuxLog["nomapi"]  := "POST_APROVDOC"
+							jAuxLog["rotina"]  := "MATA094"
+							jAuxLog["tabela"]  := "SCR"
+							jAuxLog["recno"]   := SCR->(RecNo())
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "success"
+							jAuxLog["msgerr"]  := ""
+							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+							jAuxLog["jsonret"] := '{"result": Aprovacao/Rejeicao realizada com sucesso!!"}'
+
+							If !oLog:AddItem(jAuxLog)
+
+								ConOut(oLog:GetError())
+							EndIf
+
+						Endif
+						oModel:DeActivate()
+
+					//Caso deseje estornar a aprovação
+					ElseIf SCR->CR_STATUS == "03" .and. cTpOper == '002'
+
+						lEstorno := A094VldEst()
+
+						If ! lEstorno
+
+							cLogErro   += cDocAprov + ' ' +  "Erro: " + 'Erro ao estornar o documento ' + CRLF
+							lRet := .F.
+
+							FreeObj(jAuxLog)
+							jAuxLog             := JsonObject():New()
+							jAuxLog["status"]   := "0"
+							jAuxLog["idinteg"]  := ""
+							jAuxLog["nomapi"]   := "POST_APROVDOC"
+							jAuxLog["rotina"]   := "MATA094"
+							jAuxLog["tabela"]   := "SCR"
+							jAuxLog["recno"]    := 0
+							jAuxLog["data"]     := DToS(dDataBase)
+							jAuxLog["hora"]     := Time()
+							jAuxLog["msgresp"]  := "error"
+							jAuxLog["msgerr"]   := cLogErro
+							jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+							jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
+
+							If !oLog:AddItem(jAuxLog)
+
+								ConOut(oLog:GetError())
+							EndIf
+						Else
+
+							cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+
+							FreeObj(jAuxLog)
+							jAuxLog     	   := JsonObject():New()
+							jAuxLog["status"]  := "1"
+							jAuxLog["idinteg"] := "0"
+							jAuxLog["nomapi"]  := "POST_APROVDOC"
+							jAuxLog["rotina"]  := "MATA094"
+							jAuxLog["tabela"]  := "SCR"
+							jAuxLog["recno"]   := SCR->(RecNo())
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "success"
+							jAuxLog["msgerr"]  := ""
+							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+							jAuxLog["jsonret"] := '{"result": Estorno realizado com sucesso!!"}'
+
+							If !oLog:AddItem(jAuxLog)
+
+								ConOut(oLog:GetError())
+							EndIf
+						Endif
+					EndIf
+				Else
+
+					cMsgErro   := "Documento ou aprovador não encontrado!"
+					cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+					lRet := .F.
+
+					FreeObj(jAuxLog)
+					jAuxLog     := JsonObject():New()
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := '0'
+					jAuxLog["nomapi"]  := "POST_APROVDOC"
+					jAuxLog["rotina"]  := "MATA094"
+					jAuxLog["tabela"]  := "SCR"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "success"
+					jAuxLog["msgerr"]  := ""
+					jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+					jAuxLog["jsonret"] := '{"result": Documento ou aprovador não encontrado!"}'
+
+					If !oLog:AddItem(jAuxLog)
+
+						ConOut(oLog:GetError())
+					EndIf
+				Endif
+			Else
+				cMsgErro   := "Codigo do Aprovador nao encontrato!"
+				cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+				lRet := .F.
+
+				FreeObj(jAuxLog)
+				jAuxLog     := JsonObject():New()
+				jAuxLog["status"]  := "0"
+				jAuxLog["idinteg"] := '0'
+				jAuxLog["nomapi"]  := "POST_APROVDOC"
+				jAuxLog["rotina"]  := "MATA094"
+				jAuxLog["tabela"]  := "SCR"
+				jAuxLog["recno"]   := 0
+				jAuxLog["data"]    := DToS(dDataBase)
+				jAuxLog["hora"]    := Time()
+				jAuxLog["msgresp"] := "success"
+				jAuxLog["msgerr"]  := ""
+				jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+				jAuxLog["jsonret"] := '{"result": Codigo do Aprovador nao encontrato!"}'
+
+				If !oLog:AddItem(jAuxLog)
+
+					ConOut(oLog:GetError())
+				EndIf
+			Endif
+		next nC
+
+	Catch oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cDocAprov + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
+
+	FWRestArea(aArea)
+
+Return(lRet)
