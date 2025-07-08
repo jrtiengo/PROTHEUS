@@ -22,6 +22,8 @@ Ponto de Entrada MVC CNTA121
 User Function CNTA121()
 
 	Local aArea         := FwGetArea()              as Array
+	Local aAreaCND      := CND->(FwGetArea())       as Array
+	Local aAreaCXN      := CXN->(FwGetArea())       as Array
 	Local aParam  		:= PARAMIXB                 as Array
 	Local xRet    		:= .T.                      as Logical
 	Local oObj    		:= Nil                      as Object
@@ -56,5 +58,7 @@ User Function CNTA121()
 	ENDTRY
 
 	FwRestArea(aArea)
+	FwRestArea(aAreaCND)
+	FwRestArea(aAreaCXN)
 
 Return(xRet)

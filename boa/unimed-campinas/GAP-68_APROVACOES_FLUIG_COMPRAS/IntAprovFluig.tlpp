@@ -118,44 +118,43 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
 					oJSon["comment"] := "Solicitação de Aprovação de Pedido: " + cNum
 
-					oJSon["formFields"]["C7_NUM"]     := cNum
-					oJSon["formFields"]["C7_TOTAL"]   := SC7->C7_TOTAL
-					oJSon["formFields"]["C7_FORNECE"] := SC7->C7_FORNECE
-					oJSon["formFields"]["C7_LOJA"]    := SC7->C7_LOJA
-					oJSon["formFields"]["A2_NOME"]    := Posicione('SA2','1', FWxFilial("SA2"), SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME")
+					oJSon["formFields"]["C7_NUM"]    		:= cNum
+					oJSon["formFields"]["C7_TOTAL"]  		:= SC7->C7_TOTAL
+					oJSon["formFields"]["C7_FORNECE"]		:= SC7->C7_FORNECE
+					oJSon["formFields"]["C7_LOJA"]   		:= SC7->C7_LOJA
+					oJSon["formFields"]["A2_NOME"]   		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME"))
 
 				Case cTipo == 'SC'
 
 					cTabela := 'SC1'
 					nRecno 	:= SC1->(RecNo())
 
-					oJSon["comment"] := "Solicitação de Aprovação de SC: " + cNum
+					oJSon["comment"] 						:= "Solicitação de Aprovação de SC: " + cNum
 
-					oJSon["formFields"]["C1_NUM"]       := cNum
-					oJSon["formFields"]["C1_EMISSAO"]   := SC1->C1_TOTAL
+					oJSon["formFields"]["C1_NUM"]       	:= cNum
+					oJSon["formFields"]["C1_EMISSAO"]   	:= SC1->C1_TOTAL
 
 				Case cTipo == 'CTR'
 
 					cTabela := 'CN9'
 					nRecno 	:= CN9->(RecNo())
 
-					oJSon["comment"] := "Solicitação de Aprovação de Contrato: " + cNum
+					oJSon["comment"] 						:= "Solicitação de Aprovação de Contrato: " + cNum
 
 					oJSon["formFields"]["CN9_NUMERO"]		:= cNum
-					oJSon["formFields"]["CN9_REVISA"]		:= CN9->CN9_REVISA
+					oJSon["formFields"]["CN9_REVISA"]		:= cRevisao
 					oJSon["formFields"]["CN9_VLATU"]		:= CN9->CN9_VLATU
 					oJson["formFields"]["CN9_APROV"]		:= CN9->CN9_APROV
 					oJSon["formFields"]["CNC_CODIGO"]		:= CNC->CNC_CODIGO
 					oJSon["formFields"]["CNC_LOJA"]			:= CNC->CNC_LOJA
-
-					oJSon["formFields"]["A2_NOME"]    := Posicione('SA2','1', FWxFilial("SA2"), CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME")
+					oJSon["formFields"]["A2_NOME"]    		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME"))
 
 				Case cTipo == 'MED'
 
 					cTabela := 'CND'
 					nRecno 	:= CND->(RecNo())
 
-					oJSon["comment"] := "Solicitação de Aprovação de Medição: " + cNum
+					oJSon["comment"] 						:= "Solicitação de Aprovação de Medição: " + cNum
 
 					oJSon["formFields"]["CND_NUMMED"]		:= cNum
 					oJSon["formFields"]["CND_CONTRA"]		:= CND->CND_CONTRA
@@ -364,7 +363,7 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 	//Local cProcReprv    := GetNewPar('EZ_XTARGR'   ,'')        	as Character //irá informar para qual atividade deverá ser movimentado o processo do Fluig em caso de reprovação
 	Local jSonRet		:= JsonObject():New()					as jSon
 
-	Try
+	TRY
 
 		oLog := CtrlLOG():New()
 
