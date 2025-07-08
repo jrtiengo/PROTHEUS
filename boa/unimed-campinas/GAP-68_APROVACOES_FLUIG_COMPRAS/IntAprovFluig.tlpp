@@ -4,6 +4,8 @@
 #Include 'tlpp-core.th'
 #Include 'tlpp-rest.th'
 
+#Define cTitApp "Integração de Documentos Fluig para aprovação"
+
 //-------------------------------------------------------------------
 /*/{Protheus.doc} AprovFluig
 Função para enviar aprovadores da tabela SCR para o Fluig via REST - GAP068
@@ -18,7 +20,7 @@ Função para enviar aprovadores da tabela SCR para o Fluig via REST - GAP068
 @Param cIdFluig C - ID do Fluig 
 /*/
 //-------------------------------------------------------------------
-User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
 	Local oError        := ErrorClass():New()     				as Object
 	Local oLog          := Nil                 		            as Object
@@ -34,7 +36,7 @@ User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 
 		If cTipo == 'PC' .or. cTipo == 'SC' .or. cTipo == 'CTR' .or. cTipo == 'MED'
 
-			fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+			fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
 		Elseif cTipo == 'APROV'
 
@@ -50,7 +52,7 @@ User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 Return()
 
 //Envia dados para o Fluig
-Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
+Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
 	Local cQuery		:= ""						            as Character
 	Local cBody         := ""						            as Character
@@ -64,6 +66,7 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 	Local cProces       := GetNewPar('EZ_XPROCES'   ,'')        as Character
 	Local jSonRet		:= JsonObject():New()					as jSon
 	Local cTabela	    := ""                                   as Character
+	Local nRecno		:= 0 									as Numeric
 
 	Try
 
@@ -109,27 +112,19 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 				Do Case
 
 				Case cTipo == 'PC'
-					// SC7->(DbSetOrder(1)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
-					// SC7->(MsSeek(FWxFilial("SC7") + cNum))
 
 					cTabela := 'SC7'
 					nRecno 	:= SC7->(RecNo())
 
-					cFornec := SC7->C7_FORNECE
-					cLoja   := SC7->C7_LOJA
-					nTotal  := SC7->C7_TOTAL
-
 					oJSon["comment"] := "Solicitação de Aprovação de Pedido: " + cNum
 
 					oJSon["formFields"]["C7_NUM"]     := cNum
-					oJSon["formFields"]["C7_TOTAL"]   := nTotal
-					oJSon["formFields"]["C7_FORNECE"] := cFornec
-					oJSon["formFields"]["C7_LOJA"]    := cLoja
+					oJSon["formFields"]["C7_TOTAL"]   := SC7->C7_TOTAL
+					oJSon["formFields"]["C7_FORNECE"] := SC7->C7_FORNECE
+					oJSon["formFields"]["C7_LOJA"]    := SC7->C7_LOJA
 					oJSon["formFields"]["A2_NOME"]    := Posicione('SA2','1', FWxFilial("SA2"), SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME")
 
 				Case cTipo == 'SC'
-					// SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
-					// SC1->(MsSeek(FWxFilial("SC1") + cNum))
 
 					cTabela := 'SC1'
 					nRecno 	:= SC1->(RecNo())
@@ -137,33 +132,39 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 					oJSon["comment"] := "Solicitação de Aprovação de SC: " + cNum
 
 					oJSon["formFields"]["C1_NUM"]       := cNum
-					oJSon["formFields"]["C1_EMISSAO"]   := nTotal
+					oJSon["formFields"]["C1_EMISSAO"]   := SC1->C1_TOTAL
 
 				Case cTipo == 'CTR'
-
-					// CNC->(DBSetOrder(1))//CNC_FILIAL+CNC_NUMERO+CNC_REVISA+CNC_CODIGO+CNC_LOJA
-					// CNC->(MsSeek(FWxFilial("CNC") + cNum + cRevisao))
 
 					cTabela := 'CN9'
 					nRecno 	:= CN9->(RecNo())
 
-					cFornec := CNA->CNA_FORNECE
-					cLoja   := CNA->CNA_LOJA
-
 					oJSon["comment"] := "Solicitação de Aprovação de Contrato: " + cNum
 
-				Case cTipo == 'MED'
+					oJSon["formFields"]["CN9_NUMERO"]		:= cNum
+					oJSon["formFields"]["CN9_REVISA"]		:= CN9->CN9_REVISA
+					oJSon["formFields"]["CN9_VLATU"]		:= CN9->CN9_VLATU
+					oJson["formFields"]["CN9_APROV"]		:= CN9->CN9_APROV
+					oJSon["formFields"]["CNC_CODIGO"]		:= CNC->CNC_CODIGO
+					oJSon["formFields"]["CNC_LOJA"]			:= CNC->CNC_LOJA
 
-					// CNX->(DbSetOrder(3)) //CXN_FILIAL+CXN_CONTRA+CXN_NUMMED+CXN_NUMPLA
-					// CNX->(MsSeek(FWxFilial("CNX") + cNum + cMed ))
+					oJSon["formFields"]["A2_NOME"]    := Posicione('SA2','1', FWxFilial("SA2"), CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME")
+
+				Case cTipo == 'MED'
 
 					cTabela := 'CND'
 					nRecno 	:= CND->(RecNo())
 
-					cFornec := CNX->CNX_FORNECE
-					cLoja   := CNX->CNX_LOJA
-
 					oJSon["comment"] := "Solicitação de Aprovação de Medição: " + cNum
+
+					oJSon["formFields"]["CND_NUMMED"]		:= cNum
+					oJSon["formFields"]["CND_CONTRA"]		:= CND->CND_CONTRA
+					oJSon["formFields"]["CND_REVISA"]		:= CND->CND_REVISA
+					oJSon["formFields"]["CND_COMPET"]		:= CND->CND_COMPET
+					oJSon["formFields"]["CXN_PARCEL"]		:= CXN->CXN_PARCEL
+					oJSon["formFields"]["CXN_FORNEC"]		:= CXN->CXN_FORNEC
+					oJSon["formFields"]["CXN_LJFORN"]		:= CXN->CXN_LJFORN
+					oJSon["formFields"]["CND_VLTOT"]   		:= CXN->CXN_VLTOT
 				Endcase
 
 				//Percorrer a query para montar os aprovadores
@@ -264,11 +265,11 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed, cIdFluig)
 			EndIf
 		Endif
 
-CATCH oError
+	CATCH oError
 
-	U_AdminMsg("["+FunName()+"] " + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		U_AdminMsg("["+FunName()+"] " + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
-ENDTRY
+	ENDTRY
 
 Return()
 
@@ -342,11 +343,11 @@ Static Function fCancFluig(cIDFluig)
 
 		EndIf
 
-CATCH oError
+	CATCH oError
 
-	U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
-ENDTRY
+	ENDTRY
 
 Return(lCancela)
 
@@ -373,7 +374,7 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 		EndIf
 
 		//Só irá processar se a operação for 1 e 5 (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
-		If _nOpc == 1 .or. _nOpc == 5  
+		If _nOpc == 1 .or. _nOpc == 5
 			oAprov := JsonObject():New()
 			oAprov["movementSequence"]      		:= 26
 			oAprov["assignee"]              		:= "daniel.camilo"

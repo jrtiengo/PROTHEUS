@@ -31,7 +31,7 @@ User Function MT120FIM()
 	TRY
 		//GAP 068 - Envio de Aprovações Fluig Compras
 		If nConfirma == 1 .and. (nOpc == 3 .or. nOpc == 4 .or. nOpc == 5 .or.  nOpc == 9) 
-			U_IntAprovFluig(nOpc, cTipo, cNumPc, '', '', SC7->C7_XIDFLU)
+			U_IntAprovFluig(nOpc, cTipo, cNumPc, '', SC7->C7_XIDFLU)
 		Endif
 
 	CATCH oError

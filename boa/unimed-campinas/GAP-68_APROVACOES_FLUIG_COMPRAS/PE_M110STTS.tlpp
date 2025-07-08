@@ -30,7 +30,7 @@ User Function M110STTS()
 	TRY
 		//GAP 068 - Envio de Aprovações Fluig Compras
 		If nOpc == 3 .or. nOpc == 4 .or. nOpc == 5
-			U_IntAprovFluig(nOpc, cTipo, cNumSc, '', '', SC1->C1_XIDFLU)
+			U_IntAprovFluig(nOpc, cTipo, cNumSc, '', SC1->C1_XIDFLU)
 		Endif
 
 	CATCH oError

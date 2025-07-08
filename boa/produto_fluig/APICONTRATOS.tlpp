@@ -1,0 +1,1238 @@
+#Include "TOTVS.ch"
+#Include "FWmvcdef.CH"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+#Define cTitApp "API Contratos"
+#Define Enter Chr(13) + Chr(10)
+
+/*/{Protheus.doc} inclui_contratos
+API para Inclusão de Contratos GAP19
+@version V 1.00
+@author Tiengo
+@since 11/04/2025
+/*/
+
+@post(endpoint="/UnimedCampinas/Contratos/IncContrato", description='Servico rest de inclusao contratos - metodo post')
+
+User Function inclui_contratos() as logical
+
+	Local oError   		:= ErrorClass():New()   as Object
+	Local oDetail 		:= JsonObject():New()   as Object
+	Local oLog     		:= Nil                  as Object
+	Local oVldSch  		:= Nil                	as Object
+	Local oBody    		:= Nil                  as jSon
+	Local oAux     		:= Nil                  as jSon
+	Local oResult 		:= Nil                  as jSon
+	Local jAuxLog  		:= Nil                  as jSon
+	Local cMsgErr  		:= ""                   as Character
+	Local cMsgOk   		:= ""                   as Character
+	Local cPathSch 		:= ""                   as Character
+	Local jContrato		:= Nil      			as jSon
+	Local lRet     		:= .T.                  as Logical
+	Local cContrato		:= ""                   as Character
+	Local cCNPJ			:= ""                   as Character
+
+	Try
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da Requisicao
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		//Chama função para preparar o ambiente pelo CNPJ
+		If oBody:HasProperty("cnpj")
+
+			cCNPJ := oBody["cnpj"]
+			If ! U_PrepEnvironment(cCNPJ) //! fValidEmp(cCNPJ)
+
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(U_AnswerFormat(602, "Erro ao preparar ambiente", "Erro ao preparar o ambiente com o CNPJ informado"))
+				Return(.T.)
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+
+				If ! oLog:SetTab("SZL")
+
+					ConOut(oLog:GetError())
+					oRest:SetStatusCode(501)
+					oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oLog:GetError()))
+					Return(.T.)
+				EndIf
+
+				// Realiza a Validacao do JSON enviado com Schema
+				If File(cPathSch + "\IncContr.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\IncContr.json", @cMsgErr)
+
+						If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							oRest:SetStatusCode(502)
+							oDetail['detalhes']	:= cMsgErr
+							cMsgErr := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+							Return (.T.)
+						EndIf
+
+					Else
+						oRest:SetStatusCode(502)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+						Return (.T.)
+					EndIf
+				EndIf
+
+				// Inicia o processo
+				oAux := JsonObject():New()
+				If oBody:HasProperty("contrato")
+
+					fGeraContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+
+					if ! lRet
+						oRest:SetStatusCode(606)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
+						cMsgOk 	:= oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+					Else
+						oRest:SetStatusCode(201)
+						oDetail['detalhes']	:= cMsgOk
+						cMsgOk := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
+					Endif
+				Else
+					oRest:SetStatusCode(602)
+					oDetail['detalhes']	:= cMsgErr
+					cMsgErr := oDetail:ToJson()
+					oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto contrato", "Objeto contrato invalido"))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "POST_INCCONTR"
+					jAuxLog["rotina"]  := "CNTA300"
+					jAuxLog["tabela"]  := "CN9"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "Nao informado o objeto contrato"
+					jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+					jAuxLog["jsonret"] := '{"result": "Nao foi informada objeto Contrato"}'
+				Endif
+			Endif
+		EndIf
+
+	Catch oError
+
+		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
+		FreeObj(oBody)
+		FreeObj(oResult)
+	EndTry
+
+Return(.T.)
+
+//Gravar o contrato
+Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro)
+
+	Local aArea             := FWGetArea()          as Array
+	Local oModel            := Nil                  as Object
+	Local oModelCNB         := Nil                  as Object
+	Local cContrAux         := ""                   as Character
+	Local aMsgDeErro        := {}                   as Array
+	Local jAuxLog           := Nil                  as Json
+	Local oLog              := Nil                  as Object
+	Local nC          		:= 0					as Numeric
+	Local nI          		:= 0                    as Numeric
+	Local nX				:= 0                    as Numeric
+	Local nY				:= 0 					as Numeric
+	Local cTpContr         	:= ""                   as Character
+	Local cCtrFixo			:= ""                   as Character
+
+	Try
+		oLog := CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		jContrato := jBody:GetJsonObject("contrato")
+
+		For nC := 1 to Len(jContrato)
+
+			cContrato	:= jContrato[nC]['CN9_NUMERO']
+			cIDInteg    := jContrato[nC]["idint"]
+			cTpContr 	:= jContrato[nC]["CN9_TPCTO"]
+
+			//Busca o tipo do contrato
+			CN1->(DbSetOrder(1)) //CN1_FILIAL+CN1_CODIGO+CN1_ESPCTR
+			If CN1->(MSSeek(FWxFilial("CN1") + cTpContr))
+				cCtrFixo := CN1->CN1_CTRFIX
+			Endif
+
+			If ! Empty(cContrato) .and. ! Empty(cIDInteg)
+
+				oModel := FWLoadModel("CNTA300") 			//Carrega o modelo
+				oModel:SetOperation(MODEL_OPERATION_INSERT) // Seta operacao de inclusao
+				oModel:Activate() 							// Ativa o Modelo
+
+				//Cabecalho do contrato
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_NUMERO'        ,cContrato)
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_XFLUI'         ,cIDInteg)
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCTO'         ,cTpContr)
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_DTINIC'        ,CtoD(jContrato[nC]["CN9_DTINIC"]))
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_XDTORI'        ,CtoD(jContrato[nC]["CN9_XDTORI"]))
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,jContrato[nC]["CN9_UNVIGE"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,jContrato[nC]["CN9_VIGE"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_MOEDA'         ,jContrato[nC]["CN9_MOEDA"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,jContrato[nC]["CN9_CONDPG"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGREJ'        ,jContrato[nC]["CN9_FLGREJ"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_INDICE'        ,jContrato[nC]["CN9_INDICE"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGCAU'        ,jContrato[nC]["CN9_FLGCAU"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_OBJCTO'        ,jContrato[nC]["CN9_OBJCTO"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,jContrato[nC]["CN9_ALTCLA"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_VLDCTR'        ,jContrato[nC]["CN9_VLDCTR"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,jContrato[nC]["CN9_APROV"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,jContrato[nC]["CN9_GRPAPR"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_NATURE'        ,jContrato[nC]["CN9_NATURE"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_DEPART'        ,jContrato[nC]["CN9_DEPART"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_PERI'          ,jContrato[nC]["CN9_PERI"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNPERI'        ,jContrato[nC]["CN9_UNPERI"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_MODORJ'        ,jContrato[nC]["CN9_MODORJ"])
+				oModel:SetValue(    'CN9MASTER'    ,'CN9_PRORAT'        ,jContrato[nC]["CN9_PRORAT"])
+
+				//Cliente/Fornecedor do Contrato
+				oModel:SetValue(    'CNCDETAIL'    ,'CNC_CODIGO'        ,jContrato[nC]["CNC_CODIGO"])
+				oModel:SetValue(    'CNCDETAIL'    ,'CNC_LOJA'          ,jContrato[nC]["CNC_LOJA"])
+
+				//Planilhas do Contrato
+				oModel:LoadValue(   'CNADETAIL'     ,'CNA_CONTRA'       ,cContrato)
+				oModel:SetValue(    'CNADETAIL'     ,'CNA_NUMERO'       ,'000001')
+				oModel:SetValue(    'CNADETAIL'     ,'CNA_FORNEC'       ,jContrato[nC]["CNC_CODIGO"])
+				oModel:SetValue(    'CNADETAIL'     ,'CNA_LJFORN'       ,jContrato[nC]["CNC_LOJA"])
+				oModel:SetValue(    'CNADETAIL'     ,'CNA_TIPPLA'       ,jContrato[nC]["CNA_TIPPLA"])
+				If cCtrFixo <> '1' 
+					oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
+				Endif
+
+				//Itens da Planilha do Contrato
+				If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
+					If Valtype(jContrato[nC]:GetJsonObject("planilha_itens")) == 'A'
+						
+						oModelCNB := oModel:GetModel("CNBDETAIL")
+
+						For nI := 1 to Len(jContrato[nC]["planilha_itens"])
+
+							If nI > 1
+								oModelCNB:AddLine()
+							EndiF
+
+							oModelCNB:SetValue(    'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
+							oModelCNB:SetValue(    'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
+							If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
+								oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
+							Endif
+							oModelCNB:SetValue(    'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
+							oModelCNB:SetValue(    'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
+							oModelCNB:SetValue(    'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
+							oModelCNB:SetValue(    'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
+						Next nI
+					Endif
+				Endif
+
+				//Cronograma Financeiro
+				If cCtrFixo == '1' //Contrato FIXO gera cronograma
+
+					If Valtype(jContrato[nC]:GetJsonObject("cronograma")) == 'A'
+
+						For nX := 1 to Len(jContrato[nC]["cronograma"])
+
+							SetMVValue("CN300CRG"       ,"MV_PAR01"     ,jContrato[nC]["cronograma"][nX]["CRG_NPERIO"])			//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
+							SetMVValue("CN300CRG"       ,"MV_PAR02"     ,jContrato[nC]["cronograma"][nX]["CRG_NDIAS"])  		//Número de dias para avançar nas parcelas do cronograma
+							SetMVValue("CN300CRG"       ,"MV_PAR03"     ,jContrato[nC]["cronograma"][nX]["CRG_NULTDI"])  		//1- Dt não existir: Quando a data calculada pelo intervalo de dias informados não existir no referido mês. 2- Não: Quando a data calculada pelo sistema não existir, utiliza o primeiro dia do mês seguinte. 3- Sempre: Ultiliza sempre o ultimo dia do mês na data prevista de medição, quando a periodicidade é mensal.
+							SetMVValue("CN300CRG"       ,"MV_PAR04"     ,jContrato[nC]["cronograma"][nX]["CRG_CDTCOM"])			//Deve ser composta por mês/ano no formato MM/AAAA(Exemplo: 12/2018)
+							SetMVValue("CN300CRG"       ,"MV_PAR05"     ,CtoD(jContrato[nC]["cronograma"][nX]["CRG_DTPREV"]))	//Data prevista para que ocorra a primeira medição(exemplo: 20/12/2018 )
+							SetMVValue("CN300CRG"       ,"MV_PAR06"     ,jContrato[nC]["cronograma"][nX]["CRG_NPARC"])			//Número de parcelas do cronograma
+							SetMVValue("CN300CRG"       ,"MV_PAR07"     ,jContrato[nC]["cronograma"][nX]["CRG_CCOND"])			//Código da condição de pagamento que as parcelas do cronograma devem ser geradas
+							SetMVValue("CN300CRG"       ,"MV_PAR08"     ,jContrato[nC]["cronograma"][nX]["CRG_NTXJUR"])			//Taxa de Juros para cálculo do valor presente
+
+							Pergunte("CN300CRG",.F.)
+							CN300PrCF(.T.) //Incluir cronograma financeiro/fisico
+
+						Next nX
+					Endif
+				Endif
+
+				//Usuario de acesso com controle TOTAL
+				If jContrato[nC]:HasProperty("usuarios")
+
+					oModel:LoadValue(   'CNNDETAIL'     ,'CNN_CONTRA'       ,cContrato)
+					oModel:LoadValue(   'CNNDETAIL'     ,'CNN_USRCOD'       ,jContrato[nC]["usuarios"]:GetJsonObject("CNN_USRCOD"))
+					oModel:SetValue(    'CNNDETAIL'     ,'CNN_TRACOD'       ,"001")
+				Endif
+
+				//Filiais de autorizacao
+				If Valtype(jContrato[nC]:GetJsonObject("filiais")) == 'A'
+
+					For nY := 1 to Len(jContrato[nC]["filiais"])
+
+						oModel:LoadValue(   'CPDDETAIL'     ,'CPD_CONTRA'       ,cContrato)
+						oModel:SetValue(    'CPDDETAIL'     ,'CPD_NUMPLA'       ,'000001')
+						oModel:SetValue(    'CPDDETAIL'     ,'CPD_FILAUT'       ,jContrato[nC]["filiais"][nY])
+					Next nY
+				Endif
+
+				//Validacao e Gravacao dos dados e LOG
+				If oModel:VldData()
+					If oModel:CommitData()
+
+						cMsgOK	+=  CN9->CN9_NUMERO + CRLF
+
+						FreeObj(jAuxLog)
+						jAuxLog             := JsonObject():New()
+						jAuxLog["status"]   := "1"
+						jAuxLog["idinteg"]  := cIDInteg
+						jAuxLog["nomapi"]   := "POST_INCCONTR"
+						jAuxLog["rotina"]   := "CNTA300"
+						jAuxLog["tabela"]   := "CN9"
+						jAuxLog["recno"]    := CN9->(RecNo())
+						jAuxLog["data"]     := DToS(dDataBase)
+						jAuxLog["hora"]     := Time()
+						jAuxLog["msgresp"]  := "success"
+						jAuxLog["msgerr"]   := ""
+						jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+						jAuxLog["jsonret"]  := '{"result": Contrato incluido com sucesso!"}'
+
+						If !oLog:AddItem(jAuxLog)
+							ConOut(oLog:GetError())
+						EndIf
+					Endif
+				Else
+
+					//Caso nao tenha sido gravado o contrato, verifica o erro
+					aMsgDeErro := oModel:GetErrorMessage()
+					cMsgErro   := aMsgDeErro[6]
+					cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+					lRet := .F.
+
+					FreeObj(jAuxLog)
+					jAuxLog             := JsonObject():New()
+					jAuxLog["status"]   := "0"
+					jAuxLog["idinteg"]  := ""
+					jAuxLog["nomapi"]   := "POST_INCCONTR"
+					jAuxLog["rotina"]   := "CNTA300"
+					jAuxLog["tabela"]   := "CN9"
+					jAuxLog["recno"]    := 0
+					jAuxLog["data"]     := DToS(dDataBase)
+					jAuxLog["hora"]     := Time()
+					jAuxLog["msgresp"]  := "error"
+					jAuxLog["msgerr"]   := cLogErro
+					jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+					jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
+
+					If ! oLog:AddItem(jAuxLog)
+						ConOut(oLog:GetError())
+					EndIf
+				EndIf
+
+				//Caso tenha gravado o contrato, verifica se tem documentos para gerar
+				If lRet
+
+					cContrAux := CN9->CN9_NUMERO
+
+					If oModel:IsActive()
+						oModel:DeActivate()
+					EndIf
+
+					FreeObj(oModel)
+
+					//Gera os documentos do contrato documentos.
+					If ! Empty(Alltrim(cContrAux))
+						fGeraDoc(jContrato[nC]["documentos"],cContrAux,.T.,cIDInteg)
+					Endif
+				Endif
+			EndIf
+		next nC
+
+	Catch oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
+
+	FWRestArea(aArea)
+
+Return (lRet)
+
+/*/{Protheus.doc} Revisao_Contratos
+API para Revisao de Contratos
+@version V 1.00
+@author Tiengo
+@since 11/04/2025
+/*/
+	@put(endpoint="/UnimedCampinas/Contratos/RevContrato", description='Servico rest de revisao contratos - metodo PUT')
+
+User Function rev_contratos() as logical
+
+	Local oError   		:= ErrorClass():New()   as Object
+	Local oDetail 		:= JsonObject():New()   as Object
+	Local oLog     		:= Nil                  as Object
+	Local oVldSch  		:= Nil                	as Object
+	Local oBody    		:= Nil                  as Json
+	Local oAux     		:= Nil                  as Json
+	Local oResult 		:= Nil                  as Json
+	Local jAuxLog   	:= Nil                  as Json
+	Local cMsgErr   	:= ""                   as Character
+	Local cMsgOk    	:= ""                   as Character
+	Local cPathSch  	:= ""                   as Character
+	Local jContrato 	:= Nil                  as Json
+	Local lRet      	:= .T.                  as Logical
+	Local cContrato 	:= ""                   as Character
+
+	Try
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da Requisicao
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If ! U_PrepEnvironment(cCNPJ) //! fValidEmp(cCNPJ)
+
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(U_AnswerFormat(602, "Erro ao preparar ambiente", "Erro ao preparar o ambiente com o CNPJ informado"))
+				Return (.T.)
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If ! oLog:SetTab("SZL")
+
+					ConOut(oLog:GetError())
+					oRest:SetStatusCode(501)
+					oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oLog:GetError()))
+					Return .T.
+				EndIf
+
+				// Realiza a Validacao do JSON enviado com Schema
+				If File(cPathSch + "\RevContr.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\RevContr.json", @cMsgErr)
+
+						If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							oRest:SetStatusCode(502)
+							oDetail['detalhes']	:= cMsgErr
+							cMsgErr := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+							Return (.T.)
+						EndIf
+					Else
+
+						oRest:SetStatusCode(502)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+						Return (.T.)
+
+					EndIf
+				EndIf
+
+				// Inicia o processo
+				oAux := JsonObject():New()
+				If oBody:HasProperty("contrato")
+
+					cbody := obody:toJson()
+
+					fRevContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+
+					if ! lRet
+						oRest:SetStatusCode(606)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Revisados"+ Enter + cMsgOk + Enter + "Contratos nao Revisados" + Enter + cMsgErr, "Contratos nao Revisados" + Enter + cMsgErr)
+						cMsgOk 	:= oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Revisao", cMsgOk))
+					Else
+						oRest:SetStatusCode(201)
+						oDetail['detalhes']	:= cMsgOk
+						cMsgOk := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(201, "Contratos Revisados com sucesso!", cMsgOk))
+					Endif
+				Endif
+			Endif
+		Endif
+
+	Catch oError
+
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oError:Description))
+		FreeObj(oBody)
+		FreeObj(oResult)
+	EndTry
+
+Return()
+
+Static Function fRevContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro)
+
+	Local oError    		:= ErrorClass():New()   as Object
+	Local oModel			:= Nil					as Object
+	Local oModelCNA			:= Nil				    as Object
+	Local oModelCNB			:= Nil				    as Object
+	Local oModelCNC			:= Nil				    as Object
+	Local oLog     			:= Nil                  as Object
+	Local aMsgDeErro        := {}                   as Array
+	Local jAuxLog   		:= Nil                  as Json
+	Local cAlias			:= ""					as Character
+	Local cRevisa			:= ""					as Character
+	Local nC				:= 0 					as Numeric
+	Local nX				:= 0					as Numeric
+	Local nPos				:= 0                    as Numeric
+
+	Try
+		oLog := CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		jContrato := jBody:GetJsonObject("contrato")
+
+		For nC := 1 to Len(jContrato)
+
+			cContrato   := Alltrim(jContrato[nC]:GetJsonObject("CN9_NUMERO"))
+			cIDInteg    := Alltrim(jContrato[nC]:GetJsonObject("idint"))
+			cCodRev		:= Alltrim(jContrato[nC]:GetJsonObject("CN9_TIPREV"))
+			cJustific	:= Alltrim(jContrato[nC]:GetJsonObject("CN9_JUSTIF"))
+
+			//Posicionar no ultimo registro para obter a ultima revisao
+			cAlias	:= "SELECT MAX(R_E_C_N_O_) RECNO FROM "+ RetSqlName("CN9") +" WHERE D_E_L_E_T_ = '' AND CN9_NUMERO = '"+cContrato+"' AND CN9_DTASSI <> ''
+
+			cAlias	:= ChangeQuery(cAlias)
+			PLSQuery(cAlias, "cQryRev")
+
+			//Caso encontre algum registro
+			If ! cQryRev->(EoF())
+
+				//Caso não não tenha revisão preenchida irá atualizar, filiais e acessos
+				cRevisa   := cQryRev->RECNO
+
+				CN9->(DBSetOrder(1))//CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+				CN9->(dbGoto(cRevisa))
+
+				//Busca da CN0 o Tipo da revisao
+				CN0->(DBSetOrder(1)) //CN0_FILIAL+CN0_CODIGO
+				If CN0->(MSSeek(FWxFilial('CN0') + cCodRev))
+
+					cTipRev	:=	CN0->CN0_TIPO
+
+					//Define o tipo de revisão que será realizado.
+					A300STpRev(cTipRev)
+
+					oModel := FWLoadModel("CNTA300")
+					oModel:SetOperation(MODEL_OPERATION_INSERT)
+
+					//- Ativa o modelo. É necessária a utilização do parâmetro como true (.T.) para realizar uma copia.
+					If (lRet := oModel:Activate(.T.))
+
+						//Cabecalho
+						oModel:SetValue( 	'CN9MASTER'    ,'CN9_TIPREV' 		,cCodRev)
+						oModel:SetValue( 	'CN9MASTER'    ,'CN9_JUSTIF' 		,cJustific)
+
+						If cTipRev == 'G' //Tipo Revisao Aberta
+
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_XDTORI'        ,CtoD(jContrato[nC]:GetJsonObject("CN9_XDTORI")))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,jContrato[nC]:GetJsonObject("CN9_UNVIGE"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,jContrato[nC]:GetJsonObject("CN9_VIGE"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,jContrato[nC]:GetJsonObject("CN9_CONDPG"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGREJ'        ,jContrato[nC]:GetJsonObject("CN9_FLGREJ"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_INDICE'        ,jContrato[nC]:GetJsonObject("CN9_INDICE"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGCAU'        ,jContrato[nC]:GetJsonObject("CN9_FLGCAU"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_OBJCTO'        ,jContrato[nC]:GetJsonObject("CN9_OBJCTO"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,jContrato[nC]:GetJsonObject("CN9_ALTCLA"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,jContrato[nC]:GetJsonObject("CN9_APROV"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,jContrato[nC]:GetJsonObject("CN9_GRPAPR"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_NATURE'        ,jContrato[nC]:GetJsonObject("CN9_NATURE"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_DEPART'        ,jContrato[nC]:GetJsonObject("CN9_DEPART"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_PERI'          ,jContrato[nC]:GetJsonObject("CN9_PERI"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_UNPERI'        ,jContrato[nC]:GetJsonObject("CN9_UNPERI"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_MODORJ'        ,jContrato[nC]:GetJsonObject("CN9_MODORJ"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_PRORAT'        ,jContrato[nC]:GetJsonObject("CN9_PRORAT"))
+
+						ElseIf cTipRev == '5' //Tipo Paralizacao do Contrato
+
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_MOTPAR'        ,jContrato[nC]:GetJsonObject("CN9_MOTPAR"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_DTFIMP'        ,CtoD(jContrato[nC]:GetJsonObject("CN9_DTFIMP")))
+
+						ElseIf cTipRev == '7' //Tipo Altera Clausula do Contrato
+
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,jContrato[nC]:GetJsonObject("CN9_ALTCLA"))
+
+						ElseIf cTipRev == 'B' //Tipo Grupo de Aprovação
+
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,jContrato[nC]:GetJsonObject("CN9_APROV"))
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,jContrato[nC]:GetJsonObject("CN9_GRPAPR"))
+						Endif
+
+						If cTipRev == 'A' .or. cTipRev == 'G' //Tipo Troca Fornecedor ou Tipo aberta
+
+							oModelCNA	:=	oModel:GetModel('CNADETAIL')
+							oModelCNC	:=	oModel:GetModel('CNCDETAIL')
+
+							oModelCNC:AddLine()
+
+							//Cliente/Fornecedor do Contrato
+							oModelCNC:SetValue(		'CNC_CODIGO'		,jContrato[nC]:GetJsonObject("CNC_CODIGO"))
+							oModelCNC:SetValue(    	'CNC_LOJA'         	,jContrato[nC]:GetJsonObject("CNC_LOJA"))
+
+							//Planilhas do Contrato
+							oModelCNA:SetValue(		'CNA_FORNEC'		,oModelCNC:GetValue('CNC_CODIGO'))
+							oModelCNA:SetValue(		'CNA_LJFORN'		,oModelCNC:GetValue('CNC_LOJA'))
+						Endif
+
+						//Itens da Planilha do Contrato
+						If Valtype(jContrato[nC]:GetJsonObject("planilha_itens")) == 'A'
+
+							oModelCNB	:=	oModel:GetModel('CNBDETAIL')
+
+							For nX := 1 to Len(jContrato[nC]["planilha_itens"])
+
+								If cTipRev == '1' //TIPO ADITIVO
+
+									nPos := aScan(omodelcnb:adatamodel[1][1],{|x| alltrim(x[5]) == AllTrim(jContrato[nC]["planilha_itens"][nX]["CNB_PRODUT"])})
+
+									If nPos > 0
+
+										oModelCNB:GoLine(nPos)
+										oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nX]["CNB_QUANT"])
+									Else
+
+										oModelCNB:AddLine()
+										nLin:= oModelCNB:GetLine()
+
+										oModelCNB:SetValue(		'CNB_ITEM'         ,StrZero(nLin, Len(CNB->CNB_ITEM)))
+										oModelCNB:SetValue(		'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nX]["CNB_PRODUT"])
+										oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nX]["CNB_QUANT"])
+										oModelCNB:SetValue(		'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nX]["CNB_VLUNIT"])
+										oModelCNB:SetValue(		'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nX]["CNB_CONTA"])
+										oModelCNB:SetValue(		'CNB_TE'           ,jContrato[nC]["planilha_itens"][nX]["CNB_TE"])
+										oModelCNB:SetValue(		'CNB_CC'           ,jContrato[nC]["planilha_itens"][nX]["CNB_CC"])
+									Endif
+
+								Elseif cTipRev == 'G' //TIPO ALTERACAO
+
+									//Busca dentro array se existe o produto
+									nPos := aScan(omodelcnb:adatamodel[1][1],{|x| alltrim(x[5]) == AllTrim(jContrato[nC]["planilha_itens"][nX]["CNB_PRODUT"])})
+
+									If nPos > 0
+
+										oModelCNB:GoLine(nPos)
+
+										oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nX]["CNB_QUANT"])
+										oModelCNB:SetValue(		'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nX]["CNB_VLUNIT"])
+										oModelCNB:SetValue(		'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nX]["CNB_CONTA"])
+										oModelCNB:SetValue(		'CNB_TE'           ,jContrato[nC]["planilha_itens"][nX]["CNB_TE"])
+										oModelCNB:SetValue(		'CNB_CC'           ,jContrato[nC]["planilha_itens"][nX]["CNB_CC"])
+									Else
+
+										oModelCNB:AddLine()
+										nLin:= oModelCNB:GetLine()
+
+										oModelCNB:SetValue(		'CNB_ITEM'         ,StrZero(nLin, Len(CNB->CNB_ITEM)))
+										oModelCNB:SetValue(		'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nX]["CNB_PRODUT"])
+										oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nX]["CNB_QUANT"])
+										oModelCNB:SetValue(		'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nX]["CNB_VLUNIT"])
+										oModelCNB:SetValue(		'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nX]["CNB_CONTA"])
+										oModelCNB:SetValue(		'CNB_TE'           ,jContrato[nC]["planilha_itens"][nX]["CNB_TE"])
+										oModelCNB:SetValue(		'CNB_CC'           ,jContrato[nC]["planilha_itens"][nX]["CNB_CC"])
+									Endif
+
+								Elseif cTipRev == '3' //TIPO REALINHAMENTO
+
+									nPos := aScan(omodelcnb:adatamodel[1][1],{|x| alltrim(x[5]) == AllTrim(jContrato[nC]["planilha_itens"][nX]["CNB_PRODUT"])})
+
+									If nPos > 0
+
+										oModelCNB:GoLine(nPos)
+										oModelCNB:SetValue(		'CNB_VLUNIT'        ,jContrato[nC]["planilha_itens"][nX]["CNB_VLUNIT"])
+									Endif
+								Endif
+							Next nX
+						Endif
+
+						//Atualiza Cronogramas caso seja aditivo, abertou ou reiniciando o contrato
+						If cTipRev == '1' .or. cTipRev == 'G' .or.cTipRev == '6'
+
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_ARRAST'        ,'1') //Arrasto
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_REDVAL'        ,'1') //Redistribuicao de Valores
+							oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCRON'        ,'1') //Acrescimo ou Descrescimo
+
+							//Atualiza cronograma financeiro/físico
+							CN300AtCrs(oModel)
+						Endif
+
+						//Validacao e Gravacao do Modelo
+						lRet := oModel:VldData() .And. oModel:CommitData()
+					EndIf
+
+					If ! lRet .And. oModel:HasErrorMessage()
+
+						aMsgDeErro := oModel:GetErrorMessage()
+						cMsgErro   := aMsgDeErro[6]
+						cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+						lRet := .F.
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "PUT_REVCONTR"
+						jAuxLog["rotina"]  := "CNTA300"
+						jAuxLog["tabela"]  := "CN9"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Contrato não revisado"
+						jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+						jAuxLog["jsonret"] := '{"result": "Contrato nao foi revisado"}'
+
+						If !oLog:AddItem(jAuxLog)
+							ConOut(oLog:GetError())
+						EndIf
+					Else
+
+						cMsgOK	+=  CN9->CN9_NUMERO + CRLF
+
+						FreeObj(jAuxLog)
+						jAuxLog             := JsonObject():New()
+						jAuxLog["status"]   := "1"
+						jAuxLog["idinteg"]  := cIDInteg
+						jAuxLog["nomapi"]   := "PUT_REVCONTR"
+						jAuxLog["rotina"]   := "CNTA300"
+						jAuxLog["tabela"]   := "CN9"
+						jAuxLog["recno"]    := CN9->(RecNo())
+						jAuxLog["data"]     := DToS(dDataBase)
+						jAuxLog["hora"]     := Time()
+						jAuxLog["msgresp"]  := "success"
+						jAuxLog["msgerr"]   := ""
+						jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+						jAuxLog["jsonret"]  := '{"result": Revisão incluida com sucesso!!"}'
+
+						If ! oLog:AddItem(jAuxLog)
+							ConOut(oLog:GetError())
+						EndIf
+					EndIf
+				Else
+					cMsgErro   := "Contrato nao encontrado ou nao esta vigente!"
+					cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+					lRet := .F.
+
+					FreeObj(jAuxLog)
+					jAuxLog             := JsonObject():New()
+					jAuxLog["status"]   := "0"
+					jAuxLog["idinteg"]  := cIDInteg
+					jAuxLog["nomapi"]   := "POST_ALTCONTR"
+					jAuxLog["rotina"]   := "CNTA300"
+					jAuxLog["tabela"]   := "CN9"
+					jAuxLog["recno"]    := CN9->(RecNo())
+					jAuxLog["data"]     := DToS(dDataBase)
+					jAuxLog["hora"]     := Time()
+					jAuxLog["msgresp"]  := "error"
+					jAuxLog["msgerr"]   := ""
+					jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+					jAuxLog["jsonret"]  := '{"result": Contrato não encontrado ou nao esta vigente!"}'
+
+					If ! oLog:AddItem(jAuxLog)
+						ConOut(oLog:GetError())
+					EndIf
+				Endif
+			EndIf
+		Next nC
+
+	Catch oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
+
+Return(lRet)
+
+/*/{Protheus.doc} altera_contratos
+API para alteracao contratos
+@version V 1.00
+@author Tiengo
+@since 11/04/2025
+/*/
+
+	@put(endpoint="/UnimedCampinas/Contratos/AltContrato", description='Servico rest de alteracao contratos - metodo PUT')
+
+User Function altera_contratos() as logical
+
+	Local oError   		:= ErrorClass():New()   as Object
+	Local oDetail 		:= JsonObject():New()   as Object
+	Local oLog     		:= Nil                  as Object
+	Local oVldSch  		:= Nil                	as Object
+	Local oBody    		:= Nil                  as Json
+	Local oAux     		:= Nil                  as Json
+	Local oResult 		:= Nil                  as Json
+	Local jAuxLog   	:= Nil                  as Json
+	Local cMsgErr   	:= ""                   as Character
+	Local cMsgOk    	:= ""                   as Character
+	Local cPathSch  	:= ""                   as Character
+	Local lRet      	:= .T.                  as Logical
+	Local cContrato 	:= ""                   as Character
+
+	Try
+		// Define o formato de retorno do Response para o oRest
+		oAux := JsonObject():New()
+		oAux:FromJson('{"Content-Type":"application/json"}')
+		oRest:setHeaderResponse(oAux)
+		FreeObj(oAux)
+
+		// Coleta dados do Body da Requisicao
+		oBody := JsonObject():New()
+		oBody:FromJson(oRest:GetBodyRequest())
+
+		// Pega CNPJ para preparar o Ambiente
+		If oBody:HasProperty("cnpj")
+			// Prepara o Ambiente conforme o CNPJ informado
+			cCNPJ := oBody["cnpj"]
+			If ! U_PrepEnvironment(cCNPJ) //! fValidEmp(cCNPJ)
+
+				oRest:SetStatusCode(602)
+				oRest:SetResponse(U_AnswerFormat(602, "Erro ao preparar ambiente", "Erro ao preparar o ambiente com o CNPJ informado"))
+				Return (.T.)
+			Else
+
+				cPathSch := SuperGetMV("UB_SCHEMA", .F., "\schemaint")
+				oLog := CtrlLOG():New()
+				jAuxLog := JsonObject():New()
+				If ! oLog:SetTab("SZL")
+
+					ConOut(oLog:GetError())
+					oRest:SetStatusCode(501)
+					oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oLog:GetError()))
+					Return (.T.)
+
+				EndIf
+
+				// Realiza a Validacao do JSON enviado com Schema
+				If File(cPathSch + "\AltContr.json")
+
+					oVldSch := VldSchJSON():New()
+					If oVldSch:SetFileSch(cPathSch + "\AltContr.json", @cMsgErr)
+
+						If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+
+							oRest:SetStatusCode(502)
+							oDetail['detalhes']	:= cMsgErr
+							cMsgErr := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+							Return (.T.)
+						EndIf
+					Else
+
+						oRest:SetStatusCode(502)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+						Return (.T.)
+					EndIf
+				EndIf
+
+				// Inicia o processo
+				oAux := JsonObject():New()
+				If oBody:HasProperty("contrato")
+
+					fAltContrato(@cContrato, oBody, @lRet, @cMsgOk, @cMsgErr)
+
+					if ! lRet
+						oRest:SetStatusCode(606)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Alterado"+ Enter + cMsgOk + Enter + "Contratos nao Alterado" + Enter + cMsgErr, "Contratos nao Alterado" + Enter + cMsgErr)
+						cMsgOk 	:= oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Alteracao", cMsgOk))
+					Else
+						oRest:SetStatusCode(201)
+						oDetail['detalhes']	:= cMsgOk
+						cMsgOk := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(201, "Contratos Alterados com sucesso!", cMsgOk))
+					Endif
+				Endif
+			Endif
+		Endif
+
+	Catch oError
+
+		oRest:SetStatusCode(501)
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oError:Description))
+		FreeObj(oBody)
+		FreeObj(oResult)
+	EndTry
+
+Return()
+
+//Altera o contrato
+Static Function fAltContrato(cContrato, jbody, lRet, cMsgOk, cLogErro)
+
+	Local oError    		:= ErrorClass():New()   as Object
+	Local oLog     			:= Nil                  as Object
+	Local jAuxLog   		:= Nil                  as Json
+	Local cAlias			:= ""					as Character
+	Local cRevisa			:= ""					as Character
+	Local nC				:= 0					as Numeric
+	Local nX				:= 0					as Numeric
+	Local nY				:= 0					as Numeric
+	Local nF				:= 0					as Numeric
+	Local nD				:= 0					as Numeric
+	Local cUser				:= ""                   as Character
+	Local cGrp				:= ""                   as Character
+	Local cTCod				:= ""                   as Character
+	Local lInc				:= .T.                  as Logical
+
+	Try
+		oLog := CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+		If ! oLog:SetTab("SZL")
+
+			U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
+
+		jContrato := jBody:GetJsonObject("contrato")
+
+		For nC := 1 to Len(jContrato)
+
+			cContrato   := Alltrim(jContrato[nC]:GetJsonObject("CN9_NUMERO"))
+			cIDInteg   	:= Alltrim(jContrato[nC]:GetJsonObject("idint"))
+
+			//Posicionar no ultimo registro para obter a ultima revisao
+			cAlias	:= "SELECT MAX(R_E_C_N_O_) RECNO FROM "+ RetSqlName("CN9") +" WHERE D_E_L_E_T_ = '' AND CN9_NUMERO = '"+cContrato+"'
+
+			cAlias	:= ChangeQuery(cAlias)
+			PLSQuery(cAlias, "cQryRev")
+
+			//Caso encontre algum registro
+			If ! cQryRev->(EoF())
+
+				//Caso não não tenha revisão preenchida irá atualizar, filiais e acessos
+				cRevisa   := cQryRev->RECNO
+
+				CN9->(DBSetOrder(1))//CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+				CN9->(dbGoto(cRevisa))
+
+				//Valida se o contrato tem controle de acesso
+				If Empty(CN9->CN9_VLDCTR) .Or. CN9->CN9_VLDCTR == "1"
+
+					dbSelectArea("CNN")
+
+					//acesso por usuario
+					If Valtype(jContrato[nC]:GetJsonObject("usuarios")) == 'A'
+						For nX := 1 to Len(jContrato[nC]["usuarios"])
+
+							cUser 	:= ""
+							cTCod	:= ""
+							cGrp 	:= ""
+
+							cUser	:= jContrato[nC]["usuarios"][nX]["CNN_USRCOD"]
+							cTCod   := jContrato[nC]["usuarios"][nX]["CNN_TRACOD"]
+
+							CNN->(dbSetOrder(1)) //CNN_FILIAL+CNN_USRCOD+CNN_CONTRA+CNN_TRACOD
+							If ! CNN->(MSSeek(FWxFilial("CNN")+cUser+cContrato+cTCod))
+
+								RecLock("CNN",.T.)
+								CNN->CNN_FILIAL := fWxFilial('CNN')
+								CNN->CNN_CONTRA := cContrato
+								CNN->CNN_USRCOD := cUser
+								CNN->CNN_TRACOD := cTCod
+
+								CNN->(MsUnlock())
+							Endif
+						Next nX
+					Endif
+
+					//acesso por grupo
+					If Valtype(jContrato[nC]:GetJsonObject("grupos")) == 'A'
+						For nY := 1 to Len(jContrato[nC]["grupos"])
+
+							cUser 	:= ""
+							cTCod	:= ""
+							cGrp 	:= ""
+
+							cGrp	:= jContrato[nC]["grupos"][nY]["CNN_GRPCOD"]
+							cTCod   := jContrato[nC]["grupos"][nY]["CNN_TRACOD"]
+
+							CNN->(dbSetOrder(2)) //CNN_FILIAL+CNN_GRPCOD+CNN_CONTRA+CNN_TRACOD
+							If ! CNN->(MSSeek(FWxFilial("CNN")+cGrp+cContrato+cTCod))
+
+								RecLock("CNN",.T.)
+								CNN->CNN_FILIAL := fWxFilial('CNN')
+								CNN->CNN_CONTRA := cContrato
+								CNN->CNN_GRPCOD := cGrp
+								CNN->CNN_TRACOD := cTCod
+
+								CNN->(MsUnlock())
+							Endif
+						Next nY
+					Endif
+
+					//Filiais de autorizacao
+					If Valtype(jContrato[nC]:GetJsonObject("filiais")) == 'A'
+
+						cNumPla = '000001' //Planilha padrao
+
+						For nF := 1 to Len(jContrato[nC]["filiais"])
+
+							cFilAut		:= jContrato[nC]["filiais"][nF]
+							cNumPla		:= '000001' //Planilha padrao
+
+							CPD->(dbSetOrder(1)) //CPD_FILIAL+CPD_CONTRA+CPD_NUMPLA+CPD_FILAUT
+							If ! CPD->(MSSeek(FWxFilial("CPD")+cContrato+cNumPla+cFilAut))
+
+								Reclock("CPD", .T.)
+								CPD_FILIAL := FWxFilial("CPD")
+								CPD_CONTRA := cContrato
+								CPD_NUMPLA := cNumPla
+								CPD_FILAUT := cFilAut
+							Endif
+						Next nF
+					Endif
+
+					//Documentos
+					If jContrato[nC]:HasProperty("documentos")
+						If Valtype(jContrato[nC]:GetJsonObject("documentos")) == 'A'
+
+							For nD := 1 to Len(jContrato[nC]["documentos"])
+
+								cTpDoc	:=	jContrato[nC]["documentos"][nD]["CNK_TPDOC"]
+								CNK->(DbSetOrder(3))//CNK_FILIAL+CNK_CONTRA+CNK_TPDOC
+
+								If ! CNK->(MSSeek(FWxFilial("CNK")+cContrato+cTpDoc))
+
+									lInc := .T.
+									//Grava o documento do contrato quando for inclusao
+									fGeraDoc(jContrato[nC]["documentos"][nD], cContrato, lInc, cIDInteg)
+								Else
+									lInc := .F.
+									//Grava o documento do contrato quando for alteracao
+									fGeraDoc(jContrato[nC]["documentos"][nD], cContrato, lInc, cIDInteg)
+								Endif
+							Next nD
+						Endif
+					Endif
+				Endif
+			Endif
+
+			cMsgOK += cContrato
+		Next nC
+
+	Catch oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
+
+Return(lRet)
+
+//Grava o documento do contrato
+Static Function fGeraDoc(jDocs, cContra, lRet, cIdInt)
+
+	Local oModel    := NIL                           as Object
+	Local oMdlCNK   := Nil                           as Object
+	Local oLog      := Nil                           as Object
+	Local jAuxLog   := Nil                           as Json
+	Local cChave    := FWxFilial("CN9") + cContra    as Character
+	Local aErro     := {}                            as Array
+	Local nX        := 0                             as Numeric
+
+	Try
+
+		CN9->(DbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+		If CN9->(MSSeek(cChave))
+			oLog    := CtrlLOG():New()
+			jAuxLog := JsonObject():New()
+
+			If ! oLog:SetTab("SZL")
+
+				U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+			EndIf
+
+			oModel := FwLoadModel("CNTA171")
+
+			If lRet
+				oModel:SetOperation(MODEL_OPERATION_INSERT)
+			Else
+				oModel:SetOperation(MODEL_OPERATION_UPDATE)
+			Endif
+
+			If oModel:Activate()
+				oMdlCNK := oModel:GetModel("CNKMASTER")
+
+				If Valtype(jDocs) == 'A'
+
+					// Passa por todos os registros
+					For nX := 1 to Len(jDocs)
+
+						oMdlCNK:SetValue(   "CNK_CONTRA"     ,cContra)
+						oMdlCNK:SetValue(   "CNK_DESCRI"     ,jDocs[nX]["CNK_DESCRI"])
+						oMdlCNK:SetValue(   "CNK_TPDOC "     ,jDocs[nX]["CNK_TPDOC"])
+						oMdlCNK:SetValue(   "CNK_DTEMIS"     ,CtoD(jDocs[nX]["CNK_DTEMIS"]))
+						oMdlCNK:SetValue(   "CNK_DTVALI"     ,CtoD(jDocs[nX]["CNK_DTVALI"]))
+						oMdlCNK:SetValue(   "CNK_OBS"        ,jDocs[nX]["CNK_OBS"])
+
+						cAnexo := jDocs[nX]["ANEXOS"]
+
+					Next nX
+				Else
+
+					oMdlCNK:SetValue(   "CNK_CONTRA"     ,cContra)
+					oMdlCNK:SetValue(   "CNK_DESCRI"     ,jDocs["CNK_DESCRI"])
+					If lRet
+						oMdlCNK:SetValue(   "CNK_TPDOC "     ,jDocs["CNK_TPDOC"])
+					Endif
+					oMdlCNK:SetValue(   "CNK_DTEMIS"     ,CtoD(jDocs["CNK_DTEMIS"]))
+					oMdlCNK:SetValue(   "CNK_DTVALI"     ,CtoD(jDocs["CNK_DTVALI"]))
+					oMdlCNK:SetValue(   "CNK_OBS"        ,jDocs["CNK_OBS"])
+
+					cAnexo := jDocs["ANEXOS"]
+				Endif
+
+				If oModel:VldData()
+					oModel:CommitData()
+
+					FreeObj(jAuxLog)
+					jAuxLog             := JsonObject():New()
+					jAuxLog["status"]   := "1"
+					jAuxLog["idinteg"]  := cIdInt
+					jAuxLog["nomapi"]   := "POST_INCCONTRDOC"
+					jAuxLog["rotina"]   := "CNTA171"
+					jAuxLog["tabela"]   := "CNK"
+					jAuxLog["recno"]    := CNK->(RecNo())
+					jAuxLog["data"]     := DToS(dDataBase)
+					jAuxLog["hora"]     := Time()
+					jAuxLog["msgresp"]  := "success"
+					jAuxLog["msgerr"]   := ""
+					jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+					jAuxLog["jsonret"]  := '{"result": Contrato incluida com sucesso!!"}'
+
+					If ! oLog:AddItem(jAuxLog)
+						ConOut(oLog:GetError())
+					EndIf
+
+					//chama função para gravar o arquivo, caso tenha anexo
+					If ! Empty(cAnexo)
+
+						cDoc := CNK->CNK_CODIGO
+						fImpArq(cAnexo, cContra, cDoc)
+					Endif
+
+				Else
+					aErro := oModel:GetErrorMessage()
+					cMsgErro   := aErro[6]
+					cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+
+					FreeObj(jAuxLog)
+					jAuxLog             := JsonObject():New()
+					jAuxLog["status"]   := "0"
+					jAuxLog["idinteg"]  := ""
+					jAuxLog["nomapi"]   := "POST_INCCONTRDOC"
+					jAuxLog["rotina"]   := "CNTA171"
+					jAuxLog["tabela"]   := "CNK"
+					jAuxLog["recno"]    := 0
+					jAuxLog["data"]     := DToS(dDataBase)
+					jAuxLog["hora"]     := Time()
+					jAuxLog["msgresp"]  := "error"
+					jAuxLog["msgerr"]   := cLogErro
+					jAuxLog["jsonbod"]  := oRest:GetBodyRequest()
+					jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
+
+					If ! oLog:AddItem(jAuxLog)
+						ConOut(oLog:GetError())
+					EndIf
+				EndIf
+			Endif
+
+			If oModel:IsActive()
+				oModel:DeActivate()
+			EndIf
+
+			FreeObj(oModel)
+		EndIf
+
+	Catch oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+	EndTry
+
+Return()
+
+//Crio o arquivo, decodifico e faço a gravação
+Static Function fImpArq(cImp, cCont, cEnt)
+
+	Local cNome	:= cCont + '_' + DtoS(Date()) + '_' +  StrTran(time(),':','_') +'.pdf'
+
+	//Cria o arquivo
+	nHandle := fcreate(MsDocPath()+'\' + cNome)
+
+	//Decodifica o anexo e grava no arquivo
+	FWrite(nHandle, Decode64(cImp))
+
+	fclose(nHandle)
+
+	If nHandle > 0
+
+		DbSelectArea("ACB")
+		ACB->(DbSetOrder(1))
+
+		ACB->(RecLock('ACB',.T.))
+
+		ACB->ACB_FILIAL := xFilial('ACB')
+		ACB->ACB_CODOBJ := GetSxeNum("ACB","ACB_CODOBJ")
+		ACB->ACB_OBJETO := cNome
+		ACB->ACB_DESCRI := "Documento do contrato: " + cCont
+
+		ACB->(MSUNLOCK())
+
+		ConfirmSx8()
+
+		DbSelectArea("AC9")
+		AC9->(DbSetOrder(1))
+
+		AC9->(RecLock('AC9',.T.))
+
+		AC9->AC9_FILIAL := FWxFilial('ACB')
+		AC9->AC9_FILENT := cFilAnt
+		AC9->AC9_ENTIDA := 'CNK'
+		AC9->AC9_CODENT := cEnt
+		AC9->AC9_CODOBJ := ACB->ACB_CODOBJ
+
+		AC9->(MSUNLOCK())
+	Endif
+
+Return()

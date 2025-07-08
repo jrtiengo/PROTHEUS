@@ -224,7 +224,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 								jAuxLog["nomapi"]   := "POST_APROVDOC"
 								jAuxLog["rotina"]   := "MATA094"
 								jAuxLog["tabela"]   := "SCR"
-								jAuxLog["recno"]    := 0
+								jAuxLog["recno"]    := SCR->(RecNo())
 								jAuxLog["data"]     := DToS(dDataBase)
 								jAuxLog["hora"]     := Time()
 								jAuxLog["msgresp"]  := "error"
