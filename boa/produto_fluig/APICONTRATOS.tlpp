@@ -28,9 +28,9 @@ User Function inclui_contratos() as logical
 	Local cMsgErr  		:= ""                   as Character
 	Local cMsgOk   		:= ""                   as Character
 	Local cPathSch 		:= ""                   as Character
-	Local jContrato		:= Nil      			as jSon
+	//Local jContrato		:= Nil      			as jSon
 	Local lRet     		:= .T.                  as Logical
-	Local cContrato		:= ""                   as Character
+	//Local cContrato		:= ""                   as Character
 	Local cCNPJ			:= ""                   as Character
 
 	Try
@@ -93,20 +93,31 @@ User Function inclui_contratos() as logical
 
 				// Inicia o processo
 				oAux := JsonObject():New()
-				If oBody:HasProperty("contrato")
+				If oBody:HasProperty("contratos")
 
-					fGeraContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+					If fValidSX3(oBody, @cMsgErr)
 
-					if ! lRet
-						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
-						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+						//fGeraContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+
+						if ! lRet
+							oRest:SetStatusCode(606)
+							oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
+							cMsgOk 	:= oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+						Else
+							oRest:SetStatusCode(201)
+							oDetail['detalhes']	:= cMsgOk
+							cMsgOk := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
+						Endif
+
+
 					Else
-						oRest:SetStatusCode(201)
-						oDetail['detalhes']	:= cMsgOk
-						cMsgOk := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
+						oRest:SetStatusCode(503)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(503, "Validacao de campos", cMsgErr))
+						Return (.T.)
 					Endif
 				Else
 					oRest:SetStatusCode(602)
@@ -145,7 +156,7 @@ User Function inclui_contratos() as logical
 Return(.T.)
 
 //Gravar o contrato
-Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro)
+Static Function fGeraContrato(aCN9, aCNC, aCNA, aCNB, aCRG, aCNN, aCNK, jContrato)//(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro)
 
 	Local aArea             := FWGetArea()          as Array
 	Local oModel            := Nil                  as Object
@@ -154,12 +165,20 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 	Local aMsgDeErro        := {}                   as Array
 	Local jAuxLog           := Nil                  as Json
 	Local oLog              := Nil                  as Object
+	Local nAux				:= 0 					as Numeric
+	Local nCN9				:= 0 					as Numeric
+	Local nCNC				:= 0 					as Numeric
+	Local nCNA				:= 0 					as Numeric
+	Local nCNB				:= 0 					as Numeric
 	Local nC          		:= 0					as Numeric
 	Local nI          		:= 0                    as Numeric
-	Local nX				:= 0                    as Numeric
 	Local nY				:= 0 					as Numeric
+	Local cContrato			:= ""                   as Character
 	Local cTpContr         	:= ""                   as Character
 	Local cCtrFixo			:= ""                   as Character
+	Local cIDInteg			:= ""					as Character
+	Local nPos				:= 0					as Numeric
+	Local nItem				:= 0 					as Numeric
 
 	Try
 		oLog := CtrlLOG():New()
@@ -169,13 +188,16 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 			U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
-		jContrato := jBody:GetJsonObject("contrato")
+		If Len(aCN9) > 0
 
-		For nC := 1 to Len(jContrato)
+			nPos   		:= aScan(aCN9, {|x| Upper(AllTrim(x[2])) = "CN9_NUMERO"})
+			cContrato 	:= aCN9[nPos][3]
 
-			cContrato	:= jContrato[nC]['CN9_NUMERO']
-			cIDInteg    := jContrato[nC]["idint"]
-			cTpContr 	:= jContrato[nC]["CN9_TPCTO"]
+			nPos   		:= aScan(aCN9, {|x| Upper(AllTrim(x[2])) = "CN9_XIDINT"})
+			cIDInteg 	:= aCN9[nPos][3]
+
+			nPos 		:= aScan(aCN9, {|x| Upper(AllTrim(x[2])) = "CN9_TPCTO"})
+			cTpContr 	:= aCN9[nPos][3]
 
 			//Busca o tipo do contrato
 			CN1->(DbSetOrder(1)) //CN1_FILIAL+CN1_CODIGO+CN1_ESPCTR
@@ -183,117 +205,88 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 				cCtrFixo := CN1->CN1_CTRFIX
 			Endif
 
-			If ! Empty(cContrato) .and. ! Empty(cIDInteg)
+			If ! Empty(cContrato) .and. ! Empty(cCtrFixo)
 
 				oModel := FWLoadModel("CNTA300") 			//Carrega o modelo
 				oModel:SetOperation(MODEL_OPERATION_INSERT) // Seta operacao de inclusao
 				oModel:Activate() 							// Ativa o Modelo
 
 				//Cabecalho do contrato
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_NUMERO'        ,cContrato)
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_XFLUI'         ,cIDInteg)
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_TPCTO'         ,cTpContr)
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_DTINIC'        ,CtoD(jContrato[nC]["CN9_DTINIC"]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_XDTORI'        ,CtoD(jContrato[nC]["CN9_XDTORI"]))
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNVIGE'        ,jContrato[nC]["CN9_UNVIGE"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_VIGE'          ,jContrato[nC]["CN9_VIGE"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_MOEDA'         ,jContrato[nC]["CN9_MOEDA"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_CONDPG'        ,jContrato[nC]["CN9_CONDPG"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGREJ'        ,jContrato[nC]["CN9_FLGREJ"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_INDICE'        ,jContrato[nC]["CN9_INDICE"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_FLGCAU'        ,jContrato[nC]["CN9_FLGCAU"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_OBJCTO'        ,jContrato[nC]["CN9_OBJCTO"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_ALTCLA'        ,jContrato[nC]["CN9_ALTCLA"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_VLDCTR'        ,jContrato[nC]["CN9_VLDCTR"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_APROV'         ,jContrato[nC]["CN9_APROV"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_GRPAPR'        ,jContrato[nC]["CN9_GRPAPR"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_NATURE'        ,jContrato[nC]["CN9_NATURE"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_DEPART'        ,jContrato[nC]["CN9_DEPART"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_PERI'          ,jContrato[nC]["CN9_PERI"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_UNPERI'        ,jContrato[nC]["CN9_UNPERI"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_MODORJ'        ,jContrato[nC]["CN9_MODORJ"])
-				oModel:SetValue(    'CN9MASTER'    ,'CN9_PRORAT'        ,jContrato[nC]["CN9_PRORAT"])
+				For nCN9 := 1 to len(aCN9)
+					oModel:SetValue(    aCN9[nCN9][1]    ,aCN9[nCN9][2]        ,aCN9[nCN9][3])
+				Next nCN9
 
 				//Cliente/Fornecedor do Contrato
-				oModel:SetValue(    'CNCDETAIL'    ,'CNC_CODIGO'        ,jContrato[nC]["CNC_CODIGO"])
-				oModel:SetValue(    'CNCDETAIL'    ,'CNC_LOJA'          ,jContrato[nC]["CNC_LOJA"])
+				For nCNC := 1 to len(aCNC)
+					For nAux := 1 to Len(aCNC[nCNC])
+						oModel:SetValue(	aCNC[nCNC][nAux][1]		,aCNC[nCNC][nAux][2]	,aCNC[nCNC][nAux][3])
+					Next nAux
+				Next nCNC
 
 				//Planilhas do Contrato
-				oModel:LoadValue(   'CNADETAIL'     ,'CNA_CONTRA'       ,cContrato)
-				oModel:SetValue(    'CNADETAIL'     ,'CNA_NUMERO'       ,'000001')
-				oModel:SetValue(    'CNADETAIL'     ,'CNA_FORNEC'       ,jContrato[nC]["CNC_CODIGO"])
-				oModel:SetValue(    'CNADETAIL'     ,'CNA_LJFORN'       ,jContrato[nC]["CNC_LOJA"])
-				oModel:SetValue(    'CNADETAIL'     ,'CNA_TIPPLA'       ,jContrato[nC]["CNA_TIPPLA"])
-				If cCtrFixo <> '1' 
-					oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
-				Endif
+				For nCNA := 1 to Len(aCNA)
+					For nAux := 1 to Len(aCNA[nCNA])
 
-				//Itens da Planilha do Contrato
-				If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
-					If Valtype(jContrato[nC]:GetJsonObject("planilha_itens")) == 'A'
-						
-						oModelCNB := oModel:GetModel("CNBDETAIL")
+						nPos  	:= aScan(aCNA[nCNA], {|x| Upper(AllTrim(x[1])) == "CNA_NUMERO"})
+						cNumpla := aCNA[nCNA][nPos][2]
 
-						For nI := 1 to Len(jContrato[nC]["planilha_itens"])
+						If nCNA > 1
+							oModelCNA:AddLine()
+						Endif
 
-							If nI > 1
-								oModelCNB:AddLine()
-							EndiF
+						If cCtrFixo == '1' .and. aCNC[nCNC][nAux][1] == 'CNA_VLTOT'
+							LOOP
+						Endif
 
-							oModelCNB:SetValue(    'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
-							oModelCNB:SetValue(    'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
-							If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
-								oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
+						oModelCNA:SetValue(	aCNC[nCNC][nAux][1]		,aCNC[nCNC][nAux][2])
+
+					Next nAux
+
+					//Itens da Planilha do Contrato
+					If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
+
+						nItem := 0
+
+						For nCNB := 1 to Len(aCNB)
+							For nAux := 1 to Len(aCNB[nCNB])
+
+								nPos  	 := aScan(aCNB[nCNB], {|x| Upper(AllTrim(x[1])) == "CNB_NUMERO"})
+								cNumItem := aCNB[nCNB][nPosCtr][2]
+
+								If cNumItem == cNumpla
+									nItem ++
+
+									If nItem > 1
+										oModelCNB:AddLine()
+									EndiF
+									oModelCNB:LoadValue(	'CNB_ITEM'         ,PadL(nItem, TamSX3("CNB_ITEM")[1], '0'))
+
+									If cCtrFixo == '1' .and. aCNC[nCNC][nAux][1] == 'CNB_QUANT' //Contrato SEMI-FIXO, nao preenche quantidade
+										LOOP
+									Endif
+								Endif
+							Next nAux
+
+							//Cronograma Financeiro
+							If cCtrFixo == '1' //Contrato FIXO gera cronograma
+
+								For nCRG := 1 To Len(aCRG)
+									SetMVValue(aCRG[nCRG][1]	,	aCRG[nCRG][2]	,	aCRG[nCRG][3])									//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
+								Next nCRG
+								Pergunte("CN300CRG",.F.)
+								CN300PrCF(.T.) //Incluir cronograma financeiro/fisico
 							Endif
-							oModelCNB:SetValue(    'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
-							oModelCNB:SetValue(    'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
-							oModelCNB:SetValue(    'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
-							oModelCNB:SetValue(    'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
-						Next nI
+						Next nCNB
 					Endif
-				Endif
-
-				//Cronograma Financeiro
-				If cCtrFixo == '1' //Contrato FIXO gera cronograma
-
-					If Valtype(jContrato[nC]:GetJsonObject("cronograma")) == 'A'
-
-						For nX := 1 to Len(jContrato[nC]["cronograma"])
-
-							SetMVValue("CN300CRG"       ,"MV_PAR01"     ,jContrato[nC]["cronograma"][nX]["CRG_NPERIO"])			//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
-							SetMVValue("CN300CRG"       ,"MV_PAR02"     ,jContrato[nC]["cronograma"][nX]["CRG_NDIAS"])  		//Número de dias para avançar nas parcelas do cronograma
-							SetMVValue("CN300CRG"       ,"MV_PAR03"     ,jContrato[nC]["cronograma"][nX]["CRG_NULTDI"])  		//1- Dt não existir: Quando a data calculada pelo intervalo de dias informados não existir no referido mês. 2- Não: Quando a data calculada pelo sistema não existir, utiliza o primeiro dia do mês seguinte. 3- Sempre: Ultiliza sempre o ultimo dia do mês na data prevista de medição, quando a periodicidade é mensal.
-							SetMVValue("CN300CRG"       ,"MV_PAR04"     ,jContrato[nC]["cronograma"][nX]["CRG_CDTCOM"])			//Deve ser composta por mês/ano no formato MM/AAAA(Exemplo: 12/2018)
-							SetMVValue("CN300CRG"       ,"MV_PAR05"     ,CtoD(jContrato[nC]["cronograma"][nX]["CRG_DTPREV"]))	//Data prevista para que ocorra a primeira medição(exemplo: 20/12/2018 )
-							SetMVValue("CN300CRG"       ,"MV_PAR06"     ,jContrato[nC]["cronograma"][nX]["CRG_NPARC"])			//Número de parcelas do cronograma
-							SetMVValue("CN300CRG"       ,"MV_PAR07"     ,jContrato[nC]["cronograma"][nX]["CRG_CCOND"])			//Código da condição de pagamento que as parcelas do cronograma devem ser geradas
-							SetMVValue("CN300CRG"       ,"MV_PAR08"     ,jContrato[nC]["cronograma"][nX]["CRG_NTXJUR"])			//Taxa de Juros para cálculo do valor presente
-
-							Pergunte("CN300CRG",.F.)
-							CN300PrCF(.T.) //Incluir cronograma financeiro/fisico
-
-						Next nX
-					Endif
-				Endif
+				Next nCNA
 
 				//Usuario de acesso com controle TOTAL
-				If jContrato[nC]:HasProperty("usuarios")
+				For nCNN := 1 To Len(aCNN)
 
 					oModel:LoadValue(   'CNNDETAIL'     ,'CNN_CONTRA'       ,cContrato)
-					oModel:LoadValue(   'CNNDETAIL'     ,'CNN_USRCOD'       ,jContrato[nC]["usuarios"]:GetJsonObject("CNN_USRCOD"))
+					oModel:LoadValue(   aCNN[nCNN][1]   ,aCNN[nCNN][2]      ,aCNN[nCNN][3])
 					oModel:SetValue(    'CNNDETAIL'     ,'CNN_TRACOD'       ,"001")
-				Endif
-
-				//Filiais de autorizacao
-				If Valtype(jContrato[nC]:GetJsonObject("filiais")) == 'A'
-
-					For nY := 1 to Len(jContrato[nC]["filiais"])
-
-						oModel:LoadValue(   'CPDDETAIL'     ,'CPD_CONTRA'       ,cContrato)
-						oModel:SetValue(    'CPDDETAIL'     ,'CPD_NUMPLA'       ,'000001')
-						oModel:SetValue(    'CPDDETAIL'     ,'CPD_FILAUT'       ,jContrato[nC]["filiais"][nY])
-					Next nY
-				Endif
+				Next nCNN
 
 				//Validacao e Gravacao dos dados e LOG
 				If oModel:VldData()
@@ -361,11 +354,12 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 
 					//Gera os documentos do contrato documentos.
 					If ! Empty(Alltrim(cContrAux))
-						fGeraDoc(jContrato[nC]["documentos"],cContrAux,.T.,cIDInteg)
+						//fGeraDoc(jContrato[nC]["documentos"],cContrAux,.T.,cIDInteg)
+						fGeraDoc(aCNK,cContrAux,.T.,cIDInteg)
 					Endif
 				Endif
 			EndIf
-		next nC
+		Endif
 
 	Catch oError
 
@@ -1236,3 +1230,176 @@ Static Function fImpArq(cImp, cCont, cEnt)
 	Endif
 
 Return()
+
+Static Function fValidSX3(jBody, cMsgErr) 		as logical
+
+	Local oError    := ErrorClass():New()		as Object
+	Local nX        := 0                  		as Numeric
+	Local nY		:= 0              	  		as Numeric
+	Local nCNC      := 0               		 	as Numeric
+	Local nCNA    	:= 0               	 		as Numeric
+	Local nCNB		:= 0 				 		as Numeric
+	Local nCNK		:= 0 				 		as Numeric
+	Local nAux		:= 0 				 		as Numeric
+	Local lRet      := .T.               		as Logical
+	Local aCN9      := {}                		as Array
+	Local aCNC      := {}                		as Array
+	Local aCNA      := {}                		as Array
+	Local aCNB      := {}                		as Array
+	Local aCRG   	:= {}                		as Array
+	Local aCNN      := {}                		as Array
+	Local aCNK      := {}                		as Array
+	Local aAux      := {}                		as Array
+	Local jContrato := Nil               		as Json
+
+	TRY
+
+		jContrato := jBody:GetJsonObject("contratos")
+
+		For nX := 1 To Len(jContrato)
+
+			aCN9	:={}
+			aCNC	:={}
+			aCNA 	:={}
+			aCNB  	:={}
+			aCRG	:={}
+			aCNN	:={}
+			aCNK	:={}
+
+			For nY:= 1 to Len(jContrato[nX]:GetNames())
+
+				If SubStr(jContrato[nX]:GetNames()[nY],1,3) == 'CN9'
+
+					lRet         := U_xValidDic("CN9", jContrato[nX]:GetNames()[nY], @cMsgErr)
+
+					If ! lRet
+						Return(lRet)
+					Endif
+
+					xConteudo    := U_TreatsData(jContrato[nX]:GetNames()[nY],  jContrato[nX][jContrato[nX]:GetNames()[nY]], "R")
+					aAdd(aCN9,{'CN9MASTER', jContrato[nX]:GetNames()[nY], xConteudo})
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "fornecedores"
+
+					For nCNC := 1 To Len(jContrato[nX]["fornecedores"])
+						For nAux := 1 To Len(jContrato[nX]["fornecedores"][nCNC]:getnames())
+
+							lRet         := U_xValidDic("CNC", jContrato[nX]["fornecedores"][nCNC]:getnames()[nAux], @cMsgErr)
+
+							If ! lRet
+								Return(lRet)
+							Endif
+
+							xConteudo    := U_TreatsData(jContrato[nX]["fornecedores"][nCNC]:getnames()[nAux],  jContrato[nX]["fornecedores"][nCNC][jContrato[nX]["fornecedores"][nCNC]:GetNames()[nAux]], "R")
+							aAdd(aAux,{'CNCDETAIL', jContrato[nX]["fornecedores"][nCNC]:getnames()[nAux], xConteudo})
+						Next nAux
+						aAdd(aCNC,aAux)
+						aAux := {}
+					Next nCNC
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "planilhas"
+
+					For nCNA := 1 To Len(jContrato[nX]["planilhas"])
+						For nAux := 1 To Len(jContrato[nX]["planilhas"][nCNA]:getnames())
+
+							lRet         := U_xValidDic("CNA", jContrato[nX]["planilhas"][nCNA]:getnames()[nAux], @cMsgErr)
+
+							If ! lRet
+								Return(lRet)
+							Endif
+
+							xConteudo    := U_TreatsData(jContrato[nX]["planilhas"][1]:getnames()[nAux],  jContrato[nX]["planilhas"][nCNA][jContrato[nX]["planilhas"][nCNA]:GetNames()[nAux]], "R")
+							aAdd(aAux,{jContrato[nX]["planilhas"][nCNA]:getnames()[nAux], xConteudo})
+						Next nAux
+						aAdd(aCNA,aAux)
+						aAux := {}
+
+					Next nCNA
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "planilha_itens"
+
+					For nCNB := 1 To Len(jContrato[nX]["planilha_itens"])
+						For nAux := 1 To Len(jContrato[nX]["planilha_itens"][nCNB]:getnames())
+
+							lRet         := U_xValidDic("CNB", jContrato[nX]["planilha_itens"][nCNB]:getnames()[nAux], @cMsgErr)
+
+							If ! lRet
+								Return(lRet)
+							Endif
+
+							xConteudo    := U_TreatsData(jContrato[nX]["planilha_itens"][1]:getnames()[nAux],  jContrato[nX]["planilha_itens"][nCNB][jContrato[nX]["planilha_itens"][nCNB]:GetNames()[nAux]], "R")
+							aAdd(aAux,{jContrato[nX]["planilha_itens"][nCNB]:getnames()[nAux], xConteudo})
+						Next nAux
+						aAdd(aCNB,aAux)
+						aAux := {}
+
+					Next nCNB
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "cronograma"
+
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR01', jContrato[nX]['cronograma']['MV_PAR01']}) 		//1=Mensal, 2=Quinzenal, 3=Diário, 4=Condição Pagamento
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR02', jContrato[nX]['cronograma']['MV_PAR02']}) 		//Número de dias para avançar nas parcelas do cronograma
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR03', jContrato[nX]['cronograma']['MV_PAR03']}) 		//1- Dt não existir: Quando a data calculada pelo intervalo de dias informados não existir no referido mês. 2- Não: Quando a data calculad
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR04', jContrato[nX]['cronograma']['MV_PAR04']}) 		//Deve ser composta por mês/ano no formato MM/AAAA(Exemplo: 12/2018)
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR05', CtoD(jContrato[nX]['cronograma']['MV_PAR05'])}) 	//Data prevista para que ocorra a primeira medição(exemplo: 20/12/2018 )
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR06', jContrato[nX]['cronograma']['MV_PAR06']}) 		//Número de parcelas do cronograma
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR07', jContrato[nX]['cronograma']['MV_PAR07']}) 		//Código da condição de pagamento que as parcelas do cronograma devem ser geradas
+					aAdd(aCRG,{'CN300CRG', 'MV_PAR08', jContrato[nX]['cronograma']['MV_PAR08']}) 		//Taxa de Juros para cálculo do valor presente
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "usuario"
+
+					lRet         := U_xValidDic("CNN", jContrato[nX]['usuario']:Getnames()[1], @cMsgErr)
+
+					If ! lRet
+						Return(lRet)
+					Endif
+
+					xConteudo    := U_TreatsData(jContrato[nX]['usuario']:Getnames()[1],  jContrato[nX]['usuario']['CNN_USRCOD'], "R")
+					aAdd(aCNN,{'CNNDETAIL', jContrato[nX]['usuario']:Getnames()[1], xConteudo})
+				Endif
+
+				If jContrato[nX]:GetNames()[nY] == "documentos"
+
+					For nCNK := 1 To Len(jContrato[nX]["documentos"])
+						For nAux := 1 To Len(jContrato[nX]["documentos"][nCNK]:getnames())
+
+							if jContrato[nX]["documentos"][nCNK]:getnames()[nAux] == "ANEXOS"
+
+								aAdd(aAux,{jContrato[nX]["documentos"][nCNK]:getnames()[nAux], jContrato[nX]["documentos"][nCNK][jContrato[nX]["documentos"][nCNK]:GetNames()[nAux]]})
+							Else
+
+								lRet         := U_xValidDic("CNK", jContrato[nX]["documentos"][nCNK]:getnames()[nAux], @cMsgErr)
+
+								If ! lRet
+									Return(lRet)
+								Endif
+
+								xConteudo    := U_TreatsData(jContrato[nX]["documentos"][nCNK]:getnames()[nAux],  jContrato[nX]["documentos"][nCNK][jContrato[nX]["documentos"][nCNK]:GetNames()[nAux]], "R")
+								aAdd(aAux,{jContrato[nX]["documentos"][nCNK]:getnames()[nAux], xConteudo})
+							Endif
+						Next nAux
+						aAdd(aCNK,aAux)
+						aAux := {}
+					Next nCNK
+				Endif
+			Next nY
+
+			//Chama a gravacao automatica
+			fGeraContrato(aCN9,aCNC,aCNA,aCNB,aCRG, aCNN, aCNK, jContrato[nX])
+
+		Next nX
+
+	CATCH oError
+
+		cMsgErro	:= oError:Description
+		cLogErro	+= cContrato + ' ' + "Erro: " + cMsgErro + CRLF
+		lRet 		:= .F.
+
+	ENDTRY
+
+Return(lRet)

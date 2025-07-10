@@ -18,14 +18,11 @@ Class VldSchJSON
 Data cPathSchema as character
 Data cTextSchema as character
 Data cError      as character
-Data cMsgErr     as character
 Data lValid      as logical
 Data lSchInfo    as logical
 Data aSchema     as array
 Data cFile       as character
 Data lDelTemp    as logical
-
-
 
 Public Method New() Constructor
 Public Method Close()
@@ -50,12 +47,10 @@ Method New() class VldSchJSON
     ::cPathSchema := ""
     ::cTextSchema := ""
     ::cError      := ""
-    ::cMsgErr     := ""
     ::lValid      := .F.
     ::lSchInfo    := .F.
     ::aSchema     := {}
     ::lDelTemp    := .F.
-
 
 Return Self
 
@@ -71,7 +66,6 @@ Method Close() class VldSchJSON
     ::cPathSchema := ""
     ::cTextSchema := ""
     ::cError      := ""
-    ::cMsgErr     := ""
     ::lValid      := .F.
     ::lSchInfo    := .F.
     ::aSchema     := {}
@@ -105,12 +99,12 @@ Local oFile    := Nil as object
 Local nHandle := 0 as Numeric
 
     If ::lSchInfo
-        ::cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
+        cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
         lRet     := .F.
         ::cError := ""
     Else
         If !File(cPath)
-            ::cMsgErr    += "Arquivo informado nao existe!" + Enter
+            cMsgErr    += "Arquivo informado nao existe!" + Enter
             lRet       := .F.
             ::lSchInfo := .F.
         Else 
@@ -120,7 +114,7 @@ Local nHandle := 0 as Numeric
                 If nHandle < 0 
                     lRet       := .F.
                     ::lSchInfo := .F.
-                    ::cMsgErr    += "Erro na abertura do arquivo!" + Enter
+                    cMsgErr    += "Erro na abertura do arquivo!" + Enter
                     ::cError   := ""
                 Else 
                     Ft_FGoTop()
@@ -144,7 +138,7 @@ Local nHandle := 0 as Numeric
                 Else
                     lRet       := .F.
                     ::lSchInfo := .F.
-                    ::cMsgErr    += "Erro na abertura do arquivo!" + Enter
+                    cMsgErr    += "Erro na abertura do arquivo!" + Enter
                     ::cError   := ""
                 EndIf
             EndIf
@@ -168,12 +162,12 @@ Local nI   := 0   as numeric
 Local cTxtLocal := "" as character
 
     If ::lSchInfo
-        ::cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
+        cMsgErr  += "Schema ja foi informado anteriormente!" + Enter
         lRet     := .F.
         ::cError := ""
     Else
         If Empty(AllTrim(cText))
-            ::cMsgErr    += "Texto de Schema estao vazio!" + Enter
+            cMsgErr    += "Texto de Schema estao vazio!" + Enter
             lRet       := .F.
             ::lSchInfo := .F.
         Else 
@@ -188,7 +182,7 @@ Local cTxtLocal := "" as character
             Else
                 lRet       := .F.
                 ::lSchInfo := .F.
-                ::cMsgErr    += "Erro na String enviada!" + Enter
+                cMsgErr    += "Erro na String enviada!" + Enter
                 ::cError   := ""
             EndIf
         EndIf
@@ -209,7 +203,6 @@ Method CleanSch() class VldSchJSON
     ::cTextSchema := ""
     ::lSchInfo    := .F.
     ::cError      := ""
-    ::cMsgErr     := ""
     ::aSchema     := {}
 
 Return
@@ -230,7 +223,7 @@ If !::lSchInfo
 
     lRet := .F. 
     ::CleanSch()
-    ::cMsgErr := "Schema ainda nao informado!"
+    cMsgErr := "Schema ainda nao informado!"
 
 Else
 
@@ -576,7 +569,7 @@ Default nItem := 0
     ElseIf ValType(oAux) = "J"
 
     /*
-    At o momento nao achei este item dentro de um prprio JSON
+    Atï¿½ o momento nao achei este item dentro de um prï¿½prio JSON
     */
 
     // Senao 
