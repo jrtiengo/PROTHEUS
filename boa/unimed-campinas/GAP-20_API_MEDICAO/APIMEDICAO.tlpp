@@ -137,7 +137,7 @@ User Function inclui_medicao() as Logical
 		EndIf
 
 	Catch oError
-		
+
 		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
 		oRest:SetStatusCode(501)
 		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
@@ -171,12 +171,13 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 	Local nK            := 1                    as numeric
 	Local jAuxLog       := Nil                  as Json
 	Local oLog          := Nil                  as Object
+	Local nQuant        := 0                    as Numeric	
+	Local cRateio		:= ""					as Character
 
 	TRY
 		oLog := CtrlLOG():New()
 		jAuxLog := JsonObject():New()
 		If !oLog:SetTab("SZL")
-
 			U_AdminMsg("[CNTA121] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
@@ -217,17 +218,29 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 
 				If (oModel:CanActivate())
 					oModel:Activate()
+
 					oModel:SetValue("CNDMASTER","CND_CONTRA"    ,CN9->CN9_NUMERO)
 					oModel:SetValue("CNDMASTER","CND_APROV"     ,cGrAprov)
 					oModel:SetValue("CNDMASTER","CND_RCCOMP"    ,nCompet)
 					oModel:SetValue("CNDMASTER","CND_XIDINT"    ,xIDInteg)
+
+					//GAP 201 - Gravar o jSon contabil para posterior gravacao na tabela SZ0 atraves de PE.
+					If jmedicoes[nc]['CND_XRATEI']:HasProperty('contabil')
+
+						cRateio := jMedicoes[1]['CND_XRATEI']:ToJson()
+
+						If ! Empty(cRateio)
+							oModel:SetValue("CNDMASTER","CND_XRATEI"	,cRateio)
+						Endif
+					Endif
+
 					oModel:SetValue("CXNDETAIL","CXN_CHECK" 	, .T.)			//Marcar a planilha(nesse caso apenas uma)
 
 					For nj := 1 to len(jmedicoes[nc]['itens'])
 
 						cProduto := (jmedicoes[nc]['itens'][nj]['CNE_PRODUT'])
-						cQuant   := (jmedicoes[nc]['itens'][nj]['CNE_QUANT'])
-						nVlList   := (jmedicoes[nc]['itens'][nj]['CNE_VLUNIT'])
+						nQuant   := (jmedicoes[nc]['itens'][nj]['CNE_QUANT'])
+						nVlList  := (jmedicoes[nc]['itens'][nj]['CNE_VLUNIT'])
 
 						cNumPlan := oMODEL:GETVALUE("CNEDETAIL","CNE_NUMERO")
 
@@ -246,7 +259,7 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 						If lNfixo
 							oModel:GetModel('CNEDETAIL'):LoadValue('CNE_ITEM', PadL(cValtoChar(nj), CNE->(Len(CNE_ITEM)), "0"))//Adiciona um item a planilha
 							oModel:SetValue( 'CNEDETAIL' , 'CNE_PRODUT' , cProduto)
-							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'  , cQuant)
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'  , nQuant)
 							oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , nVlList)
 							If ! Empty(cTes)
 								oModel:SetValue( 'CNEDETAIL' , 'CNE_TS'     , cTes)
@@ -260,7 +273,7 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 
 						Else
 							oModel:GetModel('CNEDETAIL'):GoLine(nj)
-							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'		, cQuant)
+							oModel:SetValue( 'CNEDETAIL' , 'CNE_QUANT'		, nQuant)
 							If lSemifixo
 								oModel:SetValue( 'CNEDETAIL' , 'CNE_VLUNIT' , nVlList)
 							Endif
@@ -298,9 +311,6 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 						oModel:CommitData()
 					EndIf
 
-					FreeObj(jAuxLog)
-					jAuxLog     := JsonObject():New()
-
 					If(oModel:HasErrorMessage())
 
 						//Caso nao tenha sido gravada a medição, verifica o erro
@@ -314,7 +324,7 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 						jAuxLog["status"]   := "0"
 						jAuxLog["idinteg"]  := ""
 						jAuxLog["nomapi"]   := "POST_INCCONTR"
-						jAuxLog["rotina"]   := "CNTA300"
+						jAuxLog["rotina"]   := "CNTA121"
 						jAuxLog["tabela"]   := "CN9"
 						jAuxLog["recno"]    := 0
 						jAuxLog["data"]     := DToS(dDataBase)
@@ -325,7 +335,6 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 						jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
 
 						If !oLog:AddItem(jAuxLog)
-
 							ConOut(oLog:GetError())
 						EndIf
 					Else
@@ -352,7 +361,6 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 							jAuxLog["jsonret"] := '{"result": Medicao incluida com sucesso!!"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
 
@@ -377,7 +385,6 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 							jAuxLog["jsonret"] := '{"result": Medicao não encerrada!!"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
 						Endif
@@ -405,7 +412,6 @@ Static Function fGeraMedicao(cMedicao, jbody, jMedicoes, lRet, cMsgOk, cLogErro)
 				jAuxLog["jsonret"] := '{"result": Contrato não encontrado ou contrato não está vigente!!"}'
 
 				If !oLog:AddItem(jAuxLog)
-
 					ConOut(oLog:GetError())
 				EndIf
 			Endif

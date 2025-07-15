@@ -1,5 +1,6 @@
 #Include 'TOTVS.ch'
 #Include 'TopConn.ch'
+#Include "TBIConn.ch"
 #Include 'Protheus.ch'
 #Include 'tlpp-core.th'
 #Include 'tlpp-rest.th'
@@ -31,6 +32,9 @@ User Function CNTA121()
 	Local cIdModel		:= ''                       as Character
 	Local cTipo         := 'MED'                    as Character
 	Local nOpc          := 0                        as Numeric
+	Local oRateio		:= Nil						as Object
+	Local nI			:= 0						as Numeric
+	Local nZ			:= 0						as Numeric
 
 	TRY
 
@@ -44,9 +48,36 @@ User Function CNTA121()
 
 			If cIdPonto == 'MODELCOMMITNTTS' //Após a gravação total do modelo e fora da transação.
 
-				//GAP - 021 Verifica se o contrato está aguardando aprovação e envia ao Fluig
+				//GAP 021 - Verifica se o contrato está aguardando aprovação e envia ao Fluig
 				If ! Empty(CND->CND_APROV)
-					U_IntAprovFluig(nOpc, cTipo, CND->CND_NUMMED, '', CND->CND_XIDFLU)
+					//U_IntAprovFluig(nOpc, cTipo, CND->CND_NUMMED, '', CND->CND_XIDFLU)
+				EndIf
+
+				//GAP 201 - Se o CND_XRATEI tiver dados, ira tratar para gravar na tabela SZ0 os rateios
+				If ! Empty(CND->CND_XRATEI) .and. nOpc == 4 .and. FWIsInCallStack('CN121MedEnc')
+
+					oRateio	:= JSONObject():New()
+					oRateio:FromJSON(CND->CND_XRATEI)
+
+					DBSelectArea("SZ0")
+					SZ0->(dbSetOrder(1)) //Z0_FILIAL+Z0_NUMPED+Z0_ITEM
+
+					For nI := 1 to Len(oRateio['contabil'])
+						RecLock("SZ0",.T.)
+						SZ0->Z0_FILIAL  := FWxFilial("SZ0")
+						SZ0->Z0_NUMPED  := SC7->C7_NUM
+						SZ0->Z0_IDINT   := CND->CND_XIDINT
+						SZ0->Z0_FORNECE := SC7->C7_FORNECE
+						SZ0->Z0_LOJA    := SC7->C7_LOJA
+						For nZ := 1 to len(oRateio['contabil'][nI]:Getnames())
+							If Alltrim(oRateio['contabil'][nI]:Getnames()[nZ]) == "Z0_EMISSAO"
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := SC7->C7_EMISSAO
+							Else
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := oRateio['contabil'][nI][oRateio['contabil'][nI]:GetNames()[nZ]]
+							Endif
+						Next nZ
+						SZ0->(MsUnLock())
+					Next nI
 				EndIf
 			Endif
 		Endif

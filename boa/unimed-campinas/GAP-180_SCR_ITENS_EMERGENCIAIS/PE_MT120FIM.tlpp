@@ -10,7 +10,7 @@ description Ponto de entrada no final do pedido de compras
 @version  
 @author Marcio Martins
 @since 5/15/2025
-@obs PARAMIXB[1] Opção Escolhida pelo usuario - 03 inclusão - 04 alteração - 09 - copia
+@obs PARAMIXB[1] Opção Escolhida pelo usuario - 03 inclusão - 04 alteração - 05 Exclusão - 09 - copia
 @obs PARAMIXB[2] Numero do Pedido de Compras
 @obs PARAMIXB[3] Indica se a ação foi Cancelada = 0  ou Confirmada = 1
 @See https://tdn.totvs.com/display/public/PROT/MT120FIM
@@ -23,9 +23,10 @@ User Function MT120FIM()
 	Local cNumPC    := PARAMIXB[02]                 as Character
 	Local nOpcA     := PARAMIXB[03]                 as Numeric
 	Local oError    := ErrorClass():New()           as Object
+	Local cChave	:= "" 							as Character
 
 	TRY
-/*JUNIOR - DESCOMENTAR CASO TENHA QUE COMPILAR NA PRODUCA UNIMED CAMPINAS
+
 		If !FwIsInCallStack("U_INSPC")
 			// GAP 001 - Caso o objeto C7_XENTPAC =  “N” E C7_XORINT = "MV" o Pedido de Compra deve ser enviado para o Sistema MV por integração
 
@@ -33,14 +34,16 @@ User Function MT120FIM()
 				U_ENVIAPCMV()   // Fonte: ENVIAPCMV.tlpp
 			Endif
 		Endif
-*/
+
 		//GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
 		If nOpcA == 1 .and. (nOpcao == 3 .or. nOpcao == 9)
+
 			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
 				While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
 					Reclock("SCR",.F.)
 					SCR->CR_XIEMERG := SC7->C7_XIEMERG
 					SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+					SCR->(MsUnLock())
 					SCR->(dbSkip())
 				EndDo
 
@@ -48,8 +51,27 @@ User Function MT120FIM()
 				Reclock("SCR",.F.)
 				SCR->CR_XIEMERG := SC7->C7_XIEMERG
 				SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+				SCR->(MsUnLock())
 				SCR->(dbSkip())
 			Endif
+		Endif
+
+		//GAP 201 - Estornar a tabela SZ0 quando a medição for estornada
+		If nOpcA == 1 .and. nOpcao == 5 .and. FWIsInCallStack("CN121Estorn")
+
+			cChave := SC7->C7_FILIAL+SC7->C7_NUM+SC7->C7_FORNECE+SC7->C7_LOJA
+
+			DBSelectArea("SZ0")
+			SZ0->(dbSetOrder(1)) //Z0_FILIAL+Z0_NUMPED+Z0_ITEM
+
+			If SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM))
+				While SZ0->(!EOF()) .AND. SZ0->(Z0_FILIAL+Z0_NUMPED+Z0_FORNECE+Z0_LOJA) == cChave
+					Reclock("SZ0",.F.)
+					SZ0->(dbdelete())
+					SZ0->(MsUnlock())
+					SZ0->(dbSkip())
+				EndDo
+			EndIF
 		Endif
 
 	CATCH oError
