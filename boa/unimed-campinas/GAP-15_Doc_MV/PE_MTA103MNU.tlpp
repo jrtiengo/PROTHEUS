@@ -3,6 +3,9 @@
 #Include 'Protheus.ch'
 #Include 'tlpp-core.th'
 #Include 'tlpp-rest.th'
+#INCLUDE "FWMVCDEF.CH"
+
+#Define cTitApp "MTA103MNU"
 
 /*/{Protheus.doc} MTA103MNU
 Ponto de entrada utilizado para inserir novas opções no array aRotina
@@ -10,21 +13,59 @@ Ponto de entrada utilizado para inserir novas opções no array aRotina
 @version V 1.00
 @author Tiengo Junior
 @since 29/05/2025
-@Param aRorina: Nome, Função, Operação (1-Pesquisa; 2-Visualização; 3-Inclusão; 4-Alteração; 5-Exclusão), acesso(.F.,.T.)
-@See https://tdn.totvs.com/pages/releaseview.action?pageId=6085406
+@Param 
+[n][1] - Nome da Funcionalidade
+[n][2] - Função de Usuário
+[n][3] - Operação (1-Pesquisa; 2-Visualização; 3-Inclusão; 4-Alteração; 5-Exclusão)
+[n][4] - Acesso relacionado a rotina, se esta posição não for informada nenhum acesso será validado
+@See https://tdn.totvs.com/pages/releaseview.action?pageId=6085783
 /*/
+
 
 User Function MTA103MNU
 
-	Local oError  := ErrorClass():New() as Object
+	Local oError  		:= ErrorClass():New() 	as Object
+	Local aSubMV 		:= {}					as Array
 
 	TRY
-		aAdd(aRotina,{ "Log de Integração", "U_VerLogSF1()", 0 , 2, 0, .F.})
-		aAdd(aRotina,{ "Reenviar Integração", "u_IntDocRv()", 0 , 2, 0, .F.})
+		aAdd(aRotina,{"#Integração MV"			,aSubMV				,0, 2, 0, .F.})
+
+		aAdd(aSubMV,{'#Log Integração MV'		,"U_VerLogSF1()"	,0, 2, 0, .F.})
+		aAdd(aSubMV,{"#Envia Integração MV"		,"u_IntDocRv()"		,0, 2, 0, .F.})
 
 	CATCH oError
 
 		U_AdminMsg("[MTA103MNU] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return()
+
+/*/{Protheus.doc} EnvIntFor
+Função para enviar a Integração ao MV
+@type function
+@version V 1.00
+@author Marcio Martins 
+@since 27/05/2025
+/*/
+User Function IntDocRv()
+
+	Local oError  		:= ErrorClass():New() 	as Object
+	Local cMsgErr := ""                 as Character
+
+	TRY
+
+		If SF1->F1_XSTREQ == "1"
+
+			FWAlertError("Movimento já foi Integrado!", "Integração de Documento MV")
+			Return()
+		EndIf
+
+		U_IntDocMV(1, @cMsgErr)
+
+	CATCH oError
+
+		U_AdminMsg("[IntDocRv] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
 	ENDTRY
 

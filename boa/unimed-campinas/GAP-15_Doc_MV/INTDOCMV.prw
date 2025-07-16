@@ -1,6 +1,8 @@
 #Include "TOTVS.ch"
 #Include "Protheus.ch"
 
+#Define cTitApp "Integração Documento de Entrada MV"
+
 /*/{Protheus.doc} MT094END
 Envio de documento de entrada para o MV - GAP-15
 @version V 1.00
@@ -24,11 +26,18 @@ User Function IntDocMV(nOPC, cMsgErr)
 	Local jAuxLog     		:= Nil
 	Local cMensagEr		  	:= ""
 
-	//Verifica se a SC veio do MV
-	If ! Empty(SD1->D1_PEDIDO)
-		SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+	SD1->(DbSetOrder(1)) //D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
+	If SD1->(MsSeek(FWxFilial('SD1')+SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA)))
+
+		//Verifica se a SC veio do MV
+		If Empty(SD1->D1_PEDIDO)
+			Conout("IntDocMV: Documento sem Pedido de Compra!")
+			Return(.T.)
+		Endif
+
+		SC1->(DbSetOrder(6)) //C1_FILIAL+C1_PEDIDO+C1_ITEMPED+C1_PRODUTO
 		If SC1->(MsSeek(FWxFilial('SC1') + SD1->D1_PEDIDO))
-			If SC1->C1_XORINT <> 'MV'
+			If Alltrim(SC1->C1_XORINT) <> 'MV'
 				Conout("IntDocMV: Solicitação não faz parte do MV!")
 				Return(.T.)
 			Endif
@@ -36,19 +45,13 @@ User Function IntDocMV(nOPC, cMsgErr)
 			Conout("IntDocMV: Pedido de Compra sem SC!")
 			Return(.T.)
 		Endif
-	Else
-		Conout("IntDocMV: Documento sem Pedido de Compra!")
-		Return(.T.)
-	Endif
 
-	oLog    := CtrlLOG():New()
-	jAuxLog := JsonObject():New()
-	If ! oLog:SetTab("SZL")
-		U_AdminMsg("[PrepSendFor] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
-		Return (.T.)
-	EndIf
-
-	If nOpc == 3 .or. nOpc == 4 // Inclusão ou Classificação
+		oLog    := CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+		If ! oLog:SetTab("SZL")
+			U_AdminMsg("[PrepSendFor] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+			Return (.T.)
+		EndIf
 
 		cOperMV := "I"
 
@@ -56,9 +59,9 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cMsgWS := ' ?xml version="1.0" encoding="ISO-8859-1"?>' + CRLF
 		cMsgWS += '	<Mensagem>' + CRLF
 		cMsgWS += '		<Cabecalho>' + CRLF
-		cMsgWS += '			<mensagemID>7452314</mensagemID>' + CRLF //Aqui deve ser o próximo ID da SZL - confirmar
+		cMsgWS += '       <mensagemID>'+xIDInt()+'</mensagemID>' + CRLF
 		cMsgWS += '			<versaoXML>1</versaoXML>' + CRLF
-		cMsgWS += '			<identificacaoCliente>' + FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" }) + '</identificacaoCliente>' + CRLF
+		cMsgWS += '			<identificacaoCliente>' + FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]  + '</identificacaoCliente>' + CRLF
 		cMsgWS += '			<servico>' +'NOTA_ESTOQUE'+ '</servico>' + CRLF
 		cMsgWS += '			<dataHora>' +ddatabase+ ' ' + time() + '</dataHora>' + CRLF
 		cMsgWS += '			<empresaOrigem>'  +cFilAnt+ '</empresaOrigem>' + CRLF
@@ -145,44 +148,42 @@ User Function IntDocMV(nOPC, cMsgErr)
 
 		//Percorre os itens da nota
 		cMsgWS += '	<listaProduto>
-		If MsSeek(FWxFilial('SD1')+SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA))
-			While ! SD1->(Eof()) .and. SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA) == SD1->(D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA)
-				cMsgWS += '             <Produto>' + CRLF
-				cMsgWS += '                <operacao>' +cOperMV+ '</operacao>' + CRLF
-				cMsgWS += '                <codigoProdutoDePara>' +SD1->D1_COD+ '</codigoProdutoDePara>' + CRLF
-				cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
-				//cMsgWS += '					<codigoEspecieDePara/>
-				//cMsgWS += '					<descEspecie>DESCRICAO DA ESPECIE</descEspecie>
-				//cMsgWS += '					<codigoClasseDePara/>
-				//cMsgWS += '					<descClasse>DESCRICAO DA CLASSE</descClasse>
-				//cMsgWS += '					<codigoSubClasseDePara/>
-				//cMsgWS += '					<descSubClasse>DESCRICAO DA SUB CLASSE</descSubClasse>
-				cMsgWS += '                <codigoUnidadeProdutoDePara>' +SD1->D1_UM+ '</codigoUnidadeProdutoDePara>' + CRLF
-				cMsgWS += '				   <codigoEmbalagemDePara>' +SD1->D1_SEGUM+ '<codigoEmbalagemDePara/>' + CRLF
-				cMsgWS += '				   <fator>' +Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, B1_CONV)+ '</fator>' + CRLF
-				cMsgWS += '                <valorUnitario>' +SD1->D1_VUNIT+ '</valorUnitario>' + CRLF
-				//cMsgWS += '					<valorCustoReal>16,38</valorCustoReal>
-				//cMsgWS += '					<valorTotalCustoReal>16,38</valorTotalCustoReal>
-				//cMsgWS += '					<valorPercentualIssProduto>0</valorPercentualIssProduto>
-				//cMsgWS += '					<valorIssProduto>0</valorIssProduto>
-				//cMsgWS += '					<valorPercentualIpiProduto>0</valorPercentualIpiProduto>
-				//cMsgWS += '					<valorIpiProduto>0</valorIpiProduto>
-				//cMsgWS += '					<quantidadeAtendida>3</quantidadeAtendida>
-				cMsgWS += '				   <quantidadeEntradaTotal>' +SD1->D1_QUANT+ '</quantidadeEntradaTotal>' + CRLF
-				cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
-				cMsgWS += '                <valorTotal>' +SD1->D1_TOTAL+ '</valorTotal>' + CRLF
-				cMsgWS += '				   <listaLoteProduto>
-				cMsgWS += '				   		<LoteProduto>
-				cMsgWS += '							<codigoLote>' +SD1->D1_LOTECTL+ '</codigoLote>' + CRLF
-				cMsgWS += '							<quantidadeEntrada>' +SD1->D1_QUANT+ '</quantidadeEntrada>' + CRLF
-				cMsgWS += '							<dataValidade>' +SD1->D1_DTVALID+ '</dataValidade>' + CRLF
-				cMsgWS += '							<descMarcaFabricante>' +Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, B1_CONV)+ '</descMarcaFabricante>' + CRLF //Onde conseguir a marca do lote ?
-				cMsgWS += '						</LoteProduto>
-				cMsgWS += '					</listaLoteProduto>
-				cMsgWS += '             </Produto>' + CRLF
-				SD1->(DbSkip())
-			Enddo
-		Endif
+		While ! SD1->(Eof()) .and. SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA) == SD1->(D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA)
+			cMsgWS += '             <Produto>' + CRLF
+			cMsgWS += '                <operacao>' +cOperMV+ '</operacao>' + CRLF
+			cMsgWS += '                <codigoProdutoDePara>' +SD1->D1_COD+ '</codigoProdutoDePara>' + CRLF
+			cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
+			//cMsgWS += '					<codigoEspecieDePara/>
+			//cMsgWS += '					<descEspecie>DESCRICAO DA ESPECIE</descEspecie>
+			//cMsgWS += '					<codigoClasseDePara/>
+			//cMsgWS += '					<descClasse>DESCRICAO DA CLASSE</descClasse>
+			//cMsgWS += '					<codigoSubClasseDePara/>
+			//cMsgWS += '					<descSubClasse>DESCRICAO DA SUB CLASSE</descSubClasse>
+			cMsgWS += '                <codigoUnidadeProdutoDePara>' +SD1->D1_UM+ '</codigoUnidadeProdutoDePara>' + CRLF
+			cMsgWS += '				   <codigoEmbalagemDePara>' +SD1->D1_SEGUM+ '<codigoEmbalagemDePara/>' + CRLF
+			cMsgWS += '				   <fator>' +Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, B1_CONV)+ '</fator>' + CRLF
+			cMsgWS += '                <valorUnitario>' +SD1->D1_VUNIT+ '</valorUnitario>' + CRLF
+			//cMsgWS += '					<valorCustoReal>16,38</valorCustoReal>
+			//cMsgWS += '					<valorTotalCustoReal>16,38</valorTotalCustoReal>
+			//cMsgWS += '					<valorPercentualIssProduto>0</valorPercentualIssProduto>
+			//cMsgWS += '					<valorIssProduto>0</valorIssProduto>
+			//cMsgWS += '					<valorPercentualIpiProduto>0</valorPercentualIpiProduto>
+			//cMsgWS += '					<valorIpiProduto>0</valorIpiProduto>
+			//cMsgWS += '					<quantidadeAtendida>3</quantidadeAtendida>
+			cMsgWS += '				   <quantidadeEntradaTotal>' +SD1->D1_QUANT+ '</quantidadeEntradaTotal>' + CRLF
+			cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
+			cMsgWS += '                <valorTotal>' +SD1->D1_TOTAL+ '</valorTotal>' + CRLF
+			cMsgWS += '				   <listaLoteProduto>
+			cMsgWS += '				   		<LoteProduto>
+			cMsgWS += '							<codigoLote>' +SD1->D1_LOTECTL+ '</codigoLote>' + CRLF
+			cMsgWS += '							<quantidadeEntrada>' +SD1->D1_QUANT+ '</quantidadeEntrada>' + CRLF
+			cMsgWS += '							<dataValidade>' +SD1->D1_DTVALID+ '</dataValidade>' + CRLF
+			cMsgWS += '							<descMarcaFabricante>' +Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, B1_CONV)+ '</descMarcaFabricante>' + CRLF //Onde conseguir a marca do lote ?
+			cMsgWS += '						</LoteProduto>
+			cMsgWS += '					</listaLoteProduto>
+			cMsgWS += '             </Produto>' + CRLF
+			SD1->(DbSkip())
+		Enddo
 		cMsgWS += '			</listaProduto>
 		cMsgWS += '		</NotaFiscal>
 		cMsgWS += '	</Mensagem>
@@ -329,32 +330,43 @@ Função para verificar o Log de Integração
 /*/
 User Function VerLogSF1()
 
-	Local oLogAPI    as Object
+	Local oLogAPI	:= Nil 	as Object
 
 	oLogAPI := CtrlLOG():New()
 	oLogAPI:ViewLog('SF1', "", 'MATA103', 'SF1', SF1->(RECNO()) )
 
 Return(.T.)
 
-/*/{Protheus.doc} EnvIntFor
-Função para reenviar a Integração 
+/*/{Protheus.doc} xIDInt
+description Função que cria para o MV o MensagemID
 @type function
-@version V 1.00
-@author Marcio Martins 
-@since 27/05/2025
+@version  
+@author Marcio Martins
+@since 6/4/2025
+@return variant, return_description
 /*/
-User Function IntDocRv()
+Static Function xIDInt()
 
-	Local cMsgErr := ""                 as Character
+	Local cRet			:= ""
+	Local cQuery 		:= ""
 
+	cQuery += " SELECT MAX(C1_XIDINT ) C1_XIDINT   	"
+	cQuery += " FROM " + RetSqlName("SC1") + " SC1	"
+	cQuery += " WHERE D_E_L_E_T_ = ' '  			"
 
-	If SF1->F1_XSTREQ == "1"
+	cQuery := ChangeQuery(cQuery)
 
-		FWAlertError("Cadastro já foi Integrado!", "Integração de Documento MV")
+	MPSysOpenQuery(cQuery, 'TMP')
+
+	If ! TMP->(EoF())
+		If ! Empty(TMP->C1_XIDINT)
+			cRet := soma1(Alltrim(TMP->C1_XIDINT))
+		Else
+			cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
+		Endif
 	Else
+		cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
+	Endif
+	TMP->(dbCloseArea())
 
-		U_IntDocMV(@cMsgErr,1) //1 - Inclusão
-	EndIf
-
-
-Return()
+Return(cRet)

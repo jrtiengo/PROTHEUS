@@ -1,0 +1,103 @@
+#Include 'Protheus.ch'
+#INCLUDE "FWMVCDEF.CH"
+#INCLUDE "RWMAKE.CH"
+#INCLUDE "TBICONN.CH"
+
+/*/{Protheus.doc} CNTA121
+Ponto de entrada em MVC para a rotina CNTA121 - Nova Medição
+1.  FORMLINEPRE = GAP_005 - Validar o valor mínimo existente no campo CNB_XVLRMIN com o valor informado
+    na medição, o valor da medição não pode ser menor que o valor existente no campo. 
+    (Carla Barbosa)
+2. FORMLINEPOS = GAP_076 - Preencher os campos do cliente (Nome/CPF-CNPJ) vinculado nos campos do cabeçalho ao
+    selecionar a planilha (tabela CXN)
+    (Sara Joseane)
+3. FORMLINEPOS = GAP_123 - Preencher os campos do cliente (Nome/CPF-CNPJ) vinculado nos campos do cabeçalho ao
+    selecionar a planilha (tabela CND)
+    (Silvan Ferreira)
+@type function
+@version V 1.00
+@author Carla Barbosa
+@since 30/07/2024
+@link https://tdn.totvs.com/display/public/PROT/CNTA121+-+Exemplos+pontos+de+entrada_MVC#CNTA121Exemplospontosdeentrada_MVC-03.Importarrateiosparamedi%C3%A7%C3%A3o(CNZAUTRAT)
+@obs 
+/*/
+
+User Function CNTA121()
+
+	Local aParam    := PARAMIXB
+	Local xRet      := .T.             as Logical
+	Local oModelCND := Nil             as Object
+	Local oModelCXN := Nil             as Object
+	Local cIdPonto  := ''              as Character
+	Local cIdModel  := ''              as Character
+	Local cFornec   := ''              as Character
+	Local cForLoja  := ''              as Character
+	Local nOpc      := 0               as Numeric
+	Local oRateio	:= Nil			   as Object
+	Local nI		:= 0			   as Numeric
+	Local nZ		:= 0			   as Numeric
+
+	If aParam <>  NIL
+
+		oModel  	:= aParam[1]
+		cIdPonto	:= AllTrim(aParam[2])
+		cIdModel	:= aParam[3]
+
+		nOpc		:= oModel:GetOperation()
+
+		If (cIdPonto == "FORMLINEPOS" .And. cIdModel == "CXNDETAIL")
+
+			oModelCXN := oModel
+			oModelCND := oModelCXN:GetModel():GetModel("CNDMASTER")//Obtêm o modelo da CND, com ele é possível verificar valores da CND
+			cFornec   := oModelCXN:GetValue("CXN_FORCLI")
+			cForLoja  := oModelCXN:GetValue("CXN_LOJA")
+
+			//Posicionar na SA2 Cadastro de Fornecedores
+			If SA2->(DbSeek(xFilial("SA2")+cFornec+cForLoja))
+
+				//grava os campos CND_ XCNPJF e CND_ XNOMEF
+				oModelCND:LoadValue("CND_XCNPJF", SA2->A2_CGC)
+				oModelCND:LoadValue("CND_XNOMEF", allTrim(substr(SA2->A2_NOME,1,TamSx3("A2_NOME")[1])))
+
+			EndIf
+
+		Elseif cIdPonto == 'MODELCOMMITNTTS' //Após a gravação total do modelo e fora da transação.
+
+			//GAP 021 - Verifica se o contrato está aguardando aprovação e envia ao Fluig - ainda nao homologado
+			If ! Empty(CND->CND_APROV)
+				//U_IntAprovFluig(nOpc, cTipo, CND->CND_NUMMED, '', CND->CND_XIDFLU)
+			EndIf
+
+			//GAP 201 - Se o CND_XRATEI tiver dados, ira tratar para gravar na tabela SZ0 os rateios
+			If ! Empty(CND->CND_XRATEI) .and. nOpc == 4 .and. FWIsInCallStack('CN121MedEnc')
+
+				oRateio	:= JSONObject():New()
+				oRateio:FromJSON(CND->CND_XRATEI)
+
+				DBSelectArea("SZ0")
+				SZ0->(dbSetOrder(1)) //Z0_FILIAL+Z0_NUMPED+Z0_ITEM
+
+				If ! SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM))
+
+					For nI := 1 to Len(oRateio['contabil'])
+						RecLock("SZ0",.T.)
+						SZ0->Z0_FILIAL  := FWxFilial("SZ0")
+						SZ0->Z0_NUMPED  := SC7->C7_NUM
+						SZ0->Z0_IDINT   := CND->CND_XIDINT
+						SZ0->Z0_FORNECE := SC7->C7_FORNECE
+						SZ0->Z0_LOJA    := SC7->C7_LOJA
+						For nZ := 1 to len(oRateio['contabil'][nI]:Getnames())
+							If Alltrim(oRateio['contabil'][nI]:Getnames()[nZ]) == "Z0_EMISSAO"
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := SC7->C7_EMISSAO
+							Else
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := oRateio['contabil'][nI][oRateio['contabil'][nI]:GetNames()[nZ]]
+							Endif
+						Next nZ
+						SZ0->(MsUnLock())
+					Next nI
+				Endif
+			EndIf
+		EndIf
+	Endif
+
+Return(xRet)

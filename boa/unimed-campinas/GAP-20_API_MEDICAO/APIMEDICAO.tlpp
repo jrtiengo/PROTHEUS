@@ -1,6 +1,7 @@
 #Include "TOTVS.ch"
 #Include "TopConn.ch"
 #Include "TBIConn.ch"
+#Include "FWmvcdef.CH"
 #Include "Protheus.ch"
 #Include "tlpp-core.th"
 #Include "tlpp-rest.th"
