@@ -1,5 +1,6 @@
 #Include "TOTVS.ch"
 #Include "Protheus.ch"
+#Include 'Rwmake.ch'
 
 #Define cTitApp "Integração Documento de Entrada MV"
 
@@ -17,14 +18,15 @@ User Function IntDocMV(nOPC, cMsgErr)
 	Local lRet        		:= .T.
 	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")               // URL do Webservice
 	//Local cPath             := ""                                        // esse vai ser específico para cada aplicação, colocar fixo
-	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"")              // Usuário do webservice
-	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"")              // Senha do webservice
+	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"teste")              // Usuário do webservice
+	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"teste")              // Senha do webservice
 	//Local cIDCliente        := SuperGetMV("UC_IDCLIMV",.F.,"")             // Id do Cliente na MV
 	Local cMsgWS            := ""
 	Local cOperMV           := ""
 	Local oLog        		:= Nil
 	Local jAuxLog     		:= Nil
 	Local cMensagEr		  	:= ""
+	Local _IdCli			:= FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]
 
 	SD1->(DbSetOrder(1)) //D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
 	If SD1->(MsSeek(FWxFilial('SD1')+SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA)))
@@ -56,15 +58,15 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cOperMV := "I"
 
 		//Montando XML para envio ao MV
-		cMsgWS := ' ?xml version="1.0" encoding="ISO-8859-1"?>' + CRLF
+		cMsgWS := ' <?xml version="1.0" encoding="ISO-8859-1"?>' + CRLF
 		cMsgWS += '	<Mensagem>' + CRLF
 		cMsgWS += '		<Cabecalho>' + CRLF
 		cMsgWS += '       <mensagemID>'+xIDInt()+'</mensagemID>' + CRLF
 		cMsgWS += '			<versaoXML>1</versaoXML>' + CRLF
-		cMsgWS += '			<identificacaoCliente>' + FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]  + '</identificacaoCliente>' + CRLF
+		cMsgWS += '			<identificacaoCliente>' +_IdCli+ '</identificacaoCliente>' + CRLF
 		cMsgWS += '			<servico>' +'NOTA_ESTOQUE'+ '</servico>' + CRLF
-		cMsgWS += '			<dataHora>' +ddatabase+ ' ' + time() + '</dataHora>' + CRLF
-		cMsgWS += '			<empresaOrigem>'  +cFilAnt+ '</empresaOrigem>' + CRLF
+		cMsgWS += '			<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>' + CRLF
+		cMsgWS += '			<empresaOrigem>' +cFilAnt+ '</empresaOrigem>' + CRLF
 		cMsgWS += '			<sistemaOrigem>' +cPssw+ '</sistemaOrigem>' + CRLF
 		cMsgWS += '			<empresaDestino>1</empresaDestino>' + CRLF //Irão enviar essa informação PENDENTE MV
 		cMsgWS += '			<sistemaDestino>1</sistemaDestino>' + CRLF //Irão enviar essa informação PENDENTE MV
@@ -74,42 +76,22 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cMsgWS += '		<NotaFiscal>' + CRLF
 		cMsgWS += '			<idIntegracao>89754</idIntegracao>' + CRLF //PK da Entradaa, penso que poderiamos enviar o IDINT da SC1
 		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>' + CRLF
-		//cMsgWS += '			<codigoEntradaProduto>25180</codigoEntradaProduto>' + CRLF
-		cMsgWS += '			<codigoEntradaProdutoDePara>342</codigoEntradaProdutoDePara>' + CRLF // PK da Entrada me parece redundante
-		cMsgWS += '			<tipoEntrega><tipoEntrega/>' + CRLF // T ou P Se é total ou parcial, recever numa proxima reunião se iremos chumbar para T = total
-		//cMsgWS += '			<codigoTipoDocumento><codigoTipoDocumento/>' + CRLF
-		cMsgWS += '			<codigoTipoDocumentoDePara>' +'STRING'+ '</codigoTipoDocumentoDePara>' + CRLF //Esqueci de ver quais são os tipos
-		//cMsgWS += '			<descTipoDocumento>NOTA FISCAL</descTipoDocumento>' + CRLF
+		//cMsgWS += '			<codigoEntradaProdutoDePara>342</codigoEntradaProdutoDePara>' + CRLF // REVER PK da Entrada me parece redundante
+		//cMsgWS += '			<tipoEntrega>' +'T'+ '<tipoEntrega/>' + CRLF // T ou P Se é total ou parcial, recever numa proxima reunião se iremos chumbar para T = total
+		//cMsgWS += '			<codigoTipoDocumentoDePara>' +'TIPODOC'+ '</codigoTipoDocumentoDePara>' + CRLF //Esqueci de ver quais são os tipos
 		cMsgWS += '			<numeroDocumento>' +SD1->D1_DOC+ '</numeroDocumento>' + CRLF
 		cMsgWS += '			<numeroSerie>' +SF1->F1_SERIE+ '</numeroSerie>' + CRLF
 		cMsgWS += '			<codigoCfop>' +Val(SD1->D1_CF)+ '</codigoCfop>' + CRLF
 		cMsgWS += '			<numeroCfop>' +Val(SD1->D1_CF)+ '</numeroCfop>' + CRLF
-		//cMsgWS += '			<descCfop>COMPRA PARA COMERCIALIZAÇÃO</descCfop>
 		cMsgWS += '			<dataEmissao>'+ SF1->F1_EMISSAO +'</dataEmissao>' + CRLF
 		cMsgWS += '			<dataEntrada>'+ SF1->F1_DTDIGIT +'</dataEntrada>' + CRLF
-		cMsgWS += '			<horaEntrada>'+ time() +'</horaEntrada>' + CRLF
-		cMsgWS += '			<dataConclusao>' +ddatabase+ ' ' + time() + '</dataConclusao>' + CRLF
-		cMsgWS += '			<consignado>' +'N'+ '</consignado>' + CRLF //Precisa ser definido com a Mariana como vamos tratar o consignado
-		//cMsgWS += '			<codigoOrdemCompra/>
+		cMsgWS += '			<horaEntrada>'+ SF1->F1_HORA +'</horaEntrada>' + CRLF
+		cMsgWS += '			<dataConclusao>' +DtoS(ddatabase) + ' ' + time()+ '</dataConclusao>' + CRLF
+		//cMsgWS += '			<consignado>' +'N'+ '</consignado>' + CRLF //Precisa ser definido com a Mariana como vamos tratar o consignado
 		cMsgWS += '			<codigoOrdemCompraDePara>' +SD1->D1_PEDIDO+ '<codigoOrdemCompraDePara/>' + CRLF
-		//cMsgWS += '			<codigoJustificativa/>
-		//cMsgWS += '			<codigoJustificativaDePara>11</codigoJustificativaDePara>
-		//cMsgWS += '			<descJustificativa/>
-		//cMsgWS += '			<codigoSolicCompra/>
-		//cMsgWS += '			<codigoSolicCompraDePara/>
-		//cMsgWS += '			<codigoEstoque/>
 		cMsgWS += '			<codigoEstoqueDePara>' +SD1->D1_LOCAL+ '</codigoEstoqueDePara>' + CRLF
-		//cMsgWS += '			<descEstoque>DESCRICAO DO ESTOQUE</descEstoque>
-		//cMsgWS += '			<codigoFornecedor/>
 		cMsgWS += '			<codigoFornecedorDePara>' +SF1->F1_FORNECE+SF1->F1_LOJA+ '</codigoFornecedorDePara>' + CRLF
-		//cMsgWS += '			<descFornecedor>NOME DO FORNECEDOR</descFornecedor>
-		//cMsgWS += '			<cgcCpf/>
-		//cMsgWS += '			<codigoCondicaoPagamento>12</codigoCondicaoPagamento>
-		//cMsgWS += '			<codigoCondicaoPagamentoDePara/>
-		//cMsgWS += '			<descCondicaoPagamento>CONDICAO DE PAGAMENTO</descCondicaoPagamento>
-		//cMsgWS += '			<tipoFrete/>
 		cMsgWS += '			<tipoFreteDePara>' +SF1->F1_TPFRETE+ '</tipoFreteDePara>' + CRLF
-		//cMsgWS += '			<descTipoFrete>CIFA</descTipoFrete>
 
 		//Se for CIF, o valor do frete é incluiso na nota
 		If SF1->F1_TPFRETE == 'C'
@@ -117,19 +99,6 @@ User Function IntDocMV(nOPC, cMsgErr)
 		Else
 			cMsgWS += '          <incluirFreteNota>'+ 'N' +'</incluirFreteNota>' + CRLF
 		Endif
-
-		//cMsgWS += '			<valorPercentualFrete>1</valorPercentualFrete>
-		//cMsgWS += '			<valorFrete>2</valorFrete>
-		//cMsgWS += '			<tipoEntrega>T</tipoEntrega>
-		//cMsgWS += '			<valorPercentualIpi>3</valorPercentualIpi>
-		//cMsgWS += '			<valorIpi>4</valorIpi>
-		//cMsgWS += '			<valorPercentualIcms>5</valorPercentualIcms>
-		//cMsgWS += '			<valorIcms>6</valorIcms>
-		//cMsgWS += '			<valorPercentualDesconto>7</valorPercentualDesconto>
-		//cMsgWS += '			<valorDesconto>8</valorDesconto>
-		//cMsgWS += '			<valorTotalNota>49,14</valorTotalNota>
-		//cMsgWS += '			<valorBaseSubsTributaria/>
-		//cMsgWS += '			<valorCalculoSubsTributaria/>
 
 		//Busca títulos na SE2 relacionados à nota
 		cMsgWS += '			<listaDuplicata>' + CRLF
@@ -153,23 +122,10 @@ User Function IntDocMV(nOPC, cMsgErr)
 			cMsgWS += '                <operacao>' +cOperMV+ '</operacao>' + CRLF
 			cMsgWS += '                <codigoProdutoDePara>' +SD1->D1_COD+ '</codigoProdutoDePara>' + CRLF
 			cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
-			//cMsgWS += '					<codigoEspecieDePara/>
-			//cMsgWS += '					<descEspecie>DESCRICAO DA ESPECIE</descEspecie>
-			//cMsgWS += '					<codigoClasseDePara/>
-			//cMsgWS += '					<descClasse>DESCRICAO DA CLASSE</descClasse>
-			//cMsgWS += '					<codigoSubClasseDePara/>
-			//cMsgWS += '					<descSubClasse>DESCRICAO DA SUB CLASSE</descSubClasse>
 			cMsgWS += '                <codigoUnidadeProdutoDePara>' +SD1->D1_UM+ '</codigoUnidadeProdutoDePara>' + CRLF
 			cMsgWS += '				   <codigoEmbalagemDePara>' +SD1->D1_SEGUM+ '<codigoEmbalagemDePara/>' + CRLF
 			cMsgWS += '				   <fator>' +Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, B1_CONV)+ '</fator>' + CRLF
 			cMsgWS += '                <valorUnitario>' +SD1->D1_VUNIT+ '</valorUnitario>' + CRLF
-			//cMsgWS += '					<valorCustoReal>16,38</valorCustoReal>
-			//cMsgWS += '					<valorTotalCustoReal>16,38</valorTotalCustoReal>
-			//cMsgWS += '					<valorPercentualIssProduto>0</valorPercentualIssProduto>
-			//cMsgWS += '					<valorIssProduto>0</valorIssProduto>
-			//cMsgWS += '					<valorPercentualIpiProduto>0</valorPercentualIpiProduto>
-			//cMsgWS += '					<valorIpiProduto>0</valorIpiProduto>
-			//cMsgWS += '					<quantidadeAtendida>3</quantidadeAtendida>
 			cMsgWS += '				   <quantidadeEntradaTotal>' +SD1->D1_QUANT+ '</quantidadeEntradaTotal>' + CRLF
 			cMsgWS += '                <quantidade>' +SD1->D1_QUANT+ '</quantidade>' + CRLF
 			cMsgWS += '                <valorTotal>' +SD1->D1_TOTAL+ '</valorTotal>' + CRLF
