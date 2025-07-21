@@ -5,9 +5,9 @@
 #Include 'tlpp-rest.th'
 #INCLUDE "FWMVCDEF.CH"
 
-//#Define cTitApp "MTA103MNU"
+//#Define cTitApp "MT120BRW"
 
-/*/{Protheus.doc} MTA103MNU
+/*/{Protheus.doc} MT120BRW
 Ponto de entrada utilizado para inserir novas opções no array aRotina
 @type function
 @version V 1.00
@@ -21,22 +21,22 @@ Ponto de entrada utilizado para inserir novas opções no array aRotina
 @See https://tdn.totvs.com/pages/releaseview.action?pageId=6085783
 /*/
 
-User Function MTA103MNU
+User Function MT120BRW
 
 	Local oError  		:= ErrorClass():New() 	as Object
 	Local aSubMV 		:= {}					as Array
 
-	Private cTitApp 	:= "MTA103MNU"           as Character
+	Private cTitApp 	:= "MT120BRW"           as Character
 
 	TRY
 		aAdd(aRotina,{"#Integração MV"			,aSubMV				,0, 2, 0, .F.})
 
-		aAdd(aSubMV,{'#Log Integração MV'		,"U_VerLogSF1()"	,0, 2, 0, .F.})
-		aAdd(aSubMV,{"#Envia Integração MV"		,"u_IntDocRv()"		,0, 2, 0, .F.})
+		aAdd(aSubMV,{'#Log Integração MV'		,"U_VerLogSC7()"	,0, 2, 0, .F.})
+		aAdd(aSubMV,{"#Envia Integração MV"		,"u_IntPcRv()"		,0, 2, 0, .F.})
 
 	CATCH oError
 
-		U_AdminMsg("[MTA103MNU] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		U_AdminMsg("[MT120BRW] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
 	ENDTRY
 
@@ -49,20 +49,20 @@ Função para enviar a Integração ao MV
 @author Marcio Martins 
 @since 27/05/2025
 /*/
-User Function IntDocRv()
+User Function IntPcRv()
 
 	Local oError  		:= ErrorClass():New() 	as Object
-	Local cMsgErr := ""                 as Character
+	Local cMsgErr       := ""                   as Character
 
 	TRY
 
-		If SF1->F1_XSTREQ == "1"
+		If SC7->C7_XSTREQ == "1"
 
 			FWAlertError("Movimento já foi Integrado!", "Integração de Documento MV")
 			Return()
 		EndIf
 
-		U_IntDocMV(1, @cMsgErr)
+		U_INTPCMV(1, SC7->C7_NUM, @cMsgErr)
 
 	CATCH oError
 

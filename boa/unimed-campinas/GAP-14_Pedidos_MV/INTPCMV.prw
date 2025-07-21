@@ -8,7 +8,7 @@ Envio de pedidos de compra para o MV - GAP-14
 @since 28/05/2025
 /*/
 
-User Function INTPCMV(nOPC, cMsgErr)
+User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 	Local lRet        		:= .T.
 	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")               // URL do Webservice
@@ -21,13 +21,14 @@ User Function INTPCMV(nOPC, cMsgErr)
 	Local cMensagEr		  	:= ""
 
 	//Customização para integração com MV, posiciona na SC1 para ver se a origem é MV
-	If ! Empty(SC7->C7_NUMSC) 
+	If ! Empty(SC7->C7_NUMSC)
 		SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
 		If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
 			If SC1->C1_XORINT <> 'MV'
 				Conout("IntPedMV: Solicitação não faz parte do MV!")
 				Return(.T.)
 			Endif
+		Else
 			Conout("IntPedMV: Pedido de Compra sem SC!")
 			Return(.T.)
 		Endif
@@ -43,74 +44,77 @@ User Function INTPCMV(nOPC, cMsgErr)
 		Return (.T.)
 	EndIf
 
-	If nOpc == 1 // Inclusão 
+	If nOpc == 1 // Inclusão
 
 		cOperMV := "I"
 
 		//Montando XML para envio ao MV
-		cMsgWS := ' ?xml version="1.0" encoding="ISO-8859-1"?>' + CRLF
-		cMsgWS += '	<Mensagem>' + CRLF
-		cMsgWS += '		<Cabecalho>' + CRLF
-		cMsgWS += '			<mensagemID>7452314</mensagemID>' + CRLF //Aqui deve ser o próximo ID da SZL - confirmar
-		cMsgWS += '			<versaoXML>1</versaoXML>' + CRLF
-		cMsgWS += '			<identificacaoCliente>' + FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" }) + '</identificacaoCliente>' + CRLF
-		cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>' + CRLF
-		cMsgWS += '			<dataHora>' +dDatabase+ ' ' + time() + '</dataHora>' + CRLF
-		cMsgWS += '			<empresaOrigem>'  +cFilAnt+ '</empresaOrigem>' + CRLF
-		cMsgWS += '			<sistemaOrigem>' +cPssw+ '</sistemaOrigem>' + CRLF
-		cMsgWS += '			<empresaDestino>1</empresaDestino>' + CRLF //Irão enviar essa informação PENDENTE MV
-		cMsgWS += '			<sistemaDestino>1</sistemaDestino>' + CRLF //Irão enviar essa informação PENDENTE MV
-		cMsgWS += '			<usuario>' +cUsuario+ '</usuario>' + CRLF //Irão enviar essa informação PENDENTE MV
-		cMsgWS += '			<senha>' +cUsuario+ '</senha>' + CRLF //Irão enviar essa informação PENDENTE MV
-		cMsgWS += '		</Cabecalho>' + CRLF
-		cMsgWS += '		<OrdemCompra>' + CRLF
-		cMsgWS += '			<idIntegracao>89754</idIntegracao>' + CRLF //PK da Entradaa, penso que poderiamos enviar o IDINT da SC1
-		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>' + CRLF
-		//cMsgWS += '			<codigoOrdemCompra>25180</codigoOrdemCompra>' + CRLF
-		cMsgWS += '			<codigoOrdemCompraDePara>' +SC7->C7_NUM+ '</codigoOrdemCompraDePara>' + CRLF 
-		cMsgWS += '			<dataHoraEmissao>' +dDatabase+ ' ' + time() + '</dataHoraEmissao>' + CRLF
-		//cMsgWS += '			<dataInicioPrevEntrega>' +dDatabase+ '</dataInicioPrevEntrega>
-		//cMsgWS += '			<dataFinalPrevEntrega>' +SC7->C7_DATPRF+ '/dataFinalPrevEntrega>
-		//cMsgWS += '			<codigoSolicCompra>637</codigoSolicCompra>
-		cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '<codigoSolicCompraDePara/>' + CRLF
-		//cMsgWS += '			<numeroEmpenho>1</numeroEmpenho>
-		//cMsgWS += '			<codigoEstoque>2</codigoEstoque>
-		cMsgWS += '			<codigoEstoqueDePara>' +SC7->C7_LOCAL+ '</codigoEstoqueDePara>' + CRLF
-		//cMsgWS += '			<descEstoque>' +Posicione('NNR')+ '</descEstoque>
-		cMsgWS += '			<codigoFornecedor>80</codigoFornecedor>
-		cMsgWS += '			<codigoFornecedorDePara>85</codigoFornecedorDePara>
-		cMsgWS += '			<descFornecedor>DESCRICAO FORNECEDOR</descFornecedor>
-		cMsgWS += '			<cgcCpf>8734741000108</cgcCpf>
-		cMsgWS += '			<codigoCondicaoPagamento>32</codigoCondicaoPagamento>
-		cMsgWS += '			<codigoCondicaoPagamentoDePara>32</codigoCondicaoPagamentoDePara>
-		cMsgWS += '			<descCondicaoPagamento>30/45/60 DIAS</descCondicaoPagamento>
-		cMsgWS += '			<tipoFrete>C</tipoFrete>
-		cMsgWS += '			<tipoFreteDePara>151</tipoFreteDePara>
-		cMsgWS += '			<descTipoFrete>CIF</descTipoFrete>
-		cMsgWS += '			<valorPercentualFrete>10</valorPercentualFrete>
-		cMsgWS += '			<valorFrete>50,00</valorFrete>
-		cMsgWS += '			<valorPercentualIpi>0,15</valorPercentualIpi>
-		cMsgWS += '			<valorIpi>0,50</valorIpi>
-		cMsgWS += '			<valorPercentualIcms>0,50</valorPercentualIcms>
-		cMsgWS += '			<valorIcms>0,90</valorIcms>
-		cMsgWS += '			<valorPercentualDesconto>0</valorPercentualDesconto>
-		cMsgWS += '			<valorDesconto>0</valorDesconto>
-		cMsgWS += '			<valorTotalNota>70991,36</valorTotalNota>
-		cMsgWS += '			<dataAutorizacao>2009-10-29</dataAutorizacao>
-		cMsgWS += '			<codigoUsuarioAutorizador>ANDERSONF</codigoUsuarioAutorizador>
-		cMsgWS += '			<codigoUsuarioAutorizadorDePara>12135</codigoUsuarioAutorizadorDePara>
-		cMsgWS += '			<descUsuarioAutorizador>ANDERSONF</descUsuarioAutorizador>
-		cMsgWS += '			<descOrdemCompra>OBERVAÇÕES</descOrdemCompra>
-		cMsgWS += '			<tipoPedido>P</tipoPedido>
-		cMsgWS += '			<tipoSituacao>A</tipoSituacao>
-		cMsgWS += '			<autorizado>S</autorizado>
-		cMsgWS += '			<respondida>S</respondida>
-		cMsgWS += '			<emailEnviadoFornecedor>N</emailEnviadoFornecedor>
-		cMsgWS += '			<tipoCategoria/>
+		cMsgWS := '?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
+		cMsgWS += '<Mensagem>'+CRLF
+		cMsgWS += '		<Cabecalho>'+CRLF
+		cMsgWS += '			<mensagemID>' +xIDInt()+' </mensagemID>'+CRLF
+		cMsgWS += '			<versaoXML>1</versaoXML>'+CRLF
+		cMsgWS += '			<identificacaoCliente>' + FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2] + '</identificacaoCliente>'+CRLF
+		cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
+		cMsgWS += '			<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>'+CRLF
+		cMsgWS += '			<empresaOrigem>'  +cFilAnt+ '</empresaOrigem>'+CRLF
+		cMsgWS += '			<sistemaOrigem>' +cPssw+ '</sistemaOrigem>'+CRLF
+		cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
+		cMsgWS += '			<sistemaDestino>1</sistemaDestino>'+CRLF
+		cMsgWS += '			<usuario>' +cUsuario+ '</usuario>'+CRLF
+		cMsgWS += '			<senha>' +cUsuario+ '</senha>'+CRLF
+		cMsgWS += '		</Cabecalho>'+CRLF
+		cMsgWS += '		<OrdemCompra>'+CRLF
+		cMsgWS += '			<idIntegracao>89754</idIntegracao>'+CRLF
+		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
+		cMsgWS += '			<codigoOrdemCompraDePara>' +cDocto+ '</codigoOrdemCompraDePara>'+CRLF
+		cMsgWS += '			<dataHoraEmissao>' +DtoS(SC7->C7_EMISSAO) + ' ' + time()+ '</dataHoraEmissao>'+CRLF
+		cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
+		cMsgWS += '			<codigoEstoqueDePara>' +SC7->C7_LOCAL+ '</codigoEstoqueDePara>'+CRLF
+		cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
+		cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
+		cMsgWS += '			<codigoCondicaoPagamentoDePara>' +SC7->C7_COND+ '</codigoCondicaoPagamentoDePara>'+CRLF
+		cMsgWS += '			<tipoFreteDePara>' +SC7->C7_TPFRETE+ '</tipoFreteDePara>'+CRLF
+		cMsgWS += '			<valorTotalNota>' +cValtoChar(SC7->C7_TOTAL)+ '</valorTotalNota>'+CRLF
 
+		//Percorre os itens da nota
+		If SC7->(MsSeek(FWxFilial('SC7') + cDocto))
 
+			cMsgWS += '		<listaProduto>'+CRLF
+
+			While ! SC7->(Eof()) .and. SC7->C7_NUM == cDocto
+				cMsgWS += '             <Produto>'+CRLF
+				cMsgWS += '					<operacao>' +cOperMV+ '</operacao>'+CRLF
+				cMsgWS += '					<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
+				cMsgWS += '					<quantidade>' +cValtoChar(SC7->C7_QUANT)+ '</quantidade>'+CRLF
+				cMsgWS += '					<codigoUnidadeProdutoDePara>' +SC7->C7_UM+ '</codigoUnidadeProdutoDePara>'+CRLF
+				cMsgWS += '					<valorUnitario>' +cValtoChar(SC7->C7_PRECO)+ '</valorUnitario>'+CRLF
+
+				DBSelectArea("SZ0")
+				SZ0->(dbSetOrder(2)) //ZZ0_FILIAL+Z0_NUMPED+Z0_PRODUTO
+				If SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM+SC7->C7_PRODUTO))
+
+					cMsgWS += '             <listaRateioSetor>'+CRLF
+
+					While ! SZ0->(Eof()) .and. SZ0->(Z0_NUMPED+Z0_PRODUTO) == SC7->(C7_NUM+C7_PRODUTO)
+						cMsgWS += '		<rateioSetor>'+CRLF
+						cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
+						cMsgWS += '			<codigoSetorDepara>' +SZ0->Z0_CCUSTO+' </codigoSetorDepara>'+CRLF
+						cMsgWS += '			<quantidadeRateio>' +SZ0->Z0_PERC+ '</quantidadeRateio>'+CRLF
+						cMsgWS += '		</rateioSetor>'+CRLF
+						SZ0->(DbSkip())
+					Enddo
+
+					cMsgWS += '			</listaRateioSetor>'+CRLF
+					cMsgWS += '		</listaRateioSetor>'+CRLF
+				Endif
+				SC7->(DbSkip())
+			Enddo
+			cMsgWS += '		</listaProduto>'+CRLF
+		Endif
 		cMsgWS += '		</OrdemCompra>
-		cMsgWS += '	</Mensagem>
+		cMsgWS += '</Mensagem>
+
 		//Cria o objeto WSDL
 		oWsdl := TWsdlManager():New()
 		oWsdl:nTimeout := 10
@@ -120,8 +124,8 @@ User Function INTPCMV(nOPC, cMsgErr)
 
 		If ! lRet
 
-				cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
-				cMensagEr += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
+			cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
+			cMensagEr += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
 
 			jAuxLog["status"]  := "0"
 			jAuxLog["idinteg"] := ""
@@ -151,7 +155,7 @@ User Function INTPCMV(nOPC, cMsgErr)
 			lRet := oWsdl:SetOperation("___FALTA_DEFINIR_OPERACAO___")
 
 			If !lRet
-				
+
 				cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
 				cMensagEr += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + oWsdl:cError
 
@@ -243,3 +247,37 @@ User Function INTPCMV(nOPC, cMsgErr)
 	Endif
 
 Return(lRet)
+
+/*/{Protheus.doc} xIDInt
+description Função que cria para o MV o MensagemID
+@type function
+@version  
+@author Marcio Martins
+@since 6/4/2025
+@return variant, return_description
+/*/
+Static Function xIDInt()
+
+	Local cRet			:= ""
+	Local cQuery 		:= ""
+
+	cQuery += " SELECT MAX(C1_XIDINT ) C1_XIDINT   	"
+	cQuery += " FROM " + RetSqlName("SC1") + " SC1	"
+	cQuery += " WHERE D_E_L_E_T_ = ' '  			"
+
+	cQuery := ChangeQuery(cQuery)
+
+	MPSysOpenQuery(cQuery, 'TMP')
+
+	If ! TMP->(EoF())
+		If ! Empty(TMP->C1_XIDINT)
+			cRet := soma1(Alltrim(TMP->C1_XIDINT))
+		Else
+			cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
+		Endif
+	Else
+		cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
+	Endif
+	TMP->(dbCloseArea())
+
+Return(cRet)

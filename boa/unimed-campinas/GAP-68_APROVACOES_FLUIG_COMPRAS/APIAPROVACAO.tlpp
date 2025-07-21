@@ -104,7 +104,7 @@ User Function aprovacao() as Logical
 
 					if ! lRet
 						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos" + CHR(13) + CHR(10) + cMsgOk + CHR(13) + CHR(10) + "Contratos nao Incluidos" + CHR(13) + CHR(10) + cMsgErr, "Contratos nao Incluidos" + CHR(13) + CHR(10) + cMsgErr)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Aprovacao Incluidos" + CHR(13) + CHR(10) + cMsgOk + CHR(13) + CHR(10) + "Aprovacao nao Incluidos" + CHR(13) + CHR(10) + cMsgErr, "Aprovacao nao Incluidos" + CHR(13) + CHR(10) + cMsgErr)
 						cMsgOk 	:= oDetail:ToJson()
 						oRest:SetResponse(U_AnswerFormat(606, "Operacao concluida com erro", cMsgOk))
 					Else
@@ -153,6 +153,8 @@ Return(.T.)
 Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogErro)
 
 	Local aArea         := FWGetArea()          as Array
+	Local aAreaSC7  	:= SC7->(FwGetArea())   as Array
+	Local aAreaSCR  	:= SCR->(FwGetArea())   as Array
 	Local oModel    	:= Nil                  as Object
 	Local cTpOper     	:= ""                   as Character
 	Local cAprovador	:= ""                   as Character
@@ -415,7 +417,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 					EndIf
 				Endif
 			Else
-				cMsgErro   := "Codigo do Aprovador nao encontrato!"
+				cMsgErro   := "Codigo do Aprovador nao encontrado!"
 				cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
 				lRet := .F.
 
@@ -432,7 +434,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 				jAuxLog["msgresp"] := "success"
 				jAuxLog["msgerr"]  := ""
 				jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-				jAuxLog["jsonret"] := '{"result": Codigo do Aprovador nao encontrato!"}'
+				jAuxLog["jsonret"] := '{"result": Codigo do Aprovador nao encontrado!"}'
 
 				If !oLog:AddItem(jAuxLog)
 
@@ -449,5 +451,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 	EndTry
 
 	FWRestArea(aArea)
+	FWRestArea(aAreaSC7)
+	FWRestArea(aAreaSCR)
 
 Return(lRet)

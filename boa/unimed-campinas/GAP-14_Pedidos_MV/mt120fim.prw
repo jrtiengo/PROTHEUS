@@ -290,6 +290,20 @@ User Function fluigCan(cNum)
     (cAliasQry)->(dbGoTop())
     ConOut( cQuery )
 
+
+   
+// Certifique-se de posicionar SD1 corretamente antes de acessar SD1->D1_COD
+// Exemplo de posicionamento (ajuste conforme sua lógica):
+// SD1->(dbSetOrder(1))
+// SD1->(dbSeek(xFilial("SD1") + <chave>))
+If !Empty(SD1->D1_COD)
+    Posicione('SB1', 1, FWxFilial('SB1') + SD1->D1_COD, "B1_UM")
+Else
+    // Trate o caso de SD1->D1_COD estar vazio ou SD1 não estar posicionado
+    ConOut("SD1->D1_COD está vazio ou SD1 não está posicionado.")
+EndIf
+
+    
     While (cAliasQry)->(!Eof())
 
         cFluig := (cAliasQry)->C7_XSOLFLU

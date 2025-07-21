@@ -35,7 +35,7 @@ User Function MT094END()
 
 		//GAP 014 - Envio de PC para MV
 		If cTpDoc == 'IP' .and. nOpc == 1
-			//U_INTPCMV(nOpc,@cMsgErr)
+			//U_INTPCMV(nOpc, cDocto, @cMsgErr)
 		Endif
 		//GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição
 		If nOpc == 1 .or. nOpc == 5

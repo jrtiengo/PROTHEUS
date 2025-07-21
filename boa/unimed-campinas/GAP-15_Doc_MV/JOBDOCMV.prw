@@ -79,7 +79,7 @@ User Function DocMVProc(oSelf, lSchedule, nN)
 	Endif
 
 	(cAliasTRB)->(dbCloseArea())
-
+    
 Return()
 
 /*/{Protheus.doc} SchedDef
