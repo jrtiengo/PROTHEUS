@@ -13,17 +13,21 @@ Envio de documento de entrada para o MV - GAP-15
 User Function IntDocMV(nOPC, cMsgErr)
 
 	Local lRet        		:= .T.
-	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")               // URL do Webservice
-	//Local cPath             := ""                                        // esse vai ser específico para cada aplicação, colocar fixo
-	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"teste")              // Usuário do webservice
-	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"teste")              // Senha do webservice
-	//Local cIDCliente        := SuperGetMV("UC_IDCLIMV",.F.,"")             // Id do Cliente na MV
+	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"http://10.210.2.123:8491/jintegra_core/services/WebservicePadrao?Wsdl")	// URL do Webservice
+	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"teste")              													// Usuário do webservice
+	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"teste")              													// Senha do webservice
+	//Local cIDCliente        := SuperGetMV("UC_IDCLIMV",.F.,"")             														// Id do Cliente na MV
 	Local cMsgWS            := ""
 	Local cOperMV           := ""
 	Local oLog        		:= Nil
 	Local jAuxLog     		:= Nil
 	Local cMensagEr		  	:= ""
-	
+	Local cRespXml			:= ""
+	Local oRespXml			:= Nil
+	Local lContinua			:= .T.
+	Local cError			:= ""
+	Local cWarning			:= ""
+
 	SB1->(DbSetOrder(1)) //B1_FILIAL+B1_COD
 	SD1->(DbSetOrder(1)) //D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
 
@@ -44,7 +48,7 @@ User Function IntDocMV(nOPC, cMsgErr)
 		Conout("IntDocMV: Pedido de Compra sem SC!")
 		Return(.T.)
 	Endif
-
+	*/
 	oLog    := CtrlLOG():New()
 	jAuxLog := JsonObject():New()
 	If ! oLog:SetTab("SZL")
@@ -55,36 +59,45 @@ User Function IntDocMV(nOPC, cMsgErr)
 	cOperMV := "I"
 
 	//Montando XML para envio ao MV
-	cMsgWS += '<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
-	cMsgWS += '<Mensagem>'+CRLF
-	cMsgWS += '		<Cabecalho>'+CRLF
-	cMsgWS += '			<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
-	cMsgWS += '			<versaoXML>1</versaoXML>'+CRLF
-	cMsgWS += '			<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
-	cMsgWS += '			<servico>' +'NOTA_ESTOQUE'+ '</servico>'+CRLF
-	cMsgWS += '			<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>'+CRLF
-	cMsgWS += '			<empresaOrigem>' +cFilAnt+ '</empresaOrigem>'+CRLF
-	cMsgWS += '			<sistemaOrigem>' +cPssw+ '</sistemaOrigem>'+CRLF
-	cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
-	cMsgWS += '			<sistemaDestino>1</sistemaDestino>'+CRLF
-	cMsgWS += '			<usuario>' +cUsuario+ '</usuario>'+CRLF
-	cMsgWS += '			<senha>' +cUsuario+ '</senha>'+CRLF
-	cMsgWS += '		</Cabecalho>'+CRLF
-	cMsgWS += '		<NotaFiscal>'+CRLF
-	cMsgWS += '			<idIntegracao>89754</idIntegracao>'+CRLF
-	cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
-	cMsgWS += '			<numeroDocumento>' +SF1->F1_DOC+ '</numeroDocumento>'+CRLF
-	cMsgWS += '			<numeroSerie>' +Alltrim(SF1->F1_SERIE)+ '</numeroSerie>'+CRLF
-	cMsgWS += '			<codigoCfop>' +AllTrim(SD1->D1_CF)+ '</codigoCfop>'+CRLF
-	cMsgWS += '			<numeroCfop>' +AllTrim(SD1->D1_CF)+ '</numeroCfop>'+CRLF
-	cMsgWS += '			<dataEmissao>' +DtoS(SF1->F1_EMISSAO)+ '</dataEmissao>'+CRLF
-	cMsgWS += '			<dataEntrada>' +DtoS(SF1->F1_DTDIGIT)+ '</dataEntrada>'+CRLF
-	cMsgWS += '			<horaEntrada>' +SF1->F1_HORA+ '</horaEntrada>'+CRLF
-	cMsgWS += '			<dataConclusao>' +DtoS(ddatabase) + ' ' + time()+ '</dataConclusao>'+CRLF
-	cMsgWS += '			<codigoOrdemCompraDePara>' +SD1->D1_PEDIDO+ '<codigoOrdemCompraDePara/>'+CRLF
-	cMsgWS += '			<codigoEstoqueDePara>' +SD1->D1_LOCAL+ '</codigoEstoqueDePara>'+CRLF
-	cMsgWS += '			<codigoFornecedorDePara>' +SF1->F1_FORNECE+SF1->F1_LOJA+ '</codigoFornecedorDePara>'+CRLF
-	cMsgWS += '			<tipoFreteDePara>' +SF1->F1_TPFRETE+ '</tipoFreteDePara>'+CRLF
+	//cMsgWS += '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instanc e" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:core="http://core.jintegra.mv.com.br">'+CRLF
+	cMsgWS += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://br.com.mv.jintegra.core.webservicePadrao">'+CRLF
+	cMsgWS += '<soapenv:Header/>'+CRLF
+	cMsgWS += '<soapenv:Body>'+CRLF
+	cMsgWS += '	<web:processar>'+CRLF
+	//cMsgWS += '		<xml><![CDATA['+CRLF
+	cMsgWS += ' <xml xsi:type="soapenc:string" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><![CDATA[<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
+	cMsgWS += '			<mensagem>'+CRLF
+	cMsgWS += '				<Cabecalho>'+CRLF
+	cMsgWS += '					<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
+	cMsgWS += '					<versaoXML>1</versaoXML>'+CRLF
+	cMsgWS += '					<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
+	cMsgWS += '					<servico>' +'NOTA_ESTOQUE'+ '</servico>'+CRLF
+	cMsgWS += '					<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>'+CRLF
+	cMsgWS += '					<empresaOrigem>' +cFilAnt+ '</empresaOrigem>'+CRLF
+	cMsgWS += '					<sistemaOrigem>' +cPssw+ '</sistemaOrigem>'+CRLF
+	cMsgWS += '					<empresaDestino>1</empresaDestino>'+CRLF
+	cMsgWS += '					<sistemaDestino>1</sistemaDestino>'+CRLF
+	cMsgWS += '					<usuario>' +cUsuario+ '</usuario>'+CRLF
+	cMsgWS += '					<senha>' +cUsuario+ '</senha>'+CRLF
+	cMsgWS += '				</Cabecalho>'+CRLF
+	cMsgWS += '				<NotaFiscal>'+CRLF
+	cMsgWS += '					<idIntegracao>'+xIDInt()+'</idIntegracao>'+CRLF
+	cMsgWS += '					<operacao>' +cOperMV+ '</operacao>'+CRLF
+	cMsgWS += '					<codigoEntradaProdutoDePara>'+'1'+ '</codigoEntradaProdutoDePara>'+CRLF //Não sei o que mandar
+	cMsgWS += '					<numeroDocumento>' +SF1->F1_DOC+ '</numeroDocumento>'+CRLF
+	cMsgWS += '					<numeroSerie>' +Alltrim(SF1->F1_SERIE)+ '</numeroSerie>'+CRLF
+	cMsgWS += '					<codigoCfop>' +AllTrim(SD1->D1_CF)+ '</codigoCfop>'+CRLF
+	cMsgWS += '					<numeroCfop>' +AllTrim(SD1->D1_CF)+ '</numeroCfop>'+CRLF
+	cMsgWS += '					<dataEmissao>' +DtoS(SF1->F1_EMISSAO)+ '</dataEmissao>'+CRLF
+	cMsgWS += '					<dataEntrada>' +DtoS(SF1->F1_DTDIGIT)+ '</dataEntrada>'+CRLF
+	cMsgWS += '					<horaEntrada>' +SubStr(Time(), 1, 5) + '</horaEntrada>'+CRLF
+	cMsgWS += '					<dataConclusao>' +DtoS(ddatabase) + ' ' + time()+ '</dataConclusao>'+CRLF
+	cMsgWS += '					<consignado>' +'N'+ '</consignado>'+CRLF //Tem que definir onde buscar essa informação S/N
+	cMsgWS += '					<codigoOrdemCompraDePara>' +SD1->D1_PEDIDO+ '</codigoOrdemCompraDePara>'+CRLF
+	cMsgWS += '					<codigoEstoqueDePara>' +SD1->D1_LOCAL+ '</codigoEstoqueDePara>'+CRLF
+	cMsgWS += '					<codigoFornecedorDePara>' +SF1->F1_FORNECE+SF1->F1_LOJA+ '</codigoFornecedorDePara>'+CRLF
+	cMsgWS += '					<tipoFreteDePara>' +SF1->F1_TPFRETE+ '</tipoFreteDePara>'+CRLF
+	cMsgWS += '					<tipoEntrega>' +'T'+ '</tipoEntrega>'+CRLF // T- TOTAL - P - PARCIAL VOU DEIXAR TOTAL POR ENQUANTO
 
 	//Se for CIF, o valor do frete é incluiso na nota
 	If SF1->F1_TPFRETE == 'C'
@@ -100,8 +113,8 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cMsgWS += '			<listaDuplicata>'+CRLF
 		While ! SE2->(Eof()) .and. SE2->(E2_FORNECE+E2_LOJA+E2_PREFIXO+E2_NUM) == cChave
 			cMsgWS += '             <Duplicata>'+CRLF
-			cMsgWS += '                <numeroDuplicata>' +SE2->E2_PARCELA+ '</parcelaDuplicata>'+CRLF
-			cMsgWS += '                <dataDuplicata>' +DtoS(SE2->E2_VENCREA)+ '</dataVencimento>'+CRLF
+			cMsgWS += '                <numeroDuplicata>' +SE2->E2_PARCELA+ '</numeroDuplicata>'+CRLF
+			cMsgWS += '                <dataDuplicata>' +DtoS(SE2->E2_VENCREA)+ '</dataDuplicata>'+CRLF
 			cMsgWS += '                <valorTotalDuplicata>' +cValtoChar(SE2->E2_VALOR)+ '</valorTotalDuplicata>'+CRLF
 			cMsgWS += '				</Duplicata>'+CRLF
 			SE2->(DbSkip())
@@ -127,26 +140,34 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cMsgWS += '							<codigoLote>' +SD1->D1_LOTECTL+ '</codigoLote>'+CRLF
 		cMsgWS += '							<quantidadeEntrada>' +cValtoChar(SD1->D1_QUANT)+ '</quantidadeEntrada>'+CRLF
 		cMsgWS += '							<dataValidade>' +dTos(SD1->D1_DTVALID)+ '</dataValidade>'+CRLF
-		cMsgWS += '							<descMarcaFabricante>' +Alltrim(Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, 'B1_DESC'))+ '</descMarcaFabricante>'+CRLF
+		cMsgWS += '							<descMarcaFabricante>' +FWNoAccent(Alltrim(Posicione('SB1', 1, FWxFilial('SB1')+SD1->D1_COD, 'B1_DESC')))+ '</descMarcaFabricante>'+CRLF
 		cMsgWS += '						</LoteProduto>'+CRLF
 		cMsgWS += '					</listaLoteProduto>'+CRLF
 		cMsgWS += '				</Produto>'+CRLF
 		SD1->(DbSkip())
 	Enddo
-	cMsgWS += '		</listaProduto>'+CRLF
-	cMsgWS += '	</NotaFiscal>'+CRLF
-	cMsgWS += '</Mensagem>'+CRLF
+	cMsgWS += '						</listaProduto>'+CRLF
+	cMsgWS += '					</NotaFiscal>'+CRLF
+	cMsgWS += '				</mensagem>'+CRLF
+	cMsgWS += '			]]></xml>'+CRLF
+	cMsgWS += '		</web:processar>'+CRLF
+	cMsgWS += '</soapenv:Body>'+ CRLF
+	cMsgWS += '</soapenv:Envelope>'+CRLF
+
 	//Cria o objeto WSDL
 	oWsdl := TWsdlManager():New()
+
+	//header HTTP SOAPAction
+	oWsdl:lAlwaysSendSA := .T.
 	oWsdl:nTimeout := 10
 
 	//Tenta fazer o Parse da URL
-	lRet := oWsdl:ParseURL(cURL)
+	lContinua := oWsdl:ParseURL(cURL)
 
-	If ! lRet
+	If ! lContinua
 
 		cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
-		cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
+		//cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
 
 		jAuxLog["status"]  := "0"
 		jAuxLog["idinteg"] := ""
@@ -158,27 +179,25 @@ User Function IntDocMV(nOPC, cMsgErr)
 		jAuxLog["hora"]    := Time()
 		jAuxLog["msgresp"] := "error"
 		jAuxLog["msgerr"]  := "Erro ParseURL"
-		jAuxLog["jsonbod"] := cMensagEr
-		jAuxLog["jsonret"] := AnswerFormat(606, "Erro ParseURL: ", cMensagEr)
+		jAuxLog["jsonbod"] := cMsgErr
+		jAuxLog["jsonret"] := AnswerFormat(606, "Erro ParseURL: ", cMsgErr)
 
 		If ! oLog:AddItem(jAuxLog)
-			U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMensagEr, IsBlind())
+			U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 		Endif
 
-		lContinua := .F.
-
+		lRet := .F.
 	EndIf
 
 	If lContinua
 
 		//Define a operação
-		aOps := oWsdl:ListOperations()
-		lRet := oWsdl:SetOperation("___FALTA_DEFINIR_OPERACAO___")
+		lContinua := oWsdl:SetOperation("processar")
 
-		If !lRet
+		If ! lContinua
 
 			cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
-			cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
+			//cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
 
 			jAuxLog["status"]  := "0"
 			jAuxLog["idinteg"] := ""
@@ -190,26 +209,23 @@ User Function IntDocMV(nOPC, cMsgErr)
 			jAuxLog["hora"]    := Time()
 			jAuxLog["msgresp"] := "error"
 			jAuxLog["msgerr"]  := "Erro SetOperation"
-			jAuxLog["jsonbod"] := cMensagEr
-			jAuxLog["jsonret"] := AnswerFormat(606, "Erro SetOperation: ", cMensagEr)
+			jAuxLog["jsonbod"] := cMsgErr
+			jAuxLog["jsonret"] := AnswerFormat(606, "Erro SetOperation: ", cMsgErr)
 
 			If ! oLog:AddItem(jAuxLog)
-				U_AdminMsg("[PrepSendDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMensagEr, IsBlind())
+				U_AdminMsg("[PrepSendDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 			Endif
 
-			lContinua := .F.
-			lRet := .T.
+			lRet := .F.
 		EndIf
 	EndIf
 
 	If lContinua
 
-		//Define se fará a conexão SSL com o servidor de forma anônima, ou seja, sem verificação de certificados ou chaves.
-		oWsdl:lSSLInsecure   := .T.
+		//Envio da mensagem SOAP
+		lContinua := oWsdl:SendSoapMsg(cMsgWS)
 
-		lRet := oWsdl:SendSoapMsg(cMsgWS)
-
-		If ! lRet
+		If ! lContinua
 
 			//Informo no campo que a operação de integração não foi bem sucedida e se foi uma inclusão ou classificação
 			SF1->(RecLock('SF1',.F.))
@@ -218,50 +234,94 @@ User Function IntDocMV(nOPC, cMsgErr)
 			SF1->(MsUnlock())
 
 			cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - " + oWsdl:cError
-			cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Erro SendSoapMsg FaultCode: " + oWsdl:cFaultCode + " - Erro SendSoapMsg: " + oWsdl:cError
+			//cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Erro SendSoapMsg FaultCode: " + oWsdl:cFaultCode + " - Erro SendSoapMsg: " + oWsdl:cError
 
 			jAuxLog["status"]  := "0"
 			jAuxLog["idinteg"] := ""
 			jAuxLog["nomapi"]  := "PrepSendFDoc"
 			jAuxLog["rotina"]  := "PrepSendFDoc"
 			jAuxLog["tabela"]  := "SF1"
-			jAuxLog["recno"]   := 0
+			jAuxLog["recno"]   := SF1->(RecNo())
 			jAuxLog["data"]    := DToS(dDataBase)
 			jAuxLog["hora"]    := Time()
 			jAuxLog["msgresp"] := "error"
 			jAuxLog["msgerr"]  := "Erro SendSoapMsg"
-			jAuxLog["jsonbod"] := cMensagEr
-			jAuxLog["jsonret"] := AnswerFormat(606, "Erro na define da operação", cMensagEr)
+			jAuxLog["jsonbod"] := cMsgErr
+			jAuxLog["jsonret"] := AnswerFormat(606, "Erro na define da operação", cMsgErr)
 
 			If ! oLog:AddItem(jAuxLog)
-				U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMensagEr, IsBlind())
+				U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 			Endif
 
+			lRet := .F.
+
 		Else
-			//Informo no campo que a operação de integração foi bem sucedida e se foi uma inclusão ou classificação
-			SF1->(RecLock('SF1',.F.))
-			SF1->F1_XSTREQ := '1'
-			SF1->F1_XTPREQ := Iif(nOPC == 3, '1', '4')
-			SF1->(MsUnlock())
 
-			cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Sucesso!"
-			cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Sucesso!
+			cRespXml	:= oWsdl:GetSoapResponse()
+			oRespXml	:= XmlParser(cRespXml, "_", @cError, @cWarning)
 
-			jAuxLog["status"]  := "1"
-			jAuxLog["idinteg"] := ""
-			jAuxLog["nomapi"]  := "PrepSendDoc"
-			jAuxLog["rotina"]  := "PrepSendDoc"
-			jAuxLog["tabela"]  := "SF1"
-			jAuxLog["recno"]   := 0
-			jAuxLog["data"]    := DToS(dDataBase)
-			jAuxLog["hora"]    := Time()
-			jAuxLog["msgresp"] := "Sucesso"
-			jAuxLog["msgerr"]  := ""
-			jAuxLog["jsonbod"] := cMensagEr
-			jAuxLog["jsonret"] := AnswerFormat(201, "Integração bem sucecidade!", cMensagEr)
+			oRespXml := XmlChildEx(oRespXml:_SOAPENV_ENVELOPE:_SOAPENV_BODY:_NS1_PROCESSARRESPONSE, "_PROCESSARRETURN")
 
-			If ! oLog:AddItem(jAuxLog)
-				U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMensagEr, IsBlind())
+			If oRespXml <> Nil
+				If !Empty(oRespXml:text)
+					cMensagEr := oRespXml:text
+					lContinua := .F.
+				Else
+					lContinua := .T.
+				Endif
+			Endif
+
+			If ! lContinua
+
+				//Informo no campo que a operação de integração foi bem sucedida e se foi uma inclusão ou classificação
+				SF1->(RecLock('SF1',.F.))
+				SF1->F1_XSTREQ := '1'
+				SF1->F1_XTPREQ := Iif(nOPC == 3, '1', '4')
+				SF1->(MsUnlock())
+
+				cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Sucesso!"
+				//cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Sucesso!
+
+				jAuxLog["status"]  := "1"
+				jAuxLog["idinteg"] := ""
+				jAuxLog["nomapi"]  := "PrepSendDoc"
+				jAuxLog["rotina"]  := "PrepSendDoc"
+				jAuxLog["tabela"]  := "SF1"
+				jAuxLog["recno"]   := SF1->(RecNo())
+				jAuxLog["data"]    := DToS(dDataBase)
+				jAuxLog["hora"]    := Time()
+				jAuxLog["msgresp"] := "Sucesso"
+				jAuxLog["msgerr"]  := ""
+				jAuxLog["jsonbod"] := cMsgErr
+				jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
+
+				If ! oLog:AddItem(jAuxLog)
+					U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+				Endif
+
+				lRet := .F.
+
+			Else
+
+				cMsgErr   += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+ '' + cMensagEr
+				//cMensagEr += "SF1: "+SF1->F1_DOC+ ' ' +SF1->F1_SERIE+ ' ' +SF1->F1_FORNECE+ ' ' +SF1->F1_LOJA+" - Sucesso!
+
+				jAuxLog["status"]  := "1"
+				jAuxLog["idinteg"] := ""
+				jAuxLog["nomapi"]  := "PrepSendDoc"
+				jAuxLog["rotina"]  := "PrepSendDoc"
+				jAuxLog["tabela"]  := "SF1"
+				jAuxLog["recno"]   := SF1->(RecNo())
+				jAuxLog["data"]    := DToS(dDataBase)
+				jAuxLog["hora"]    := Time()
+				jAuxLog["msgresp"] := "Sucesso"
+				jAuxLog["msgerr"]  := ""
+				jAuxLog["jsonbod"] := cMsgErr
+				jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
+
+				If ! oLog:AddItem(jAuxLog)
+					U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+				Endif
 			Endif
 		EndIf
 	EndIf
@@ -314,6 +374,7 @@ Static Function xIDInt()
 	Else
 		cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
 	Endif
+
 	TMP->(dbCloseArea())
 
 Return(cRet)
