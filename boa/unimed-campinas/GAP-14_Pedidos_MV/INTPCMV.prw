@@ -6,14 +6,13 @@ Envio de pedidos de compra para o MV - GAP-14
 @version V 1.00
 @author Tiengo
 @since 28/05/2025
+@Return lRet - Verdadeiro se tudo ok
 /*/
 
 User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 	Local lRet        		:= .T.
-	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")               // URL do Webservice
-	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"")              // Usuário do webservice
-	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"")              // Senha do webservice
+	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")
 	Local cMsgWS            := ""
 	Local cOperMV           := ""
 	Local oLog        		:= Nil
@@ -22,6 +21,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 	Local lContinua			:= .T.
 
 	//Customização para integração com MV, posiciona na SC1 para ver se a origem é MV
+	/*
 	If ! Empty(SC7->C7_NUMSC)
 		SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
 		If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
@@ -37,7 +37,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		Conout("IntPedMV: Pedido de Compra, sem SC!")
 		Return(.T.)
 	Endif
-
+*/
 	oLog    := CtrlLOG():New()
 	jAuxLog := JsonObject():New()
 	If ! oLog:SetTab("SZL")
@@ -53,22 +53,20 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		cMsgWS += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://br.com.mv.jintegra.core.webservicePadrao">'+CRLF
 		cMsgWS += '<soapenv:Header/>'+CRLF
 		cMsgWS += '<soapenv:Body>'+CRLF
-		cMsgWS += '	<web:processar>'+CRLF
-		cMsgWS += ' <xml xsi:type="soapenc:string" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><![CDATA[<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
-		cMsgWS += '			<mensagem>'+CRLF
-		cMsgWS += '				<Cabecalho>'+CRLF
-		cMsgWS += '					<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
-		cMsgWS += '					<versaoXML>1</versaoXML>'+CRLF
-		cMsgWS += '					<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
-		cMsgWS += '					<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
-		cMsgWS += '					<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>'+CRLF
-		cMsgWS += '					<empresaOrigem>' +cFilAnt+ '</empresaOrigem>'+CRLF
-		cMsgWS += '					<sistemaOrigem>' +cPssw+ '</sistemaOrigem>'+CRLF
-		cMsgWS += '					<empresaDestino>1</empresaDestino>'+CRLF
-		cMsgWS += '					<sistemaDestino>1</sistemaDestino>'+CRLF
-		cMsgWS += '					<usuario>' +cUsuario+ '</usuario>'+CRLF
-		cMsgWS += '					<senha>' +cUsuario+ '</senha>'+CRLF
-		cMsgWS += '				</Cabecalho>'+CRLF
+		cMsgWS += '<web:processar>'+CRLF
+		cMsgWS += '<xml xsi:type="soapenc:string" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><![CDATA[<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
+		cMsgWS += '	<mensagem>'+CRLF
+		cMsgWS += '		<Cabecalho>'+CRLF
+		cMsgWS += '			<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
+		cMsgWS += '			<versaoXML>1</versaoXML>'+CRLF
+		cMsgWS += '			<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
+		cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
+		cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
+		cMsgWS += '			<empresaOrigem>' +'1'+ '</empresaOrigem>'+CRLF
+		cMsgWS += '			<sistemaOrigem>' +'1'+ '</sistemaOrigem>'+CRLF
+		cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
+		cMsgWS += '			<sistemaDestino>' +'TOTVS'+ '</sistemaDestino>'+CRLF
+		cMsgWS += '		</Cabecalho>'+CRLF
 		cMsgWS += '		<OrdemCompra>'+CRLF
 		cMsgWS += '			<idIntegracao>89754</idIntegracao>'+CRLF
 		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
@@ -80,7 +78,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
 		cMsgWS += '			<codigoCondicaoPagamentoDePara>' +SC7->C7_COND+ '</codigoCondicaoPagamentoDePara>'+CRLF
 		cMsgWS += '			<tipoFreteDePara>' +SC7->C7_TPFRETE+ '</tipoFreteDePara>'+CRLF
-		cMsgWS += '			<valorTotalNota>' +cValtoChar(SC7->C7_TOTAL)+ '</valorTotalNota>'+CRLF
+		cMsgWS += '			<valorTotalNota>' +xTotal(SC7->C7_NUM)+ '</valorTotalNota>'+CRLF
 
 		//Percorre os itens da nota
 		If SC7->(MsSeek(FWxFilial('SC7') + cDocto))
@@ -94,33 +92,34 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 				cMsgWS += '					<quantidade>' +cValtoChar(SC7->C7_QUANT)+ '</quantidade>'+CRLF
 				cMsgWS += '					<codigoUnidadeProdutoDePara>' +SC7->C7_UM+ '</codigoUnidadeProdutoDePara>'+CRLF
 				cMsgWS += '					<valorUnitario>' +cValtoChar(SC7->C7_PRECO)+ '</valorUnitario>'+CRLF
-
+/*
 				DBSelectArea("SZ0")
-				SZ0->(dbSetOrder(2)) //ZZ0_FILIAL+Z0_NUMPED+Z0_PRODUTO
+				SZ0->(dbSetOrder(2)) //Z0_FILIAL+Z0_NUMPED+Z0_PRODUTO
 				If SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM+SC7->C7_PRODUTO))
 
 					cMsgWS += '             <listaRateioSetor>'+CRLF
 
 					While ! SZ0->(Eof()) .and. SZ0->(Z0_NUMPED+Z0_PRODUTO) == SC7->(C7_NUM+C7_PRODUTO)
 						cMsgWS += '		<rateioSetor>'+CRLF
-						cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
-						cMsgWS += '			<codigoSetorDepara>' +SZ0->Z0_CCUSTO+' </codigoSetorDepara>'+CRLF
-						cMsgWS += '			<quantidadeRateio>' +SZ0->Z0_PERC+ '</quantidadeRateio>'+CRLF
+						cMsgWS += '			<codigoSetorDepara>' +'999999'+' </codigoSetorDepara>'+CRLF
+						cMsgWS += '			<quantidadeRateio>' +cValtoChar(SZ0->Z0_PERC)+ '</quantidadeRateio>'+CRLF
 						cMsgWS += '		</rateioSetor>'+CRLF
 						SZ0->(DbSkip())
 					Enddo
 
 					cMsgWS += '			</listaRateioSetor>'+CRLF
-					cMsgWS += '		</listaRateioSetor>'+CRLF
+
+					cMsgWS += '		</Produto>'+CRLF
 				Endif
+*/
 				SC7->(DbSkip())
 			Enddo
 			cMsgWS += '		</listaProduto>'+CRLF
 		Endif
-		cMsgWS += '		</OrdemCompra>
-		cMsgWS += '</Mensagem>
-		cMsgWS += '			]]></xml>'+CRLF
-		cMsgWS += '		</web:processar>'+CRLF
+		cMsgWS += '		</OrdemCompra>'+CRLF
+		cMsgWS += '	</mensagem>'+CRLF
+		cMsgWS += ']]></xml>'+CRLF
+		cMsgWS += '</web:processar>'+CRLF
 		cMsgWS += '</soapenv:Body>'+CRLF
 		cMsgWS += '</soapenv:Envelope>'+CRLF
 
@@ -140,8 +139,8 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 			jAuxLog["status"]  := "0"
 			jAuxLog["idinteg"] := ""
-			jAuxLog["nomapi"]  := "PrepSendFPed"
-			jAuxLog["rotina"]  := "PrepSendFPed"
+			jAuxLog["nomapi"]  := "PrepSendPed"
+			jAuxLog["rotina"]  := "PrepSendPed"
 			jAuxLog["tabela"]  := "SC7"
 			jAuxLog["recno"]   := SC7->(RecNo())
 			jAuxLog["data"]    := DToS(dDataBase)
@@ -170,8 +169,8 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 				jAuxLog["status"]  := "0"
 				jAuxLog["idinteg"] := ""
-				jAuxLog["nomapi"]  := "PrepSendFPed"
-				jAuxLog["rotina"]  := "PrepSendFPed"
+				jAuxLog["nomapi"]  := "PrepSendPed"
+				jAuxLog["rotina"]  := "PrepSendPed"
 				jAuxLog["tabela"]  := "SC7"
 				jAuxLog["recno"]   := SC7->(RecNo())
 				jAuxLog["data"]    := DToS(dDataBase)
@@ -200,8 +199,8 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 				jAuxLog["status"]  := "0"
 				jAuxLog["idinteg"] := ""
-				jAuxLog["nomapi"]  := "PrepSendFPed"
-				jAuxLog["rotina"]  := "PrepSendFPed"
+				jAuxLog["nomapi"]  := "PrepSendPed"
+				jAuxLog["rotina"]  := "PrepSendPed"
 				jAuxLog["tabela"]  := "SC7"
 				jAuxLog["recno"]   := SC7->(RecNo())
 				jAuxLog["data"]    := DToS(dDataBase)
@@ -212,8 +211,10 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 				jAuxLog["jsonret"] := AnswerFormat(606, "Erro no envio SENDSOAP", cMsgErr)
 
 				If ! oLog:AddItem(jAuxLog)
-					U_AdminMsg("[PrepSendFPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+					U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 				Endif
+
+				lRet := .F.
 
 			Else
 
@@ -243,8 +244,8 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 					jAuxLog["status"]  := "1"
 					jAuxLog["idinteg"] := ""
-					jAuxLog["nomapi"]  := "PrepSendDoc"
-					jAuxLog["rotina"]  := "PrepSendDoc"
+					jAuxLog["nomapi"]  := "PrepSendPed"
+					jAuxLog["rotina"]  := "PrepSendPed"
 					jAuxLog["tabela"]  := "SC7"
 					jAuxLog["recno"]   := SC7->(RecNo())
 					jAuxLog["data"]    := DToS(dDataBase)
@@ -255,19 +256,19 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
 
 					If ! oLog:AddItem(jAuxLog)
-						U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+						U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 					Endif
 
 					lRet := .F.
 
 				Else
 
-					cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" '' + cMensagEr
+					cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + cMsgErr
 
 					jAuxLog["status"]  := "1"
 					jAuxLog["idinteg"] := ""
-					jAuxLog["nomapi"]  := "PrepSendDoc"
-					jAuxLog["rotina"]  := "PrepSendDoc"
+					jAuxLog["nomapi"]  := "PrepSendPed"
+					jAuxLog["rotina"]  := "PrepSendPed"
 					jAuxLog["tabela"]  := "SC7"
 					jAuxLog["recno"]   := SC7->(RecNo())
 					jAuxLog["data"]    := DToS(dDataBase)
@@ -278,8 +279,10 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
 
 					If ! oLog:AddItem(jAuxLog)
-						U_AdminMsg("[PrepSendFDoc] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+						U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 					Endif
+
+					lRet := .F.
 				Endif
 			EndIf
 		EndIf
@@ -308,7 +311,7 @@ Static Function xIDInt()
 
 	MPSysOpenQuery(cQuery, 'TMP')
 
-	If ! TMP->(EoF())
+	If TMP->(EoF())
 		If ! Empty(TMP->C1_XIDINT)
 			cRet := soma1(Alltrim(TMP->C1_XIDINT))
 		Else
@@ -317,6 +320,56 @@ Static Function xIDInt()
 	Else
 		cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
 	Endif
+	TMP->(dbCloseArea())
+
+Return(cRet)
+
+/*/{Protheus.doc} RetDTHR
+description Retorna data e hora atual do servidor formatada conforme documentaÃ§Ã£o
+@type function
+@version  
+@author Marcio Martins
+@since 10/06/2025
+@return variant, return_description
+/*/
+Static Function RetDTHR(dData,lHora)
+
+	Local cRet := ""
+
+	cRet += strZero(year(dData),4)+"-"
+	cRet += strZero(month(dData),2)+"-"
+	cRet += strZero(day(dData),2)
+	If lHora
+		cRet += " "
+		cRet += SubStr(Time(),1,2)+":"
+		cRet += SubStr(Time(),4,2)+":"
+		cRet += SubStr(Time(),7,2)
+	Endif
+
+Return (cRet)
+
+/*/{Protheus.doc} xIDInt
+Função para retornar o total da nota na TAG do XML
+@type function
+@version  
+@author Tiengo Junior
+@since 29/07/2025
+@return variant, return_description
+/*/
+Static Function xTotal(cNum)
+
+	Local cRet			:= ""
+	Local cQuery 		:= ""
+
+	cQuery += " SELECT SUM(C7_TOTAL) TOTAL FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + cNum + "' "
+	cQuery := ChangeQuery(cQuery)
+
+	MPSysOpenQuery(cQuery, 'TMP')
+
+	If ! TMP->(EoF())
+		cRet := cValtoChar(TMP->TOTAL)
+	Endif
+
 	TMP->(dbCloseArea())
 
 Return(cRet)
