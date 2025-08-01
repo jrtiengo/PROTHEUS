@@ -14,9 +14,6 @@ User Function IntDocMV(nOPC, cMsgErr)
 
 	Local lRet        		:= .T.
 	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"http://10.210.2.123:8491/jintegra_core/services/WebservicePadrao?Wsdl")	// URL do Webservice
-	Local cUsuario          := SuperGetMV("UC_USERMV",.F.,"teste")              													// Usuário do webservice
-	Local cPssw             := SuperGetMV("UC_PSSWMV",.F.,"teste")              													// Senha do webservice
-	//Local cIDCliente        := SuperGetMV("UC_IDCLIMV",.F.,"")             														// Id do Cliente na MV
 	Local cMsgWS            := ""
 	Local cOperMV           := ""
 	Local oLog        		:= Nil
@@ -59,45 +56,41 @@ User Function IntDocMV(nOPC, cMsgErr)
 	cOperMV := "I"
 
 	//Montando XML para envio ao MV
-	//cMsgWS += '<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instanc e" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:core="http://core.jintegra.mv.com.br">'+CRLF
 	cMsgWS += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://br.com.mv.jintegra.core.webservicePadrao">'+CRLF
 	cMsgWS += '<soapenv:Header/>'+CRLF
 	cMsgWS += '<soapenv:Body>'+CRLF
-	cMsgWS += '	<web:processar>'+CRLF
-	//cMsgWS += '		<xml><![CDATA['+CRLF
-	cMsgWS += ' <xml xsi:type="soapenc:string" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><![CDATA[<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
-	cMsgWS += '			<mensagem>'+CRLF
-	cMsgWS += '				<Cabecalho>'+CRLF
-	cMsgWS += '					<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
-	cMsgWS += '					<versaoXML>1</versaoXML>'+CRLF
-	cMsgWS += '					<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
-	cMsgWS += '					<servico>' +'NOTA_ESTOQUE'+ '</servico>'+CRLF
-	cMsgWS += '					<dataHora>' +DtoS(ddatabase) + 'HH' + time()+ '</dataHora>'+CRLF
-	cMsgWS += '					<empresaOrigem>' +cFilAnt+ '</empresaOrigem>'+CRLF
-	cMsgWS += '					<sistemaOrigem>' +cPssw+ '</sistemaOrigem>'+CRLF
-	cMsgWS += '					<empresaDestino>1</empresaDestino>'+CRLF
-	cMsgWS += '					<sistemaDestino>1</sistemaDestino>'+CRLF
-	cMsgWS += '					<usuario>' +cUsuario+ '</usuario>'+CRLF
-	cMsgWS += '					<senha>' +cUsuario+ '</senha>'+CRLF
-	cMsgWS += '				</Cabecalho>'+CRLF
-	cMsgWS += '				<NotaFiscal>'+CRLF
-	cMsgWS += '					<idIntegracao>'+xIDInt()+'</idIntegracao>'+CRLF
-	cMsgWS += '					<operacao>' +cOperMV+ '</operacao>'+CRLF
-	cMsgWS += '					<codigoEntradaProdutoDePara>'+'1'+ '</codigoEntradaProdutoDePara>'+CRLF //Não sei o que mandar
-	cMsgWS += '					<numeroDocumento>' +SF1->F1_DOC+ '</numeroDocumento>'+CRLF
-	cMsgWS += '					<numeroSerie>' +Alltrim(SF1->F1_SERIE)+ '</numeroSerie>'+CRLF
-	cMsgWS += '					<codigoCfop>' +AllTrim(SD1->D1_CF)+ '</codigoCfop>'+CRLF
-	cMsgWS += '					<numeroCfop>' +AllTrim(SD1->D1_CF)+ '</numeroCfop>'+CRLF
-	cMsgWS += '					<dataEmissao>' +DtoS(SF1->F1_EMISSAO)+ '</dataEmissao>'+CRLF
-	cMsgWS += '					<dataEntrada>' +DtoS(SF1->F1_DTDIGIT)+ '</dataEntrada>'+CRLF
-	cMsgWS += '					<horaEntrada>' +SubStr(Time(), 1, 5) + '</horaEntrada>'+CRLF
-	cMsgWS += '					<dataConclusao>' +DtoS(ddatabase) + ' ' + time()+ '</dataConclusao>'+CRLF
-	cMsgWS += '					<consignado>' +'N'+ '</consignado>'+CRLF //Tem que definir onde buscar essa informação S/N
-	cMsgWS += '					<codigoOrdemCompraDePara>' +SD1->D1_PEDIDO+ '</codigoOrdemCompraDePara>'+CRLF
-	cMsgWS += '					<codigoEstoqueDePara>' +SD1->D1_LOCAL+ '</codigoEstoqueDePara>'+CRLF
-	cMsgWS += '					<codigoFornecedorDePara>' +SF1->F1_FORNECE+SF1->F1_LOJA+ '</codigoFornecedorDePara>'+CRLF
-	cMsgWS += '					<tipoFreteDePara>' +SF1->F1_TPFRETE+ '</tipoFreteDePara>'+CRLF
-	cMsgWS += '					<tipoEntrega>' +'T'+ '</tipoEntrega>'+CRLF // T- TOTAL - P - PARCIAL VOU DEIXAR TOTAL POR ENQUANTO
+	cMsgWS += '<web:processar>'+CRLF
+	cMsgWS += '<xml xsi:type="soapenc:string" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"><![CDATA[<?xml version="1.0" encoding="ISO-8859-1"?>'+CRLF
+	cMsgWS += '	<mensagem>'+CRLF
+	cMsgWS += '		<Cabecalho>'+CRLF
+	cMsgWS += '			<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF
+	cMsgWS += '			<versaoXML>1</versaoXML>'+CRLF
+	cMsgWS += '			<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
+	cMsgWS += '			<servico>' +'NOTA_ESTOQUE'+ '</servico>'+CRLF
+	cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
+	cMsgWS += '			<empresaOrigem>' +'1'+ '</empresaOrigem>'+CRLF
+	cMsgWS += '			<sistemaOrigem>' +'1'+ '</sistemaOrigem>'+CRLF
+	cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
+	cMsgWS += '			<sistemaDestino>' +'TOTVS'+ '</sistemaDestino>'+CRLF
+	cMsgWS += '		</Cabecalho>'+CRLF
+	cMsgWS += '		<NotaFiscal>'+CRLF
+	cMsgWS += '			<idIntegracao>'+xIDInt()+'</idIntegracao>'+CRLF
+	cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
+	cMsgWS += '			<codigoEntradaProdutoDePara>'+'1'+ '</codigoEntradaProdutoDePara>'+CRLF //Não sei o que mandar
+	cMsgWS += '			<numeroDocumento>' +SF1->F1_DOC+ '</numeroDocumento>'+CRLF
+	cMsgWS += '			<numeroSerie>' +Alltrim(SF1->F1_SERIE)+ '</numeroSerie>'+CRLF
+	cMsgWS += '			<codigoCfop>' +AllTrim(SD1->D1_CF)+ '</codigoCfop>'+CRLF
+	cMsgWS += '			<numeroCfop>' +AllTrim(SD1->D1_CF)+ '</numeroCfop>'+CRLF
+	cMsgWS += '			<dataEmissao>' +DtoS(SF1->F1_EMISSAO)+ '</dataEmissao>'+CRLF
+	cMsgWS += '			<dataEntrada>' +DtoS(SF1->F1_DTDIGIT)+ '</dataEntrada>'+CRLF
+	cMsgWS += '			<horaEntrada>' +SubStr(Time(), 1, 5) + '</horaEntrada>'+CRLF
+	cMsgWS += '			<dataConclusao>' +DtoS(ddatabase) + ' ' + time()+ '</dataConclusao>'+CRLF
+	cMsgWS += '			<consignado>' +'N'+ '</consignado>'+CRLF //Tem que definir onde buscar essa informação S/N
+	cMsgWS += '			<codigoOrdemCompraDePara>' +SD1->D1_PEDIDO+ '</codigoOrdemCompraDePara>'+CRLF
+	cMsgWS += '			<codigoEstoqueDePara>' +SD1->D1_LOCAL+ '</codigoEstoqueDePara>'+CRLF
+	cMsgWS += '			<codigoFornecedorDePara>' +SF1->F1_FORNECE+SF1->F1_LOJA+ '</codigoFornecedorDePara>'+CRLF
+	cMsgWS += '			<tipoFreteDePara>' +SF1->F1_TPFRETE+ '</tipoFreteDePara>'+CRLF
+	cMsgWS += '			<tipoEntrega>' +'T'+ '</tipoEntrega>'+CRLF // T- TOTAL - P - PARCIAL VOU DEIXAR TOTAL POR ENQUANTO
 
 	//Se for CIF, o valor do frete é incluiso na nota
 	If SF1->F1_TPFRETE == 'C'
@@ -146,11 +139,11 @@ User Function IntDocMV(nOPC, cMsgErr)
 		cMsgWS += '				</Produto>'+CRLF
 		SD1->(DbSkip())
 	Enddo
-	cMsgWS += '						</listaProduto>'+CRLF
-	cMsgWS += '					</NotaFiscal>'+CRLF
-	cMsgWS += '				</mensagem>'+CRLF
-	cMsgWS += '			]]></xml>'+CRLF
-	cMsgWS += '		</web:processar>'+CRLF
+	cMsgWS += '			</listaProduto>'+CRLF
+	cMsgWS += '		</NotaFiscal>'+CRLF
+	cMsgWS += '	</mensagem>'+CRLF
+	cMsgWS += ']]></xml>'+CRLF
+	cMsgWS += '</web:processar>'+CRLF
 	cMsgWS += '</soapenv:Body>'+ CRLF
 	cMsgWS += '</soapenv:Envelope>'+CRLF
 
@@ -378,3 +371,27 @@ Static Function xIDInt()
 	TMP->(dbCloseArea())
 
 Return(cRet)
+
+/*/{Protheus.doc} RetDTHR
+description Retorna data e hora atual do servidor formatada conforme documentaÃ§Ã£o
+@type function
+@version  
+@author Marcio Martins
+@since 10/06/2025
+@return variant, return_description
+/*/
+Static Function RetDTHR(dData,lHora)
+
+	Local cRet := ""
+
+	cRet += strZero(year(dData),4)+"-"
+	cRet += strZero(month(dData),2)+"-"
+	cRet += strZero(day(dData),2)
+	If lHora
+		cRet += " "
+		cRet += SubStr(Time(),1,2)+":"
+		cRet += SubStr(Time(),4,2)+":"
+		cRet += SubStr(Time(),7,2)
+	Endif
+
+Return cRet

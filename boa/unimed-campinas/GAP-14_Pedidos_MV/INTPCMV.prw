@@ -68,7 +68,6 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		cMsgWS += '			<sistemaDestino>' +'TOTVS'+ '</sistemaDestino>'+CRLF
 		cMsgWS += '		</Cabecalho>'+CRLF
 		cMsgWS += '		<OrdemCompra>'+CRLF
-		cMsgWS += '			<idIntegracao>89754</idIntegracao>'+CRLF
 		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
 		cMsgWS += '			<codigoOrdemCompraDePara>' +cDocto+ '</codigoOrdemCompraDePara>'+CRLF
 		cMsgWS += '			<dataHoraEmissao>' +DtoS(SC7->C7_EMISSAO) + ' ' + time()+ '</dataHoraEmissao>'+CRLF
@@ -76,9 +75,14 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		cMsgWS += '			<codigoEstoqueDePara>' +SC7->C7_LOCAL+ '</codigoEstoqueDePara>'+CRLF
 		cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
 		cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
-		cMsgWS += '			<codigoCondicaoPagamentoDePara>' +SC7->C7_COND+ '</codigoCondicaoPagamentoDePara>'+CRLF
-		cMsgWS += '			<tipoFreteDePara>' +SC7->C7_TPFRETE+ '</tipoFreteDePara>'+CRLF
+		cMsgWS += '			<codigoCondicaoPagamento>' +'1'+ '</codigoCondicaoPagamento>'+CRLF
+		cMsgWS += '			<tipoFreteDePara>' +'C'+ '</tipoFreteDePara>'+CRLF
 		cMsgWS += '			<valorTotalNota>' +xTotal(SC7->C7_NUM)+ '</valorTotalNota>'+CRLF
+		cMsgWS += '			<tipoPedido>' +'P'+ '</tipoPedido>'+CRLF
+		cMsgWS += '			<tipoSituacao>' +'T'+ '</tipoSituacao>'+CRLF
+		cMsgWS += ' 		<autorizado>' +'S'+ '</autorizado>'+CRLF
+		cMsgWS += '			<codigoUsuarioAutorizador>' +'DBAMV'+ '</codigoUsuarioAutorizador>'+CRLF
+		cMsgWS += '			<descUsuarioAutorizador>' +'DBAMV'+ '</descUsuarioAutorizador>'+CRLF
 
 		//Percorre os itens da nota
 		If SC7->(MsSeek(FWxFilial('SC7') + cDocto))
@@ -92,26 +96,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 				cMsgWS += '					<quantidade>' +cValtoChar(SC7->C7_QUANT)+ '</quantidade>'+CRLF
 				cMsgWS += '					<codigoUnidadeProdutoDePara>' +SC7->C7_UM+ '</codigoUnidadeProdutoDePara>'+CRLF
 				cMsgWS += '					<valorUnitario>' +cValtoChar(SC7->C7_PRECO)+ '</valorUnitario>'+CRLF
-/*
-				DBSelectArea("SZ0")
-				SZ0->(dbSetOrder(2)) //Z0_FILIAL+Z0_NUMPED+Z0_PRODUTO
-				If SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM+SC7->C7_PRODUTO))
 
-					cMsgWS += '             <listaRateioSetor>'+CRLF
-
-					While ! SZ0->(Eof()) .and. SZ0->(Z0_NUMPED+Z0_PRODUTO) == SC7->(C7_NUM+C7_PRODUTO)
-						cMsgWS += '		<rateioSetor>'+CRLF
-						cMsgWS += '			<codigoSetorDepara>' +'999999'+' </codigoSetorDepara>'+CRLF
-						cMsgWS += '			<quantidadeRateio>' +cValtoChar(SZ0->Z0_PERC)+ '</quantidadeRateio>'+CRLF
-						cMsgWS += '		</rateioSetor>'+CRLF
-						SZ0->(DbSkip())
-					Enddo
-
-					cMsgWS += '			</listaRateioSetor>'+CRLF
-
-					cMsgWS += '		</Produto>'+CRLF
-				Endif
-*/
 				SC7->(DbSkip())
 			Enddo
 			cMsgWS += '		</listaProduto>'+CRLF

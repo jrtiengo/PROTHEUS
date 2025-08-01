@@ -35,7 +35,9 @@ User Function MT094END()
 
 		//GAP 014 - Envio de PC para MV
 		If cTpDoc == 'IP' .and. nOpc == 1
-			//U_INTPCMV(nOpc, cDocto, @cMsgErr)
+			// If ! U_INTPCMV(nOpc, cDocto, @cMsgErr)
+			//	Aviso('Falha na integração com MV', cMsgErr, {"Ok"}, 3, "",,, .T.)
+			//	Endif
 		Endif
 		//GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição
 		If nOpc == 1 .or. nOpc == 5
@@ -70,3 +72,54 @@ User Function MT094END()
 	FwRestArea(aArea)
 
 Return()
+
+/*/{Protheus.doc} xChkSCR
+Função que verifica se todos os níveis estão liberados
+@type function
+@version V 1.00
+@author Edson Hornberger
+@since 30/09/2024
+@param cDocto, character, Numero do Documento 
+@param cTipo, character, Tipo do Documento
+@return logical, Verdadeiro se todos liberados
+/*/
+Static Function xChkSCR(cDocto as Character, cTipo as Character, nRecnoSCR as Numeric) as Logical
+
+	Local lRet      := .T.                as Logical
+	Local cQuery    := ""                 as Character
+	Local cAliasTmp := GetNextAlias()     as Character
+	Local oError    := ErrorClass():New() as Object
+
+	TRY
+
+		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
+
+		cQuery := "SELECT" + Enter
+		cQuery += " COUNT(*) AS NREGS" + Enter
+		cQuery += "FROM" + Enter
+		cQuery += " " + RetSQLName("SCR") + " SCR" + Enter
+		cQuery += "WHERE" + Enter
+		cQuery += " SCR.CR_FILIAL = '" + xFilial("SCR") + "' AND" + Enter
+		cQuery += " SCR.CR_NUM = '" + cDocto + "' AND" + Enter
+		cQuery += " SCR.CR_TIPO = '" + cTipo + "' AND" + Enter
+		cQuery += " SCR.CR_STATUS NOT IN ('03', '05') AND" + Enter
+		cQuery += " SCR.R_E_C_N_O_ <> " + cValToChar(nRecnoSCR) + " AND" + Enter
+		cQuery += " SCR.D_E_L_E_T_ = ' '"
+
+		cQuery := ChangeQuery(cQuery)
+		TcQuery cQuery New Alias (cAliasTmp)
+		dbSelectArea(cAliasTmp)
+
+		If (cAliasTmp)->NREGS > 0
+
+			lRet := .F.
+
+		EndIf
+
+	CATCH oError
+
+		U_AdminMsg("[xChkSCR] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+
+	ENDTRY
+
+Return lRet
