@@ -1,5 +1,6 @@
 #Include "TOTVS.ch"
 #Include "Protheus.ch"
+#Include "TopConn.ch"
 
 /*/{Protheus.doc} INTPCMV
 Envio de pedidos de compra para o MV - GAP-14
@@ -12,13 +13,17 @@ Envio de pedidos de compra para o MV - GAP-14
 User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 	Local lRet        		:= .T.
-	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"")
+	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"http://10.210.2.123:8491/jintegra_core/services/WebservicePadrao?Wsdl")	// URL do Webservice
 	Local cMsgWS            := ""
 	Local cOperMV           := ""
 	Local oLog        		:= Nil
 	Local jAuxLog     		:= Nil
-	Local cMensagEr		  	:= ""
 	Local lContinua			:= .T.
+	Local cError			:= ""
+	Local cWarning			:= ""
+	Local cMsgOk			:= ""
+	Local cQuery			:= ""
+	Local cAlias			:= ""
 
 	//Customização para integração com MV, posiciona na SC1 para ver se a origem é MV
 	/*
@@ -63,44 +68,55 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
 		cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
 		cMsgWS += '			<empresaOrigem>' +'1'+ '</empresaOrigem>'+CRLF
-		cMsgWS += '			<sistemaOrigem>' +'1'+ '</sistemaOrigem>'+CRLF
-		cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
-		cMsgWS += '			<sistemaDestino>' +'TOTVS'+ '</sistemaDestino>'+CRLF
+		cMsgWS += '			<sistemaOrigem>' +'TOTVS'+ '</sistemaOrigem>'+CRLF
+		cMsgWS += '			<empresaDestino>' +'2'+ '</empresaDestino>'+CRLF
+		cMsgWS += '			<sistemaDestino>' +'1'+ '</sistemaDestino>'+CRLF
 		cMsgWS += '		</Cabecalho>'+CRLF
 		cMsgWS += '		<OrdemCompra>'+CRLF
 		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
 		cMsgWS += '			<codigoOrdemCompraDePara>' +cDocto+ '</codigoOrdemCompraDePara>'+CRLF
 		cMsgWS += '			<dataHoraEmissao>' +DtoS(SC7->C7_EMISSAO) + ' ' + time()+ '</dataHoraEmissao>'+CRLF
-		cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
+		//cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
+		cMsgWS += '			<codigoSolicCompra>72566</codigoSolicCompra>'+CRLF //apagar
 		cMsgWS += '			<codigoEstoqueDePara>' +SC7->C7_LOCAL+ '</codigoEstoqueDePara>'+CRLF
-		cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
-		cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
+		//cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
+		//cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
+		cMsgWS += '			<codigoFornecedor>84</codigoFornecedor>'+CRLF //apagar
+		cMsgWS += '			<cgcCpf>67729178000491</cgcCpf>'+CRLF //apagar
 		cMsgWS += '			<codigoCondicaoPagamento>' +'1'+ '</codigoCondicaoPagamento>'+CRLF
-		cMsgWS += '			<tipoFreteDePara>' +'C'+ '</tipoFreteDePara>'+CRLF
+		cMsgWS += '			<tipoFrete>' +'C'+ '</tipoFrete>'+CRLF
 		cMsgWS += '			<valorTotalNota>' +xTotal(SC7->C7_NUM)+ '</valorTotalNota>'+CRLF
 		cMsgWS += '			<tipoPedido>' +'P'+ '</tipoPedido>'+CRLF
 		cMsgWS += '			<tipoSituacao>' +'T'+ '</tipoSituacao>'+CRLF
-		cMsgWS += ' 		<autorizado>' +'S'+ '</autorizado>'+CRLF
+		cMsgWS += '			<autorizado>' +'S'+ '</autorizado>'+CRLF
 		cMsgWS += '			<codigoUsuarioAutorizador>' +'DBAMV'+ '</codigoUsuarioAutorizador>'+CRLF
 		cMsgWS += '			<descUsuarioAutorizador>' +'DBAMV'+ '</descUsuarioAutorizador>'+CRLF
 
-		//Percorre os itens da nota
-		If SC7->(MsSeek(FWxFilial('SC7') + cDocto))
+		//Query para buscar os Itens do pedido de compra
+		cQuery += " SELECT C7_PRODUTO,C7_QUANT,C7_PRECO
+		cQuery += " FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + cDocto + "' "
+		cQuery := ChangeQuery(cQuery)
+		cAlias := MPSysOpenQuery(cQuery)
 
-			cMsgWS += '		<listaProduto>'+CRLF
+		cMsgWS += '		<listaProduto>'+CRLF
 
-			While ! SC7->(Eof()) .and. SC7->C7_NUM == cDocto
-				cMsgWS += '             <Produto>'+CRLF
-				cMsgWS += '					<operacao>' +cOperMV+ '</operacao>'+CRLF
-				cMsgWS += '					<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
-				cMsgWS += '					<quantidade>' +cValtoChar(SC7->C7_QUANT)+ '</quantidade>'+CRLF
-				cMsgWS += '					<codigoUnidadeProdutoDePara>' +SC7->C7_UM+ '</codigoUnidadeProdutoDePara>'+CRLF
-				cMsgWS += '					<valorUnitario>' +cValtoChar(SC7->C7_PRECO)+ '</valorUnitario>'+CRLF
+		While ! (cAlias)->(EoF())
 
-				SC7->(DbSkip())
-			Enddo
-			cMsgWS += '		</listaProduto>'+CRLF
-		Endif
+			cMsgWS += '		<Produto>'+CRLF
+			cMsgWS += '			<operacao>' +cOperMV+ '</operacao>' + CRLF
+			cMsgWS += '			<codigoProduto>' +'22932'+ '</codigoProduto>' + CRLF //apagar
+			//cMsgWS += '			<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
+			cMsgWS += '			<quantidade>' +cValtoChar((cAlias)->C7_QUANT)+ '</quantidade>' + CRLF
+			cMsgWS += '			<valorUnitario>' +cValtoChar((cAlias)->C7_PRECO)+ '</valorUnitario>' + CRLF
+			cMsgWS += '			<codigoUnidade>' +'UND'+ '</codigoUnidade>' + CRLF //apagar
+			//cMsgWS += '			<codigoUnidade>' +SC7->C7_UM+ '</codigoUnidade>'+CRLF
+			cMsgWS += '			<codigoUnidadeDepara/>' + CRLF
+			cMsgWS += '		</Produto>'+CRLF
+
+			(cAlias)->(DbSkip())
+		EndDo
+
+		cMsgWS += '		</listaProduto>'+CRLF
 		cMsgWS += '		</OrdemCompra>'+CRLF
 		cMsgWS += '	</mensagem>'+CRLF
 		cMsgWS += ']]></xml>'+CRLF
@@ -206,26 +222,33 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 				cRespXml	:= oWsdl:GetSoapResponse()
 				oRespXml	:= XmlParser(cRespXml, "_", @cError, @cWarning)
 
+				//Retorna o objeto do nó XML
 				oRespXml := XmlChildEx(oRespXml:_SOAPENV_ENVELOPE:_SOAPENV_BODY:_NS1_PROCESSARRESPONSE, "_PROCESSARRETURN")
 
 				If oRespXml <> Nil
-					If !Empty(oRespXml:text)
-						cMensagEr := oRespXml:text
-						lContinua := .F.
+
+					cMsgRet		:=  oRespXml:text
+
+					//Verifico se existe a TAG Motivo de Erro
+					If At('<motivoErro>', cMsgRet) > 0
+
+						cMsgErr		:=  cMsgRet
+						lContinua	:= .F.
 					Else
-						lContinua := .T.
+						cMsgOk 		:=  cMsgRet
+						lContinua	:= .T.
 					Endif
 				Endif
 
 				If ! lContinua
 
-					//Informo no campo que a operação de integração foi bem sucedida e se foi uma inclusão ou classificação
+					//Informo que a integração não foi bem sucedida
 					SC7->(RecLock('SC7',.F.))
-					SC7->C7_XSTREQ := '1'
-					SC7->C7_XTPREQ := Iif(nOPC == 3, '1', '')
+					SC7->C7_XSTREQ := '0'
+					//SC7->C7_XTPREQ := Iif(nOPC == 3, '1', '2')
 					SC7->(MsUnlock())
 
-					cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" - Sucesso!"
+					cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" - Erro!"
 
 					jAuxLog["status"]  := "1"
 					jAuxLog["idinteg"] := ""
@@ -235,10 +258,10 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					jAuxLog["recno"]   := SC7->(RecNo())
 					jAuxLog["data"]    := DToS(dDataBase)
 					jAuxLog["hora"]    := Time()
-					jAuxLog["msgresp"] := "Sucesso"
+					jAuxLog["msgresp"] := "Error"
 					jAuxLog["msgerr"]  := ""
-					jAuxLog["jsonbod"] := cMsgErr
-					jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
+					jAuxLog["jsonbod"] := ""
+					jAuxLog["jsonret"] := AnswerFormat(201, "Integração com Falha!", cMsgErr)
 
 					If ! oLog:AddItem(jAuxLog)
 						U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
@@ -247,8 +270,13 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					lRet := .F.
 
 				Else
+					//Informo que a integração não foi bem sucedida
+					SC7->(RecLock('SC7',.F.))
+					SC7->C7_XSTREQ := '1'
+					//SC7->C7_XTPREQ := Iif(nOPC == 3, '1', '2')
+					SC7->(MsUnlock())
 
-					cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - " + cMsgErr
+					cMsgOk   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" - Sucesso!"
 
 					jAuxLog["status"]  := "1"
 					jAuxLog["idinteg"] := ""
@@ -260,18 +288,18 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					jAuxLog["hora"]    := Time()
 					jAuxLog["msgresp"] := "Sucesso"
 					jAuxLog["msgerr"]  := ""
-					jAuxLog["jsonbod"] := cMsgErr
-					jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgErr)
+					jAuxLog["jsonbod"] := ""
+					jAuxLog["jsonret"] := AnswerFormat(201, "Integração realizada com sucesso!", cMsgOk)
 
 					If ! oLog:AddItem(jAuxLog)
-						U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
+						U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgOk, IsBlind())
 					Endif
-
-					lRet := .F.
 				Endif
 			EndIf
 		EndIf
 	Endif
+
+	(cAlias)->(DbCloseArea())
 
 Return(lRet)
 
