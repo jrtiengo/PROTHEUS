@@ -49,7 +49,7 @@ User Function IntDocMV(nOPC, cMsgErr)
 	oLog    := CtrlLOG():New()
 	jAuxLog := JsonObject():New()
 	If ! oLog:SetTab("SZL")
-		U_AdminMsg("[PrepSendFor] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
+		U_AdminMsg("[PrepSendDoc] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
 		Return(.T.)
 	EndIf
 
@@ -69,9 +69,9 @@ User Function IntDocMV(nOPC, cMsgErr)
 	cMsgWS += '			<servico>' +'NOTA_ESTOQUE'+ '</servico>'+CRLF
 	cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
 	cMsgWS += '			<empresaOrigem>' +'1'+ '</empresaOrigem>'+CRLF
-	cMsgWS += '			<sistemaOrigem>' +'1'+ '</sistemaOrigem>'+CRLF
-	cMsgWS += '			<empresaDestino>1</empresaDestino>'+CRLF
-	cMsgWS += '			<sistemaDestino>' +'TOTVS'+ '</sistemaDestino>'+CRLF
+	cMsgWS += '			<sistemaOrigem>' +'TOTVS'+ '</sistemaOrigem>'+CRLF
+	cMsgWS += '			<empresaDestino>' +'2'+ '</empresaDestino>'+CRLF
+	cMsgWS += '			<sistemaDestino>' +'1'+ '</sistemaDestino>'+CRLF
 	cMsgWS += '		</Cabecalho>'+CRLF
 	cMsgWS += '		<NotaFiscal>'+CRLF
 	cMsgWS += '			<idIntegracao>'+xIDInt()+'</idIntegracao>'+CRLF
