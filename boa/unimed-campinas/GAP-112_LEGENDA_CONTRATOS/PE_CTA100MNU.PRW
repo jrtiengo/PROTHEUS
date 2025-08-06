@@ -4,6 +4,7 @@
 
 /*/{Protheus.doc} CNTA300
 Ponto de Entrada Para adicionar botões no menu principal da rotina.
+GAP112
 @type function
 @version 1.0 
 @author Tiengo Jr.
@@ -36,49 +37,75 @@ User Function fSitUC()
 
 	//Realiza o tratamento das situações de acordo com o situação atual do contrato.
 	Do Case
-	Case AllTrim(CN9->CN9_XSITUA) == '02' //de Elaboração para ...
+		//de Elaboração para ...
+	Case AllTrim(CN9->CN9_XSITUA) == '02' .or. AllTrim(CN9->CN9_XSITUA) == '2N'
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '03'})][1]) //Emitido
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '04'})][1]) //Em Aprovação
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '05'})][1]) //Vigente
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2J'})][1]) //Jurídico
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2A'})][1]) //Em Assinatura
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1]) //Em Cancelamento
-	Case AllTrim(CN9->CN9_XSITUA) == '03' //de Emitido para ...
+		//de Emitido para ...
+	Case AllTrim(CN9->CN9_XSITUA) == '03
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '02'})][1])  //Em Elaboração
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1])  //Em Elaboração Área Negócio
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '04'})][1])  //Em Aprovação
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '05'})][1])  //Vigente
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2J'})][1])  //Jurídico
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2A'})][1])  //Em Assinatura
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1])  //Em Cancelamento
+		//de Aprovação para ...
+	Case AllTrim(CN9->CN9_XSITUA) == '04'
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '02'})][1]) //Em Elaboração
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '05'})][1]) //Vigente
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2J'})][1]) //Jurídico
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2A'})][1]) //Em Assinatura
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1]) //Em Cancelamento
-	Case AllTrim(CN9->CN9_XSITUA) == '04' //de Aprovação para ...
+		//de Vigente para ...
+	Case AllTrim(CN9->CN9_XSITUA) == '05'
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '07'})][1]) //Solicita Finalizacao
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1]) //Em Cancelamento
+		//De Sol Finalizacao ...
+	Case AllTrim(CN9->CN9_XSITUA) == '07'
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '08'})][1]) //Finalizado
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '01'})][1]) //Cancelado
+		//de Rejeitado
+	Case AllTrim(CN9->CN9_XSITUA) == '11'
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '02'})][1]) //Em Elaboração
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '05'})][1]) //Vigente
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '01'})][1]) //Cancelado
+		//Juridico - Customizado UC
+	Case AllTrim(CN9->CN9_XSITUA) == '2J'
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2A'})][1]) //Em Assinatura
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '01'})][1]) //Cancelado
+		//Assinatura - Customizado UC
+	Case AllTrim(CN9->CN9_XSITUA) == '2A'
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
 		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2J'})][1]) //Jurídico
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2A'})][1]) //Em Assinatura
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1]) //Em Cancelamento
-	Case AllTrim(CN9->CN9_XSITUA) == '05' //de Vigente para ...
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '02'})][1]) //Em Elaboração
-		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2C'})][1]) //Em Cancelamento
-
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '01'})][1]) //Cancelado
+		//Cancelamento - Customizado UC
+	Case AllTrim(CN9->CN9_XSITUA) == '2C'
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '2N'})][1]) //Em Elaboração Área Negócio
+		aAdd(aSitaux, aSituac[aScan(aSituac,{|x| AllTrim(x[2]) == '01'})][1]) //Cancelado
 	EndCase
 
 	//Validando se o contrato está com pendencias no Fluig ou Docusign
 	If CN9->CN9_XSITUA == '2N'
-		lRet := fCtrFuig(cContra)
+		//lRet := fCtrFuig(cContra)
 		If ! lRet
 			FWAlertWarning('Contrato ainda em "Elaboração Área de negócio" no FLUIG','Atenção')
 		Endif
 
 	Elseif CN9->CN9_XSITUA == '2J'
-		lRet := fCtrFuig(cContra)
+		//lRet := fCtrFuig(cContra)
 		If ! lRet
 			FWAlertWarning('Contrato ainda em "Juridico" no FLUIG','Atenção')
 		Endif
 
 	Elseif CN9->CN9_XSITUA == '2A'
-		lRet := fCtrFuig(cContra)
+		//lRet := fCtrFuig(cContra)
 		If ! lRet
 			FWAlertWarning('Contrato ainda em "Assinatura" no Docusign','Atenção')
 		Endif
@@ -111,11 +138,16 @@ User Function fSitUC()
 		oModal:Activate()
 
 		If (oModal:getButtonSelected() == 1)
-			nOpca := 1
-		Else
-			nOpca:= 2
-			lCont:=.F.
-		EndIf
+
+			// 2J=Jurídico, 2A=Em Assinatura, 2C=Em Cancelamento
+			If oSituCb == '2J' .or. oSituCb == '2A' .or. oSituCb == '2C'
+				RecLock("CN9",.F.)
+				CN9->CN9_XSITUAC := oSituCb
+				CN9->(MsUnlock())
+			Else
+				CN100Situac('CN9',CN9->(Recno()),4, oSituCb,.T.)
+			Endif
+		Endif
 
 		oModal:DeActivate()
 	Endif

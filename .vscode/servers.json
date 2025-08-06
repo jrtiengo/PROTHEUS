@@ -6,7 +6,31 @@
 	"permissions": {
 		"authorizationtoken": ""
 	},
-	"connectedServer": {},
+	"connectedServer": {
+		"id": "mmq39by0klm932a9xnxubpb9hjexh",
+		"type": "totvs_server_protheus",
+		"name": "app_local_2410",
+		"port": 7210,
+		"address": "localhost",
+		"buildVersion": "7.00.240223P",
+		"secure": true,
+		"includes": [
+			"C:\\TOTVS\\protheus12.1.2410\\Protheus\\include"
+		],
+		"environments": [
+			"protheus12.1.2410_rest"
+		],
+		"username": "admin",
+		"environment": "protheus12.1.2410_rest",
+		"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjo3bEFnaTI4ZlpwUjNBVVo2R0lrcGFjT1I3dk0yRUVGelREdGtMeU56N1QwPQ==|djI6MTc1NDQ4MTE5ODowOjE6MQ==.nka45Rfmzg1Sg9yF9Wv/vMIsSfjesYKdnyMDaeLu3jJ5eilfgL3IBF18SV7WTfbfSgu/1E+6fvM6N7Ib5FxQsrZjCz3iSEbHL3FjzL77xS7DQ/s1rLKeOc34zoAeFnG8hajVOXDVS6gY0ltqivoq1PpysLCfSGaEtgjpnMXlqe88Q1YpAJ1imMLJ76IncLrbxeoxrbYkGAICE1i6dRrBiwv0A4a7fFRWNtTe/b3ia7c3e2aLZ/VBwty/41bd0784MTFihXwRK6TuvL/NMOfwgQy7WRH1iHCoogI33KSy3FvT3vvIl1s/1NF0zl/nnxgyflYKmhzafnQs0p6rrsymaw==",
+		"informations": {
+			"permissions": [],
+			"errorMessage": "",
+			"environmentDetectedType": "totvs_server_protheus",
+			"serverDetectedType": "totvs_server_protheus"
+		},
+		"patchGenerateDir": "c:\\temp"
+	},
 	"configurations": [
 		{
 			"id": "mmq39by0klm932a9xnxubpb9hjexh",
@@ -24,7 +48,7 @@
 			],
 			"username": "admin",
 			"environment": "protheus12.1.2410_rest",
-			"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjpUcHFOampaQm90bEZmK01hNTVaUDhhb0ZFYVFaQU5LL0hnK3l2UkVmMm9JPQ==|djI6MTc1NDA1MjkxMTowOjE6MQ==.exbAPwgSMJtokcMN+eGFIOuEkyxdCbktaKdi1RHvt0hOBv3VDafFtDfTytso9a7TzpUbcJYMAMnG8vVon2fSTAmmumn48ydcutsAIBFhGBQltP16Ac+q7qb/v6Myo45p5UOXtVJYij2ZzMr9vKDDY+Gy9ICvMW+46Zf4z6HsDv/W9rpPJWnysVPk2HvG1bq5bEErPqoukvleLU07QerCt9f6t41HLKKqfuxR0z0ImWu3qYMWcWvqkjieKHlb77VUznD++cxoKwXCNBgtBS9j543OTvf6NLoUQtHi4sYFn3zQ3psyAnWI4G/dP1tFB4mP1EE4+9C8lxxfCeV4DHYWTg==",
+			"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjo3bEFnaTI4ZlpwUjNBVVo2R0lrcGFjT1I3dk0yRUVGelREdGtMeU56N1QwPQ==|djI6MTc1NDQ4MTE5ODowOjE6MQ==.nka45Rfmzg1Sg9yF9Wv/vMIsSfjesYKdnyMDaeLu3jJ5eilfgL3IBF18SV7WTfbfSgu/1E+6fvM6N7Ib5FxQsrZjCz3iSEbHL3FjzL77xS7DQ/s1rLKeOc34zoAeFnG8hajVOXDVS6gY0ltqivoq1PpysLCfSGaEtgjpnMXlqe88Q1YpAJ1imMLJ76IncLrbxeoxrbYkGAICE1i6dRrBiwv0A4a7fFRWNtTe/b3ia7c3e2aLZ/VBwty/41bd0784MTFihXwRK6TuvL/NMOfwgQy7WRH1iHCoogI33KSy3FvT3vvIl1s/1NF0zl/nnxgyflYKmhzafnQs0p6rrsymaw==",
 			"informations": {
 				"permissions": [],
 				"errorMessage": "",
@@ -301,7 +325,7 @@
 			"mmq39by0klm932a9xnxubpb9hjexh:protheus12.1.2410_rest",
 			{
 				"id": "mmq39by0klm932a9xnxubpb9hjexh",
-				"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjpUcHFOampaQm90bEZmK01hNTVaUDhhb0ZFYVFaQU5LL0hnK3l2UkVmMm9JPQ==|djI6MTc1NDA1MjkxMTowOjE6MQ==.exbAPwgSMJtokcMN+eGFIOuEkyxdCbktaKdi1RHvt0hOBv3VDafFtDfTytso9a7TzpUbcJYMAMnG8vVon2fSTAmmumn48ydcutsAIBFhGBQltP16Ac+q7qb/v6Myo45p5UOXtVJYij2ZzMr9vKDDY+Gy9ICvMW+46Zf4z6HsDv/W9rpPJWnysVPk2HvG1bq5bEErPqoukvleLU07QerCt9f6t41HLKKqfuxR0z0ImWu3qYMWcWvqkjieKHlb77VUznD++cxoKwXCNBgtBS9j543OTvf6NLoUQtHi4sYFn3zQ3psyAnWI4G/dP1tFB4mP1EE4+9C8lxxfCeV4DHYWTg=="
+				"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjo3bEFnaTI4ZlpwUjNBVVo2R0lrcGFjT1I3dk0yRUVGelREdGtMeU56N1QwPQ==|djI6MTc1NDQ4MTE5ODowOjE6MQ==.nka45Rfmzg1Sg9yF9Wv/vMIsSfjesYKdnyMDaeLu3jJ5eilfgL3IBF18SV7WTfbfSgu/1E+6fvM6N7Ib5FxQsrZjCz3iSEbHL3FjzL77xS7DQ/s1rLKeOc34zoAeFnG8hajVOXDVS6gY0ltqivoq1PpysLCfSGaEtgjpnMXlqe88Q1YpAJ1imMLJ76IncLrbxeoxrbYkGAICE1i6dRrBiwv0A4a7fFRWNtTe/b3ia7c3e2aLZ/VBwty/41bd0784MTFihXwRK6TuvL/NMOfwgQy7WRH1iHCoogI33KSy3FvT3vvIl1s/1NF0zl/nnxgyflYKmhzafnQs0p6rrsymaw=="
 			}
 		],
 		[
@@ -368,5 +392,5 @@
 			}
 		]
 	],
-	"lastConnectedServer": ""
+	"lastConnectedServer": "mmq39by0klm932a9xnxubpb9hjexh"
 }

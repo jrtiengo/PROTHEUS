@@ -19,12 +19,14 @@ description Ponto de entrada no final do pedido de compras
 /*/
 User Function MT120FIM()
 
+	Local aAreaSC1  := SC1->(FwGetArea())           as Array
 	Local aAreaSC7  := SC7->(FwGetArea())           as Array
 	Local aAreaSCR  := SCR->(FwGetArea())           as Array
 	Local nOpcao    := PARAMIXB[01]                 as Numeric
 	Local cNumPC    := PARAMIXB[02]                 as Character
 	Local nOpcA     := PARAMIXB[03]                 as Numeric
 	Local oError    := ErrorClass():New()           as Object
+	Local cMsgErr   := ""                           as Character
 
 	TRY
 
@@ -33,6 +35,16 @@ User Function MT120FIM()
 
 			If Alltrim(SC7->C7_XORINT) == "MV" .And. SC7->C7_XENTPAC == "N" .And. Inclui
 				U_ENVIAPCMV()   // Fonte: ENVIAPCMV.tlpp
+			Endif
+		Endif
+
+		//GAP 014 - Caso seja uma exclusão ou alteração, e existir SC do MV
+		If nOpcA == 1 .and. ! Empty(SC7->C7_NUMSC) .and. (nOpcao == 4 .or. nOpcao == 5)
+			SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+			If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+				If Alltrim(SC1->C1_XORINT) == 'MV'
+					U_INTPCMV(nOpcao, cNumPC, @cMsgErr)
+				Endif
 			Endif
 		Endif
 
@@ -79,6 +91,7 @@ User Function MT120FIM()
 		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 	ENDTRY
 
+	FwRestArea(aAreaSC1)
 	FwRestArea(aAreaSC7)
 	FwRestArea(aAreaSCR)
 

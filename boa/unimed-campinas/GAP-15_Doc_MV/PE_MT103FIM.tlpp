@@ -16,7 +16,7 @@ Após o destravamento de todas as tabelas envolvidas na gravação do documento de 
 @version V 1.00
 @author Marcio Martins 
 @since 4/1/2025
-@obs PARAMIXB[1] - Opção Escolhida pelo usuario no aRotina
+@obs PARAMIXB[1] - Opção Escolhida pelo usuario 
 @obs PARAMIXB[2] - Se o usuario confirmou a operação de gravação da NFECODIGO DE APLICAÇÃO DO USUARIO
 @link https://tdn.totvs.com/pages/releaseview.action?pageId=6085406
 /*/

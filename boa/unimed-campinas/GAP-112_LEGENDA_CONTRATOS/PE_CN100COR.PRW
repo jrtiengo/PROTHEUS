@@ -3,6 +3,7 @@
 
 /*/{Protheus.doc} CN100COR
 Este Ponto de Entrada permite incluir ou alterar as cores das legendas de contratos.
+GAP112
 @type function
 @version 1.0 
 @author Tiengo Jr.
@@ -76,10 +77,8 @@ User Function CN100COR()
 		aAdd(xParam,{"Alltrim(CN9->CN9_SITUAC) == '02' .and. Alltrim(CN9->CN9_XSITUA) == '2J'" ,"BR_PRETO_1"	,"Jurídico"})
 		aAdd(xParam,{"Alltrim(CN9->CN9_SITUAC) == '02' .and. Alltrim(CN9->CN9_XSITUA) == '2A'" ,"BR_PRETO_2"	,"Em Assinatura"})
 		aAdd(xParam,{"Alltrim(CN9->CN9_SITUAC) == '02' .and. Alltrim(CN9->CN9_XSITUA) == '2C'" ,"BR_PRETO_3"	,"Em Cancelamento"})
-
 	EndCase
 
 	aRet := xParam
 
 Return(aRet)
-
