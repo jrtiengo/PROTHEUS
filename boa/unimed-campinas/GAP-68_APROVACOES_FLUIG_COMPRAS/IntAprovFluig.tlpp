@@ -6,35 +6,25 @@
 
 #Define cTitApp "Integração de Documentos Fluig para aprovação"
 
-//-------------------------------------------------------------------
-/*/{Protheus.doc} AprovFluig
+/*/{Protheus.doc} IntAprovFluig
 Função para enviar aprovadores da tabela SCR para o Fluig via REST - GAP068
 @type function
 @author Junior Tiengo
 @since 30/06/2025
 @Param _nOpc    N - Inclusão, Alteração, Exclusão, Cópia 
-@Param cTipo    C - PC = Pedido de Compras, SC = Solicitação de Compras, CTR = Contrato, MED = Medição
+@Param cTipo    C - SC7 = Pedido de Compras, SC1 = Solicitação de Compras, CN9 = Contrato, CND = Medição
 @Param cNum     C - Número do Pedido de Compras, Solicitação de Compras, Contrato ou Medição
 @Param cRevisao C - Revisão do Contrato (apenas para cTipo = CTR)
 @Param cMed     C - Número da Medição (apenas para cTipo = MED)
 @Param cIdFluig C - ID do Fluig 
 /*/
-//-------------------------------------------------------------------
-User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
+
+User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao)
 
 	Local oError        := ErrorClass():New()     				as Object
-	Local oLog          := Nil                 		            as Object
 
 	TRY
-
-		oLog := CtrlLOG():New()
-
-		If ! oLog:SetTab("SZL")
-
-			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
-		EndIf
-
-		If cTipo == 'PC' .or. cTipo == 'SC' .or. cTipo == 'CTR' .or. cTipo == 'MED'
+		If cTipo == 'SC7' .or. cTipo == 'SC1' .or. cTipo == 'CN9' .or. cTipo == 'CND'
 
 			fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
@@ -57,228 +47,231 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 	Local cQuery		:= ""						            as Character
 	Local cBody         := ""						            as Character
 	Local oJSon         := JsonObject():New()		            as Object
-	Local oAprov        := Nil                                  as Object
 	Local cLogErro      := ""						            as Character
-	Local lContinua     := .T.                                  as Logical
 	Local jAuxLog  		:= Nil                 		            as jSon
 	Local oLog          := Nil                 		            as Object
 	Local oError        := ErrorClass():New()     				as Object
-	Local cProces       := GetNewPar('EZ_XPROCES'   ,'')        as Character
 	Local jSonRet		:= JsonObject():New()					as jSon
-	Local cTabela	    := ""                                   as Character
 	Local nRecno		:= 0 									as Numeric
+	Local nItem			:= 0 									as Numeric
+	Local cAprov 		:= ''									as Character
 
 	Try
 
-		oLog := CtrlLOG():New()
+		oLog 	:= CtrlLOG():New()
+		jAuxLog := JsonObject():New()
 
 		If ! oLog:SetTab("SZL")
-
 			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
-		//Caso já tenha um ID de Fluig, irá cancelar primeiro no Fluig.
-		If ! Empty(cIdFluig)
 
-			lContinua := fCancFluig(cIdFluig)
-		EndIf
+		//Monta query para buscar aprovadores
+		cQuery := " SELECT SCR.CR_FILIAL,                           "
+		cQuery += "        SCR.CR_NUM,                              "
+		cQuery += "        SCR.CR_TIPO,                             "
+		cQuery += "        SCR.CR_USER,                             "
+		cQuery += "        SCR.CR_APROV,                            "
+		cQuery += "        SCR.CR_NIVEL,                            "
+		cQuery += "        SCR.CR_STATUS                            "
+		cQuery += "FROM " + RetSQLName("SCR") + " SCR               "
+		cQuery += "WHERE SCR.D_E_L_E_T_ = ' '                       "
+		cQuery += "AND SCR.CR_FILIAL = '" + FWxFilial("SCR") + "'   "
+		cQuery += "AND SCR.CR_NUM = '" + cNum + "'                  "
+		cQuery += "AND SCR.CR_TIPO = '" + SCR->CR_TIPO + "'         "
+		cQuery += "ORDER BY SCR.CR_NIVEL ASC               			"
 
-		//Só irá processar se a operação não for uma exclusão.
-		If lContinua .and. _nOpc <> 5
+		cQuery := ChangeQuery(cQuery)
+		cAlias := MPSysOpenQuery(cQuery)
 
-			//Monta query para buscar aprovadores
-			cQuery := " SELECT SCR.CR_FILIAL,                           "
-			cQuery += "        SCR.CR_NUM,                              "
-			cQuery += "        SCR.CR_TIPO,                             "
-			cQuery += "        SCR.CR_USER,                             "
-			cQuery += "        SCR.CR_APROV,                            "
-			cQuery += "        SCR.CR_NIVEL,                            "
-			cQuery += "        SCR.CR_STATUS                            "
-			cQuery += "FROM " + RetSQLName("SCR") + " SCR               "
-			cQuery += "WHERE SCR.D_E_L_E_T_ = ' '                       "
-			cQuery += "AND SCR.CR_FILIAL = '" + FWxFilial("SCR") + "'   "
-			cQuery += "AND SCR.CR_NUM = '" + cNum + "'                  "
+		If (cAlias)->(EoF())
+			ConOut("AprovFluig: Nenhum documento encontrado na SCR")
+			Return()
+		Endif
 
-			cQuery := ChangeQuery(cQuery)
+		nRecno 	:= &(cTipo)->(RecNo())
 
-			MPSysOpenQuery(cQuery, 'TMP')
+		Do Case
 
-			If ! TMP->(EoF())
+		Case cTipo == 'SC7'
 
-				oAprov["targetState"]      			:= 872
-				oAprov["subProcessTargetState"]		:= "Solicitacao de Compras para aprovacao no Fluig"
-				oAprov["comment"]           		:= "integrador"
-/*
-				{
-				"targetState": 2,
-				"subProcessTargetState": 0,
-				"comment": "Solicitacao de Compras para aprovacao no Fluig",
-				"formFields": {
-				"tp_processo": "FLUIG",
-				"processo": "SOLIC",
-				"aprovador": "daniel.camilo",
-				"status": "Em Aprovação",
-				"aprovadores": "[{ nivel: 01, 'tiengo.junior' }, { nivel: 01, 'daniel.camilo' }]"
-				}
-*/
-				//Cria o objeto formFields se ainda não existir
-				If ! oJSon:HasProperty("formFields")
-					oJSon["formFields"] := JsonObject():New()
-				EndIf
+			oJSon["targetState"]      					:= 2
+			oJSon["subProcessTargetState"]				:= 0
+			oJSon["comment"]							:= "Pedido de materiais de escritório"
 
-				Do Case
+			//Cria o objeto formFields
+			oJSon["formFields"] := JsonObject():New()
+			oJSon["formFields"]["tp_processo"]  		:= "FLUIG"
+			oJSon["formFields"]["processo"]   			:= "PED"
+			oJSon["formFields"]["aprovador"]   			:= PswChave((cAlias)->CR_USER)
+			oJSon["formFields"]["status"]      			:= "Em Aprovação"
+			oJSon["formFields"]["aprovado"]  			:= ""
+			oJSon["formFields"]["dt_solicitacao"]   	:= SC7->C7_EMISSAO
+			oJSon["formFields"]["quantidade_total"] 	:= xTotal(cNum,'quant')
+			oJSon["formFields"]["valor_total"]      	:= xTotal(cNum,'total')
+			oJSon["formFields"]["fornecedor_nome"]   	:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME"))
 
-				Case cTipo == 'PC'
+			// Percorre os itens da SC7 e adiciona ao JSON
+			If SC7->(MSSeek(FWxFilial('SC7') + cNum)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
 
-					cTabela := 'SC7'
-					nRecno 	:= SC7->(RecNo())
+				While ! SC7->(EoF()) .and. SC7->C7_NUM == cNum
 
-					oJSon["comment"] := "Solicitação de Aprovação de Pedido: " + cNum
+					nItem ++
+					oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)]   := SC7->C7_ITEM
+					oJSon["formFields"]["C1_PRODUTO___" + cValtoChar(nItem)]   := SC7->C7_PRODUTO
+					oJSon["formFields"]["C1_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC7->C7_DESCRI)
+					oJSon["formFields"]["C1_UM___"      + cValtoChar(nItem)]   := SC7->C7_UM
+					oJSon["formFields"]["C1_QUANT___"   + cValtoChar(nItem)]   := SC7->C7_QUANT
+					oJSon["formFields"]["C1_PRECO___"   + cValtoChar(nItem)]   := SC7->C7_PRECO
+					oJSon["formFields"]["C1_TOTAL___"   + cValtoChar(nItem)]   := SC7->C7_TOTAL
 
-					oJSon["formFields"]["C7_NUM"]    		:= cNum
-					oJSon["formFields"]["C7_TOTAL"]  		:= SC7->C7_TOTAL
-					oJSon["formFields"]["C7_FORNECE"]		:= SC7->C7_FORNECE
-					oJSon["formFields"]["C7_LOJA"]   		:= SC7->C7_LOJA
-					oJSon["formFields"]["A2_NOME"]   		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME"))
-
-				Case cTipo == 'SC'
-
-					cTabela := 'SC1'
-					nRecno 	:= SC1->(RecNo())
-
-					oJSon["comment"] 						:= "Solicitação de Aprovação de SC: " + cNum
-
-					oJSon["formFields"]["C1_NUM"]       	:= cNum
-					oJSon["formFields"]["C1_EMISSAO"]   	:= SC1->C1_TOTAL
-
-				Case cTipo == 'CTR'
-
-					cTabela := 'CN9'
-					nRecno 	:= CN9->(RecNo())
-
-					oJSon["comment"] 						:= "Solicitação de Aprovação de Contrato: " + cNum
-
-					oJSon["formFields"]["CN9_NUMERO"]		:= cNum
-					oJSon["formFields"]["CN9_REVISA"]		:= cRevisao
-					oJSon["formFields"]["CN9_VLATU"]		:= CN9->CN9_VLATU
-					oJson["formFields"]["CN9_APROV"]		:= CN9->CN9_APROV
-					oJSon["formFields"]["CNC_CODIGO"]		:= CNC->CNC_CODIGO
-					oJSon["formFields"]["CNC_LOJA"]			:= CNC->CNC_LOJA
-					oJSon["formFields"]["A2_NOME"]    		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME"))
-
-				Case cTipo == 'MED'
-
-					cTabela := 'CND'
-					nRecno 	:= CND->(RecNo())
-
-					oJSon["comment"] 						:= "Solicitação de Aprovação de Medição: " + cNum
-
-					oJSon["formFields"]["CND_NUMMED"]		:= cNum
-					oJSon["formFields"]["CND_CONTRA"]		:= CND->CND_CONTRA
-					oJSon["formFields"]["CND_REVISA"]		:= CND->CND_REVISA
-					oJSon["formFields"]["CND_COMPET"]		:= CND->CND_COMPET
-					oJSon["formFields"]["CXN_PARCEL"]		:= CXN->CXN_PARCEL
-					oJSon["formFields"]["CXN_FORNEC"]		:= CXN->CXN_FORNEC
-					oJSon["formFields"]["CXN_LJFORN"]		:= CXN->CXN_LJFORN
-					oJSon["formFields"]["CND_VLTOT"]   		:= CXN->CXN_VLTOT
-				Endcase
-
-				//Percorrer a query para montar os aprovadores
-				While ! TMP->(EoF())
-
-					//Cria o array de aprovadores se ainda não existir
-					If ! oJSon["formFields"]:HasProperty("aprovadores")
-						oJSon["formFields"]["aprovadores"] := {}
-					EndIf
-
-					oAprov := JsonObject():New()
-
-					//Adiciona o aprovador atual ao array
-					oAprov["CR_NUM"]    := TMP->CR_NUM
-					oAprov["CR_TIPO"]   := TMP->CR_TIPO
-					oAprov["CR_USER"]   := TMP->CR_USER
-					oAprov["CR_APROV"]  := TMP->CR_APROV
-					oAprov["CR_NIVEL"]  := TMP->CR_NIVEL
-					oAprov["CR_STATUS"] := TMP->CR_STATUS
-
-					// Adiciona ao array
-					aAdd(oJson["formFields"]["aprovadores"], oAprov)
-
-					TMP->(dbSkip())
+					SC7->(DbSkip())
 				EndDo
-			Else
-				ConOut("AprovFluig: Nenhum documento encontrado")
-				Return()
 			Endif
 
-			//Chma a função para autenticar e enviar o POST
-			cBody := oJson:toJson()
-			jSonRet := u_RetFluigEnv('POST',"'/v2/processes/"+cProces+"/start'",cBody) // Chama a função para obter o token e enviar o POST
+		Case cTipo == 'SC1'
 
-			If jSonRet:HasProperty("processInstanceId")
+			oJSon["targetState"]      					:= 2
+			oJSon["subProcessTargetState"]				:= 0
+			oJSon["comment"]							:= "Solicitacao de Compras para aprovacao no Fluig"
 
-				FreeObj(jAuxLog)
-				jAuxLog             := JsonObject():New()
-				jAuxLog["status"]   := "1"
-				jAuxLog["idinteg"]  := ""
-				jAuxLog["nomapi"]   := "POST_EnvFluig"
-				jAuxLog["rotina"]   := FunName()
-				jAuxLog["tabela"]   := cTabela
-				jAuxLog["recno"]    := nRecno
-				jAuxLog["data"]     := DToS(dDataBase)
-				jAuxLog["hora"]     := Time()
-				jAuxLog["msgresp"]  := "success"
-				jAuxLog["msgerr"]   := ""
-				jAuxLog["jsonbod"]  := jSonRet
-				jAuxLog["jsonret"]  := '{"result": Post Gerado com sucesso!"}'
+			//Cria o objeto formFields
+			oJSon["formFields"] := JsonObject():New()
+			oJSon["formFields"]["tp_processo"]  		:= "FLUIG"
+			oJSon["formFields"]["processo"]   			:= "SOLIC"
+			oJSon["formFields"]["aprovador"]   			:= PswChave((cAlias)->CR_USER)
+			oJSon["formFields"]["status"]      			:= "Em Aprovação"
+			oJSon["formFields"]["aprovado"]  			:= ""
+			oJSon["formFields"]["dt_solicitacao"]   	:= SC1->C1_EMISSAO
+			oJSon["formFields"]["quantidade_total"] 	:= xTotal(cNum,'quant')
+			oJSon["formFields"]["valor_total"]      	:= xTotal(cNum,'total')
 
-				If ! oLog:AddItem(jAuxLog)
-					ConOut(oLog:GetError())
-				EndIf
+			// Percorre os itens da SC1 e adiciona ao JSON
+			If SC1->(MSSeek(FWxFilial('SC1') + cNum)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
 
-				Do Case
-				Case cTipo == 'PC'
-					SC7->(Reclock("SC7", .F.))
-					SC7->C7_XIDFLU := jSonRet['processInstanceId']
-					SC7->(MsUnlock())
-				Case cTipo == 'SC'
-					SC1->(Reclock("SC1", .F.))
-					SC1->C1_XIDFLU := jSonRet['processInstanceId']
-					SC1->(MsUnlock())
-				Case cTipo == 'CTR
-					CN9->(Reclock("CN9", .F.))
-					CN9->CN9_XIDFLU := jSonRet['processInstanceId']
-					CN9->(MsUnlock())
-				Case cTipo == 'MED
-					CND->(Reclock("CND", .F.))
-					CND->CND_XIDFLU := jSonRet['processInstanceId']
-					CND->(MsUnlock())
-				EndCase
-			Else
-				cLogErro   := jSonRet['message']
+				While ! SC1->(EoF()) .and. SC1->C1_NUM == cNum
 
-				FreeObj(jAuxLog)
-				jAuxLog             := JsonObject():New()
-				jAuxLog["status"]   := "0"
-				jAuxLog["idinteg"]  := ""
-				jAuxLog["nomapi"]   := "POST_EnvFluig"
-				jAuxLog["rotina"]   := FunName()
-				jAuxLog["tabela"]   := cTabela
-				jAuxLog["recno"]    := nRecno
-				jAuxLog["data"]     := DToS(dDataBase)
-				jAuxLog["hora"]     := Time()
-				jAuxLog["msgresp"]  := "error"
-				jAuxLog["msgerr"]   := cLogErro
-				jAuxLog["jsonbod"]  := jSonRet
-				jAuxLog["jsonret"]  := jSonRet
+					nItem ++
+					oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)]   := SC1->C1_ITEM
+					oJSon["formFields"]["C1_PRODUTO___" + cValtoChar(nItem)]   := SC1->C1_PRODUTO
+					oJSon["formFields"]["C1_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC1->C1_DESCRI)
+					oJSon["formFields"]["C1_UM___"      + cValtoChar(nItem)]   := SC1->C1_UM
+					oJSon["formFields"]["C1_QUANT___"   + cValtoChar(nItem)]   := SC1->C1_QUANT
+					oJSon["formFields"]["C1_PRECO___"   + cValtoChar(nItem)]   := SC1->C1_PRECO
+					oJSon["formFields"]["C1_TOTAL___"   + cValtoChar(nItem)]   := SC1->C1_TOTAL
 
-				If ! oLog:AddItem(jAuxLog)
-					ConOut(oLog:GetError())
-				EndIf
+					SC1->(DbSkip())
+				EndDo
+			Endif
 
-				U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
+		Case cTipo == 'CN9'
 
+			oJSon["comment"] 						:= "Solicitação de Aprovação de Contrato: " + cNum
+
+			oJSon["formFields"]["CN9_NUMERO"]		:= cNum
+			oJSon["formFields"]["CN9_REVISA"]		:= cRevisao
+			oJSon["formFields"]["CN9_VLATU"]		:= CN9->CN9_VLATU
+			oJson["formFields"]["CN9_APROV"]		:= CN9->CN9_APROV
+			oJSon["formFields"]["CNC_CODIGO"]		:= CNC->CNC_CODIGO
+			oJSon["formFields"]["CNC_LOJA"]			:= CNC->CNC_LOJA
+			oJSon["formFields"]["A2_NOME"]    		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME"))
+
+		Case cTipo == 'CND'
+
+			oJSon["comment"] 						:= "Solicitação de Aprovação de Medição: " + cNum
+
+			oJSon["formFields"]["CND_NUMMED"]		:= cNum
+			oJSon["formFields"]["CND_CONTRA"]		:= CND->CND_CONTRA
+			oJSon["formFields"]["CND_REVISA"]		:= CND->CND_REVISA
+			oJSon["formFields"]["CND_COMPET"]		:= CND->CND_COMPET
+			oJSon["formFields"]["CXN_PARCEL"]		:= CXN->CXN_PARCEL
+			oJSon["formFields"]["CXN_FORNEC"]		:= CXN->CXN_FORNEC
+			oJSon["formFields"]["CXN_LJFORN"]		:= CXN->CXN_LJFORN
+			oJSon["formFields"]["CND_VLTOT"]   		:= CXN->CXN_VLTOT
+		Endcase
+
+		//Percorrer a query para montar os aprovadores
+		cAprov := "["
+		While ! (cAlias)->(EoF())
+
+			//cAprov += '{ "nivel": "' + (cAlias)->CR_NIVEL + '", "usuario": "' + PswChave((cAlias)->CR_USER) + '" },'
+			cAprov += '{ "nivel": ' + AllTrim(Str(Val((cAlias)->CR_NIVEL)))
+			cAprov += '", "usuario": "' + PswChave((cAlias)->CR_USER) + '" },'
+
+			(cAlias)->(dbSkip())
+		EndDo
+
+		//remove a último vírgula
+		cAprov := Left(cAprov, Len(cAprov) - 1)
+		cAprov += "]"
+
+		//atribua o array completo ao objeto aprovadores.
+		oJson["formFields"]["aprovacoes"] := cAprov
+
+		//Chma a função para autenticar e enviar o POST
+		cBody := oJson:toJson()
+		jSonRet := u_RetFluigEnv('POST',"/process-management/api/v2/processes/WKF_APROVACOES/start",cBody) // Chama a função para obter o token e enviar o POST
+
+		If jSonRet:HasProperty("processInstanceId")
+
+			FreeObj(jAuxLog)
+			jAuxLog             := JsonObject():New()
+			jAuxLog["status"]   := "1"
+			jAuxLog["idinteg"]  := ""
+			jAuxLog["nomapi"]   := "POST_EnvFluig"
+			jAuxLog["rotina"]   := FunName()
+			jAuxLog["tabela"]   := cTipo
+			jAuxLog["recno"]    := nRecno
+			jAuxLog["data"]     := DToS(dDataBase)
+			jAuxLog["hora"]     := Time()
+			jAuxLog["msgresp"]  := "success"
+			jAuxLog["msgerr"]   := ""
+			jAuxLog["jsonbod"]  := oJson
+			jAuxLog["jsonret"]  := jSonRet
+
+			If ! oLog:AddItem(jAuxLog)
+				ConOut(oLog:GetError())
 			EndIf
-		Endif
+
+			Do Case
+			Case cTipo == 'SC7'
+				SC7->(Reclock("SC7", .F.))
+				SC7->C7_XIDFLU := jSonRet['processInstanceId']
+				SC7->(MsUnlock())
+			Case cTipo == 'SC1'
+				SC1->(Reclock("SC1", .F.))
+				SC1->C1_XIDFLU := jSonRet['processInstanceId']
+				SC1->(MsUnlock())
+			Case cTipo == 'CN9'
+				CN9->(Reclock("CN9", .F.))
+				CN9->CN9_XIDFLU := jSonRet['processInstanceId']
+				CN9->(MsUnlock())
+			Case cTipo == 'CND'
+				CND->(Reclock("CND", .F.))
+				CND->CND_XIDFLU := jSonRet['processInstanceId']
+				CND->(MsUnlock())
+			EndCase
+		Else
+			cLogErro   := jSonRet['message']
+
+			FreeObj(jAuxLog)
+			jAuxLog             := JsonObject():New()
+			jAuxLog["status"]   := "0"
+			jAuxLog["idinteg"]  := ""
+			jAuxLog["nomapi"]   := "POST_EnvFluig"
+			jAuxLog["rotina"]   := FunName()
+			jAuxLog["tabela"]   := cTipo
+			jAuxLog["recno"]    := nRecno
+			jAuxLog["data"]     := DToS(dDataBase)
+			jAuxLog["hora"]     := Time()
+			jAuxLog["msgresp"]  := "error"
+			jAuxLog["msgerr"]   := cLogErro
+			jAuxLog["jsonbod"]  := oJson
+			jAuxLog["jsonret"]  := jSonRet
+
+			If ! oLog:AddItem(jAuxLog)
+				ConOut(oLog:GetError())
+			EndIf
+		EndIf
 
 	CATCH oError
 
@@ -288,10 +281,19 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 
 Return()
 
-//Cancela o processo no Fluig
-Static Function fCancFluig(cIDFluig)
+/*/{Protheus.doc} IntCancFluig
+Função para enviar o cancelamento para o Fluig via REST - GAP068
+@type function
+@author Junior Tiengo
+@since 30/06/2025
+@Param cTabela  C - Tabela que está posicionada
+@Param cIdFluig C - ID do Fluig 
+@Param nRecno   N - Número da linha da tabela
+/*/
 
-	Local oJsonCancel 	:=  JsonObject():New()                  as Object
+User Function IntCancFluig(cTabela, cIDFluig, nRecno)
+
+	Local oJsonCancel 	:= JsonObject():New()                  	as Object
 	Local lCancela    	:= .T.                                  as Logical
 	Local cBody		 	:= ''					            	as Character
 	Local oError        := ErrorClass():New()     				as Object
@@ -300,15 +302,15 @@ Static Function fCancFluig(cIDFluig)
 	Try
 
 		//Montando o Body do cancelamento
-		oJsonCancel["processInstanceId"] := cIDFluig
+		oJsonCancel["processInstanceId"] := 872
 		oJsonCancel["cancelText"]        := "Solicitação Cancelada Automaticamente pelo ERP Protheus"
-		oJsonCancel["replacedId"]        := "integrador"
+		oJsonCancel["replacedId"]        := cIDFluig
 
 		cBody := oJsonCancel:toJson()
 
 		//Chma a função para autenticar e enviar o POST
 		cBody := oJson:toJson()
-		jSonRet := u_RetFluigEnv('POST',"/2.0/workflows/cancelInstance'",cBody)
+		jSonRet := u_RetFluigEnv('POST',"/api/public/2.0/workflows/cancelInstance'",cBody)
 
 		If jSonRet:HasProperty("processInstanceId")
 
@@ -324,8 +326,8 @@ Static Function fCancFluig(cIDFluig)
 			jAuxLog["hora"]     := Time()
 			jAuxLog["msgresp"]  := "success"
 			jAuxLog["msgerr"]   := ""
-			jAuxLog["jsonbod"]  := jSonRet
-			jAuxLog["jsonret"]  := '{"result": Post Gerado com sucesso!"}'
+			jAuxLog["jsonbod"]  := oJson
+			jAuxLog["jsonret"]  := jSonRet
 
 			If ! oLog:AddItem(jAuxLog)
 				ConOut(oLog:GetError())
@@ -345,14 +347,12 @@ Static Function fCancFluig(cIDFluig)
 			jAuxLog["hora"]     := Time()
 			jAuxLog["msgresp"]  := "error"
 			jAuxLog["msgerr"]   := cLogErro
-			jAuxLog["jsonbod"]  := jSonRet
+			jAuxLog["jsonbod"]  := oJson
 			jAuxLog["jsonret"]  := jSonRet
 
 			If ! oLog:AddItem(jAuxLog)
 				ConOut(oLog:GetError())
 			EndIf
-
-			U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
 
 			lCancela := .F.
 
@@ -452,3 +452,36 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 	ENDTRY
 
 Return()
+
+/*/{Protheus.doc} xIDInt
+Função para retornar o total da nota na TAG do XML
+@type function
+@version  
+@author Tiengo Junior
+@since 29/07/2025
+@return variant, return_description
+/*/
+Static Function xTotal(cNum,cTipo)
+
+	Local nRet			:= 0
+	Local cQuery 		:= ""
+	Local cAlias		:= ""
+
+	cQuery += "SELECT SUM(C1_TOTAL) TOTAL, SUM(C1_QUANT) QUANT FROM " + RetSqlName("SC1") + " WHERE D_E_L_E_T_ = ' ' AND C1_NUM = '" + cNum + "'"
+	cQuery += "UNION ALL "
+	cQuery += "SELECT SUM(C7_TOTAL) TOTAL, SUM(C7_QUANT) QUANT FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + cNum + "'"
+
+	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
+
+	If ! (cAlias)->(EoF())
+		If cTipo == 'quant'
+			nRet := (cAlias)->QUANT
+		Else
+			nRet := (cAlias)->TOTAL
+		Endif
+	Endif
+
+	(cAlias)->(dbCloseArea())
+
+Return(nRet)

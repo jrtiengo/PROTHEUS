@@ -80,6 +80,7 @@ User Function IntDocMV(nOPC, cMsgErr)
 	cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
 	cMsgWS += '			<codigoEntradaProdutoDePara>' +SF1->(F1_FILIAL+F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA)+ '</codigoEntradaProdutoDePara>'+CRLF
 	cMSgWS += '			<tipoEntrada>N</tipoEntrada>'+CRLF
+	cMSgWS += '			<codigoTipoDocumento>1</codigoTipoDocumento>'+CRLF
 	cMsgWS += '			<numeroDocumento>' +SF1->F1_DOC+ '</numeroDocumento>'+CRLF
 	cMsgWS += '			<numeroSerie>' +Alltrim(SF1->F1_SERIE)+ '</numeroSerie>'+CRLF
 	cMsgWS += '			<codigoCfop>' +'1'+ '</codigoCfop>'+CRLF //Codigo do MV

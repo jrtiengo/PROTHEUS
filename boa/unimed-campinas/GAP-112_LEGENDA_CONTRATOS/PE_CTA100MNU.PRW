@@ -2,7 +2,7 @@
 #INCLUDE "FWBROWSE.CH"
 #INCLUDE "FWMVCDEF.CH"
 
-/*/{Protheus.doc} CNTA300
+/*/{Protheus.doc} CTA100MNU
 Ponto de Entrada Para adicionar botões no menu principal da rotina.
 GAP112
 @type function
@@ -14,7 +14,6 @@ GAP112
 
 User Function CTA100MNU()
 
-	//GAP 112 - Adiciona a opção de Situação do Contrato especifico da Unimed Campinas no menu principal.
 	ADD OPTION aRotina TITLE "#Situação UC" ACTION "u_fSitUC()" OPERATION 4 ACCESS 0
 
 Return()
@@ -145,6 +144,10 @@ User Function fSitUC()
 				CN9->CN9_XSITUAC := oSituCb
 				CN9->(MsUnlock())
 			Else
+				RecLock("CN9",.F.)
+				CN9->CN9_XSITUAC := oSituCb
+				CN9->(MsUnlock())
+
 				CN100Situac('CN9',CN9->(Recno()),4, oSituCb,.T.)
 			Endif
 		Endif

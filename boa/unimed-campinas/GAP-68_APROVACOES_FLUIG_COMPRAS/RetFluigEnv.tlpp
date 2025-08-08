@@ -17,17 +17,16 @@ Retorna o token para acesso a API FLUIG GAP-68
 
 User Function RetFluigEnv(cTipo, cEPFluig, cBody)
 
-    Local cStringJson   := ''               as Character
-    Local jInfoRet      := Nil              as jSon
-    Local cResultado    := ''               as Character
-    Local oClientFluig  := Nil              as Object
-    Local lContinua     := .T.              as Logical
-    Local cUrl          := GetNewPar('EZ_XFRMAPR'   ,'https://devfluig.xplanning.com.br')                                           //Armazenará a URL base da API do Fluig (ex: https://seuservidor.fluig.com/api).
-	Local cProces       := GetNewPar('EZ_XPROCES'   ,'WKF_CADASTRO_DE_CLIENTES')                                                    //Armazenará o processId (identificador do processo) no Fluig que será iniciado.
-	Local cCkey         := GetNewPar('EZ_XCKEY'     ,'integrador')                                                                  //Consumer Key para autenticação OAuth 1.0a.
-	Local cCsecret      := GetNewPar('EZ_XCSECR'    ,'integrador')                                                                  //Consumer Secret para autenticação OAuth 1.0a.
-	Local cToken        := GetNewPar('EZ_XTOKE'     ,'2c6f6753-fdb8-4e2a-9ee4-40698e77e814')                                        //Access Token para autenticação OAuth 1.0a.
-	Local cTSecret      := GetNewPar('EZ_XSECRE'    ,'5c1a2e24-e77c-4db1-8ff1-5db45dd14e55e7bc8d46-34fa-44e6-9ccb-752986aafa16')    //Token Secret para autenticação OAuth 1.0a.
+	Local cStringJson   := ''
+	Local jInfoRet      := Nil
+	Local cResultado    := ''
+	Local oClientFluig  := Nil
+	Local lContinua     := .T.
+	Local cUrl          := GetNewPar('EZ_XFRMAPR'   ,'https://devfluig.xplanning.com.br')                                         //Armazenará a URL base da API do Fluig
+	Local cCkey         := GetNewPar('EZ_XCKEY'     ,'integrador')                                                                //Consumer Key para autenticação OAuth 1.0a.
+	Local cCsecret      := GetNewPar('EZ_XCSECR'    ,'integrador')                                                                //Consumer Secret para autenticação OAuth 1.0a.
+	Local cToken        := GetNewPar('EZ_XTOKE'     ,'5835717e-a734-4bf1-ba56-26bfeda0bfeb')                                      //Access Token para autenticação OAuth 1.0a.
+	Local cTSecret      := GetNewPar('EZ_XSECRE'    ,'35223677-0415-4e7a-8a7e-54c5b91f0ab9643a9254-f8d4-4ec4-a74f-cc3a6e24e07e')  //Token Secret para autenticação OAuth 1.0a.
 
 	//Pega o JSON do Body
 	jInfoRet            := JsonObject():New()
@@ -53,8 +52,8 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody)
 
 		//Se for POST, executa a instrução de autenticação
 		If  (cTipo == 'POST')
-			//cResultado:= oClientFluig:Post(cUrl+cEPFluig,"",cBody)
-            cResultado:= oClientFluig:Post(cUrl + "/process-management/api/v2/processes/WKF_CADASTRO_DE_CLIENTES/start","",cBody)
+			cResultado := oClientFluig:Post(cUrl+cEPFluig,"",cBody)
+			//cResultado:= oClientFluig:Post(cUrl + "/process-management/api/v2/processes/WKF_CADASTRO_DE_CLIENTES/start","",cBody)
 
 		Else
 			jInfoRet:FromJson('{"code":"ERRO", "message":"Metodo nao implementado"}')
@@ -64,12 +63,7 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody)
 
 	//Se deu tudo certo com a autenticação
 	If lContinua
-		cStringJson          := jInfoRet:FromJson(cResultado)
-
-		//Se não houve falha na transforação do resultado em JSON
-		If ! Empty(cStringJson)
-			jInfoRet:FromJson('{"code":"ERRO", "message":"' + cStringJson + '"}')
-		EndIf
+		jInfoRet:FromJson(cResultado)
 	EndIf
 
 Return(jInfoRet)

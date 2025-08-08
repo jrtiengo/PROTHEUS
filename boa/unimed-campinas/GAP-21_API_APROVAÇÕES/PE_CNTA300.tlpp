@@ -38,38 +38,39 @@ User Function CNTA300()
 
 		if cIdPonto == "MODELPOS"
 
-			oModelCNC   := oModel:GetModel():GetModel("CNCDETAIL")
-			cFornec     := oModelCNC:GetValue("CNC_CODIGO")
-			cForLoja    := oModelCNC:GetValue("CNC_LOJA")
+			//oModelCNC   := oModel:GetModel():GetModel("CNCDETAIL")
+			//cFornec     := oModelCNC:GetValue("CNC_CODIGO")
+			//cForLoja    := oModelCNC:GetValue("CNC_LOJA")
 
-			Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_CGC")
+			//Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_CGC")
 
 		ElseIf (cIdPonto =="FORMLINEPOS")
 
-			if (oModel:GetOperation() == MODEL_OPERATION_INSERT)
-				oModelCNC := oModel
-				oModelCN9 := oModelCNC:GetModel():GetModel("CN9MASTER")
-				oModelCN9:LoadValue("CN9_XCNPJF", SA2->A2_CGC)
-				oModelCN9:LoadValue("CN9_XNOMEF", alltrim(SA2->A2_NOME))
-			EndIf
+			//if (oModel:GetOperation() == MODEL_OPERATION_INSERT)
+			//	oModelCNC := oModel
+			//	oModelCN9 := oModelCNC:GetModel():GetModel("CN9MASTER")
+			//	oModelCN9:LoadValue("CN9_XCNPJF", SA2->A2_CGC)
+			//	oModelCN9:LoadValue("CN9_XNOMEF", alltrim(SA2->A2_NOME))
+			//EndIf
 
 		ElseIf cIdPonto == 'MODELCOMMITTTS'
 
-			If oModel:GetOperation() == 3 .or. oModel:GetOperation() == 4 /*--Inclusao/Alteração---*/
+			//If oModel:GetOperation() == 3 .or. oModel:GetOperation() == 4 /*--Inclusao/Alteração---*/
 
                 /*--- Inclusão do CNPJ e Nome do Cliente Faturamento   ---*/ 
-				If Empty(M->CN9_XCNPJF)
+				//If Empty(M->CN9_XCNPJF)
 
-					Reclock("CN9",.F.)
+					//Reclock("CN9",.F.)
 
-					CN9->CN9_XCNPJF := Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_CGC")
-					CN9->CN9_XNOMEF	:= alltrim(Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_NOME"))
+					//CN9->CN9_XCNPJF := Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_CGC")
+					//CN9->CN9_XNOMEF	:= alltrim(Posicione("SA2",1,xFilial("SA2")+cFornec+cForLoja,"A2_NOME"))
 
-					CN9->(MsUnLock())
+					///CN9->(MsUnLock())
 
-				Endif
+				//Endif
 
-			Endif
+			//Endif
+			
 
 		ElseIf cIdPonto == 'FORMCOMMITTTSPOS' //Após a gravação da tabela do formulário.
 

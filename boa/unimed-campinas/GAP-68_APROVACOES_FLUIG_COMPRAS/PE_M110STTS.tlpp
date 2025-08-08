@@ -21,16 +21,22 @@ Eventos
 User Function M110STTS()
 
 	Local aArea         := FwGetArea()            as Array
-    Local aAreaSC1      := SC1->(FwGetArea())     as Array
-    Local oError        := ErrorClass():New()     as Object
+	Local aAreaSC1      := SC1->(FwGetArea())     as Array
+	Local oError        := ErrorClass():New()     as Object
 	Local cNumSc        := PARAMIXB[1]            as Character
 	Local nOpc          := PARAMIXB[2]            as Numeric
-	Local cTipo         := 'SC'                   as Character
+	Local lCopia        := PARAMIXB[3]            as Logical
 
 	TRY
 		//GAP 068 - Envio de Aprovações Fluig Compras
-		If nOpc == 3 .or. nOpc == 4 .or. nOpc == 5
-			U_IntAprovFluig(nOpc, cTipo, cNumSc, '', SC1->C1_XIDFLU)
+		If SCR->(MSSeek(FWxFilial("SCR") + "SC" + cNumSc)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_NIVEL
+			If ! Empty(SC1->C1_XIDFLU) .and. (nOpc == 2 .or. nOpc == 3)
+				U_IntCancFluig('SC1', SC1->C1_XIDFLU, SC1->(RecNo()), )
+			Endif
+
+			If nOpc == 1 .or. nOpc == 4 .or. lCopia
+				U_IntAprovFluig(nOpc, 'SC1', cNumSc, '')
+			Endif
 		Endif
 
 	CATCH oError
@@ -40,6 +46,6 @@ User Function M110STTS()
 	ENDTRY
 
 	FwRestArea(aArea)
-    FwRestArea(aAreaSC1)
+	FwRestArea(aAreaSC1)
 
 Return()
