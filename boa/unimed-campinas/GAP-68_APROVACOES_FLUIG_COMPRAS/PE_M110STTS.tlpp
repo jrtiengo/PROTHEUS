@@ -8,7 +8,7 @@
 
 /*/{Protheus.doc} M110STTS
 Inclusão de interface após gravar a solicitação
-Eventos
+1. GAP 068 - Envio de Aprovações Fluig Compras
 @type function
 @version V 1.00
 @author Tiengo Junior
@@ -24,19 +24,16 @@ User Function M110STTS()
 	Local aAreaSC1      := SC1->(FwGetArea())     as Array
 	Local oError        := ErrorClass():New()     as Object
 	Local cNumSc        := PARAMIXB[1]            as Character
-	Local nOpc          := PARAMIXB[2]            as Numeric
-	Local lCopia        := PARAMIXB[3]            as Logical
 
 	TRY
-		//GAP 068 - Envio de Aprovações Fluig Compras
-		If SCR->(MSSeek(FWxFilial("SCR") + "SC" + cNumSc)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_NIVEL
-			If ! Empty(SC1->C1_XIDFLU) .and. (nOpc == 2 .or. nOpc == 3)
-				U_IntCancFluig('SC1', SC1->C1_XIDFLU, SC1->(RecNo()), )
-			Endif
+		//Envia Cancelamento ao Fluig
+		If ! Empty(SC1->C1_XIDFLU)
+			U_IntCancFluig('SC1', Alltrim(SC1->C1_XIDFLU), SC1->(RecNo()))
+		Endif
 
-			If nOpc == 1 .or. nOpc == 4 .or. lCopia
-				U_IntAprovFluig(nOpc, 'SC1', cNumSc, '')
-			Endif
+		//Envia Documento ao Fluig
+		If SCR->(MSSeek(FWxFilial("SCR") + "SC" + cNumSc)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_NIVEL
+			U_IntAprovFluig('SC1', 'SC', cNumSc, '', '')
 		Endif
 
 	CATCH oError

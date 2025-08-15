@@ -22,11 +22,11 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody)
 	Local cResultado    := ''
 	Local oClientFluig  := Nil
 	Local lContinua     := .T.
-	Local cUrl          := GetNewPar('EZ_XFRMAPR'   ,'https://devfluig.xplanning.com.br')                                         //Armazenará a URL base da API do Fluig
-	Local cCkey         := GetNewPar('EZ_XCKEY'     ,'integrador')                                                                //Consumer Key para autenticação OAuth 1.0a.
-	Local cCsecret      := GetNewPar('EZ_XCSECR'    ,'integrador')                                                                //Consumer Secret para autenticação OAuth 1.0a.
-	Local cToken        := GetNewPar('EZ_XTOKE'     ,'5835717e-a734-4bf1-ba56-26bfeda0bfeb')                                      //Access Token para autenticação OAuth 1.0a.
-	Local cTSecret      := GetNewPar('EZ_XSECRE'    ,'35223677-0415-4e7a-8a7e-54c5b91f0ab9643a9254-f8d4-4ec4-a74f-cc3a6e24e07e')  //Token Secret para autenticação OAuth 1.0a.
+	Local cUrl          := GetNewPar('UC_URLFLUI'   ,'https://devfluig.xplanning.com.br')                                         //Armazenará a URL base da API do Fluig
+	Local cCkey         := GetNewPar('UC_CKEYFLU'   ,'integrador')                                                                //Consumer Key para autenticação OAuth 1.0a.
+	Local cCsecret      := GetNewPar('UC_CSECFLU'   ,'integrador')                                                                //Consumer Secret para autenticação OAuth 1.0a.
+	Local cToken        := GetNewPar('UC_ACTKFLU'   ,'5835717e-a734-4bf1-ba56-26bfeda0bfeb')                                      //Access Token para autenticação OAuth 1.0a.
+	Local cTSecret      := GetNewPar('UC_SETKFLU'   ,'35223677-0415-4e7a-8a7e-54c5b91f0ab9643a9254-f8d4-4ec4-a74f-cc3a6e24e07e')  //Token Secret para autenticação OAuth 1.0a.
 
 	//Pega o JSON do Body
 	jInfoRet            := JsonObject():New()
@@ -53,7 +53,6 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody)
 		//Se for POST, executa a instrução de autenticação
 		If  (cTipo == 'POST')
 			cResultado := oClientFluig:Post(cUrl+cEPFluig,"",cBody)
-			//cResultado:= oClientFluig:Post(cUrl + "/process-management/api/v2/processes/WKF_CADASTRO_DE_CLIENTES/start","",cBody)
 
 		Else
 			jInfoRet:FromJson('{"code":"ERRO", "message":"Metodo nao implementado"}')

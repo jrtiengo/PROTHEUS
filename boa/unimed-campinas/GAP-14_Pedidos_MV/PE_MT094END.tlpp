@@ -56,8 +56,7 @@ User Function MT094END()
 			EndCase
 
 			If ! Empty(cIdFluig)
-
-				U_IntAprovFluig(nOpc, cTipo, cDocto, '', '', cIdFluig)
+				U_IntAprovFluig('SCR', cTpDoc, cDocto, '', '')
 			Endif
 		Endif
 

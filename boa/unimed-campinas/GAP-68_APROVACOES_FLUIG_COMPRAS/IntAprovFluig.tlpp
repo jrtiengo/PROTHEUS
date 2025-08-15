@@ -11,26 +11,35 @@ Função para enviar aprovadores da tabela SCR para o Fluig via REST - GAP068
 @type function
 @author Junior Tiengo
 @since 30/06/2025
-@Param _nOpc    N - Inclusão, Alteração, Exclusão, Cópia 
-@Param cTipo    C - SC7 = Pedido de Compras, SC1 = Solicitação de Compras, CN9 = Contrato, CND = Medição
+@Param cTabela  C - SC7 = Pedido de Compras, SC1 = Solicitação de Compras, CN9 = Contrato, CND = Medição
+@Param cTipo    C - SC = Solicitação de Compras, PC = Pedido de Compras, IP = Itens do PC, CT = Contrato, MD = Medição, 
 @Param cNum     C - Número do Pedido de Compras, Solicitação de Compras, Contrato ou Medição
 @Param cRevisao C - Revisão do Contrato (apenas para cTipo = CTR)
 @Param cMed     C - Número da Medição (apenas para cTipo = MED)
-@Param cIdFluig C - ID do Fluig 
 /*/
 
-User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao)
+User Function IntAprovFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 
+	Local oLog          := Nil                 		            as Object
 	Local oError        := ErrorClass():New()     				as Object
+	Local jAuxLog  		:= Nil                 		            as jSon
 
 	TRY
-		If cTipo == 'SC7' .or. cTipo == 'SC1' .or. cTipo == 'CN9' .or. cTipo == 'CND'
 
-			fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
+		oLog 	:= CtrlLOG():New()
+		jAuxLog := JsonObject():New()
 
-		Elseif cTipo == 'APROV'
+		If ! oLog:SetTab("SZL")
+			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
 
-			fAprovaFluig(_nOpc, cIdFluig)
+		If cTipo <> 'SCR'
+
+			fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
+
+		Elseif cTipo == 'SCR'
+
+			fAprovaFluig(cIdFluig)
 		Endif
 
 	CATCH oError
@@ -42,7 +51,7 @@ User Function IntAprovFluig(_nOpc, cTipo, cNum, cRevisao)
 Return()
 
 //Envia dados para o Fluig
-Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
+Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cMed)
 
 	Local cQuery		:= ""						            as Character
 	Local cBody         := ""						            as Character
@@ -56,7 +65,7 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 	Local nItem			:= 0 									as Numeric
 	Local cAprov 		:= ''									as Character
 
-	Try
+	TRY
 
 		oLog 	:= CtrlLOG():New()
 		jAuxLog := JsonObject():New()
@@ -77,7 +86,7 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 		cQuery += "WHERE SCR.D_E_L_E_T_ = ' '                       "
 		cQuery += "AND SCR.CR_FILIAL = '" + FWxFilial("SCR") + "'   "
 		cQuery += "AND SCR.CR_NUM = '" + cNum + "'                  "
-		cQuery += "AND SCR.CR_TIPO = '" + SCR->CR_TIPO + "'         "
+		cQuery += "AND SCR.CR_TIPO = '" + cTipo + "'         		"
 		cQuery += "ORDER BY SCR.CR_NIVEL ASC               			"
 
 		cQuery := ChangeQuery(cQuery)
@@ -113,16 +122,16 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 			// Percorre os itens da SC7 e adiciona ao JSON
 			If SC7->(MSSeek(FWxFilial('SC7') + cNum)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
 
-				While ! SC7->(EoF()) .and. SC7->C7_NUM == cNum
+				While ! SC7->(EoF()) .and. FWxFilial("SC7") + cNum == SC7->C7_FILIAL + SC7->C7_NUM
 
 					nItem ++
-					oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)]   := SC7->C7_ITEM
-					oJSon["formFields"]["C1_PRODUTO___" + cValtoChar(nItem)]   := SC7->C7_PRODUTO
-					oJSon["formFields"]["C1_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC7->C7_DESCRI)
-					oJSon["formFields"]["C1_UM___"      + cValtoChar(nItem)]   := SC7->C7_UM
-					oJSon["formFields"]["C1_QUANT___"   + cValtoChar(nItem)]   := SC7->C7_QUANT
-					oJSon["formFields"]["C1_PRECO___"   + cValtoChar(nItem)]   := SC7->C7_PRECO
-					oJSon["formFields"]["C1_TOTAL___"   + cValtoChar(nItem)]   := SC7->C7_TOTAL
+					oJSon["formFields"]["C7_ITEM___"    + cValtoChar(nItem)]   := SC7->C7_ITEM
+					oJSon["formFields"]["C7_PRODUTO___" + cValtoChar(nItem)]   := SC7->C7_PRODUTO
+					oJSon["formFields"]["C7_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC7->C7_DESCRI)
+					oJSon["formFields"]["C7_UM___"      + cValtoChar(nItem)]   := SC7->C7_UM
+					oJSon["formFields"]["C7_QUANT___"   + cValtoChar(nItem)]   := SC7->C7_QUANT
+					oJSon["formFields"]["C7_PRECO___"   + cValtoChar(nItem)]   := SC7->C7_PRECO
+					oJSon["formFields"]["C7_TOTAL___"   + cValtoChar(nItem)]   := SC7->C7_TOTAL
 
 					SC7->(DbSkip())
 				EndDo
@@ -148,7 +157,7 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 			// Percorre os itens da SC1 e adiciona ao JSON
 			If SC1->(MSSeek(FWxFilial('SC1') + cNum)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
 
-				While ! SC1->(EoF()) .and. SC1->C1_NUM == cNum
+				While ! SC1->(EoF()) .and. FWxFilial("SC1") + cNum == SC1->C1_FILIAL + SC1->C1_NUM
 
 					nItem ++
 					oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)]   := SC1->C1_ITEM
@@ -204,13 +213,16 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 		cAprov := Left(cAprov, Len(cAprov) - 1)
 		cAprov += "]"
 
-		//atribua o array completo ao objeto aprovadores.
+		//atribua a string completo ao objeto aprovadores.
 		oJson["formFields"]["aprovacoes"] := cAprov
 
-		//Chma a função para autenticar e enviar o POST
+		//exporto o objeto JSON para uma string em formato JSON
 		cBody := oJson:toJson()
-		jSonRet := u_RetFluigEnv('POST',"/process-management/api/v2/processes/WKF_APROVACOES/start",cBody) // Chama a função para obter o token e enviar o POST
 
+		//Chamo a função RetFluigEng onde irá autenticar e enviar a requisição POST
+		jSonRet := u_RetFluigEnv('POST',"/process-management/api/v2/processes/WKF_APROVACOES/start",cBody)
+
+		//Se existir a propriedade processInstanceId, e porque o processo foi executado com sucesso
 		If jSonRet:HasProperty("processInstanceId")
 
 			FreeObj(jAuxLog)
@@ -233,19 +245,29 @@ Static Function fEnviaFluig(_nOpc, cTipo, cNum, cRevisao, cIdFluig)
 			EndIf
 
 			Do Case
-			Case cTipo == 'SC7'
-				SC7->(Reclock("SC7", .F.))
-				SC7->C7_XIDFLU := jSonRet['processInstanceId']
-				SC7->(MsUnlock())
-			Case cTipo == 'SC1'
-				SC1->(Reclock("SC1", .F.))
-				SC1->C1_XIDFLU := jSonRet['processInstanceId']
-				SC1->(MsUnlock())
-			Case cTipo == 'CN9'
+			Case cTabela == 'SC7'
+				SC7->(DbSetOrder(1)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
+				If SC7->(MSSeek(FWxFilial('SC7') + cNum)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
+					While ! SC7->(EoF()) .and. FWxFilial("SC7") + cNum == SC7->C7_FILIAL + SC7->C7_NUM
+						SC7->(Reclock("SC7", .F.))
+						SC7->C7_XIDFLU := jSonRet['processInstanceId']
+						SC7->(MsUnlock())
+					EndDo
+				Endif
+			Case cTabela == 'SC1'
+				SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM
+				If SC1->(MSSeek(FWxFilial('SC1') + cNum))
+					While ! SC1->(EoF()) .and. FWxFilial("SC1") + cNum == SC1->C1_FILIAL + SC1->C1_NUM
+						SC1->(Reclock("SC1", .F.))
+						SC1->C7_XIDFLU := jSonRet['processInstanceId']
+						SC1->(MsUnlock())
+					EndDo
+				Endif
+			Case cTabela == 'CN9'
 				CN9->(Reclock("CN9", .F.))
 				CN9->CN9_XIDFLU := jSonRet['processInstanceId']
 				CN9->(MsUnlock())
-			Case cTipo == 'CND'
+			Case cTabela == 'CND'
 				CND->(Reclock("CND", .F.))
 				CND->CND_XIDFLU := jSonRet['processInstanceId']
 				CND->(MsUnlock())
@@ -293,26 +315,37 @@ Função para enviar o cancelamento para o Fluig via REST - GAP068
 
 User Function IntCancFluig(cTabela, cIDFluig, nRecno)
 
-	Local oJsonCancel 	:= JsonObject():New()                  	as Object
+	Local oJsonCanc 	:= JsonObject():New()                  	as Object
 	Local lCancela    	:= .T.                                  as Logical
 	Local cBody		 	:= ''					            	as Character
 	Local oError        := ErrorClass():New()     				as Object
 	Local oLog          := Nil                 		            as Object
+	Local jAuxLog  		:= Nil                 		            as jSon
 
-	Try
+	TRY
+
+		oLog 	:= CtrlLOG():New()
+		jAuxLog := JsonObject():New()
+
+		If ! oLog:SetTab("SZL")
+			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		EndIf
 
 		//Montando o Body do cancelamento
-		oJsonCancel["processInstanceId"] := 872
-		oJsonCancel["cancelText"]        := "Solicitação Cancelada Automaticamente pelo ERP Protheus"
-		oJsonCancel["replacedId"]        := cIDFluig
+		oJsonCanc["processInstanceId"] := cIDFluig
+		oJsonCanc["cancelText"]        := "Solicitação Cancelada Automaticamente pelo ERP Protheus"
+		oJsonCanc["replacedId"]        := 'cdig_publica_key'
 
-		cBody := oJsonCancel:toJson()
+		cBody := oJsonCanc:toJson()
 
-		//Chma a função para autenticar e enviar o POST
-		cBody := oJson:toJson()
-		jSonRet := u_RetFluigEnv('POST',"/api/public/2.0/workflows/cancelInstance'",cBody)
+		//exporto o objeto JSON para uma string em formato JSON
+		cBody := oJsonCanc:toJson()
 
-		If jSonRet:HasProperty("processInstanceId")
+		//Chamo a função RetFluigEng onde irá autenticar e enviar a requisição POST
+		jSonRet := u_RetFluigEnv('POST',"/api/public/2.0/workflows/cancelInstance",cBody)
+
+		//Se existir a propriedade processInstanceId, e porque o processo foi executado com sucesso
+		If jSonRet["content"]["status"] == "SUCCESS"
 
 			FreeObj(jAuxLog)
 			jAuxLog             := JsonObject():New()
@@ -326,14 +359,14 @@ User Function IntCancFluig(cTabela, cIDFluig, nRecno)
 			jAuxLog["hora"]     := Time()
 			jAuxLog["msgresp"]  := "success"
 			jAuxLog["msgerr"]   := ""
-			jAuxLog["jsonbod"]  := oJson
+			jAuxLog["jsonbod"]  := oJsonCanc
 			jAuxLog["jsonret"]  := jSonRet
 
 			If ! oLog:AddItem(jAuxLog)
 				ConOut(oLog:GetError())
 			EndIf
 		Else
-			cLogErro   := jSonRet['message']
+			cLogErro   := DecodeUTF8(jSonRet["content"]['message'], "cp1252")
 
 			FreeObj(jAuxLog)
 			jAuxLog             := JsonObject():New()
@@ -347,7 +380,7 @@ User Function IntCancFluig(cTabela, cIDFluig, nRecno)
 			jAuxLog["hora"]     := Time()
 			jAuxLog["msgresp"]  := "error"
 			jAuxLog["msgerr"]   := cLogErro
-			jAuxLog["jsonbod"]  := oJson
+			jAuxLog["jsonbod"]  := oJsonCanc
 			jAuxLog["jsonret"]  := jSonRet
 
 			If ! oLog:AddItem(jAuxLog)
