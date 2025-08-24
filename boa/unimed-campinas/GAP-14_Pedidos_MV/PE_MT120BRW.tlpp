@@ -62,7 +62,7 @@ User Function IntPcRv()
 			Return()
 		EndIf
 
-		U_INTPCMV(1, SC7->C7_NUM, @cMsgErr)
+		U_INTPCMV(1, @cMsgErr)
 
 	CATCH oError
 

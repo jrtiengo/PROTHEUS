@@ -52,12 +52,12 @@ User Function MT120FIM()
 					If ! U_INTPCMV(nOpcao, @cMsgErr)
 						SC7->(RecLock('SC7',.F.))
 						SC7->C7_XSTREQ := '1'
-						SC7->C7_XTPREQ := Iif(nOpcao == 5, 'E', 'I')
+						SC7->C7_XTPREQ := '5'
 						SC7->(MsUnlock())
 					Else
 						SC7->(RecLock('SC7',.F.))
 						SC7->C7_XSTREQ := '0'
-						SC7->C7_XTPREQ := Iif(nOpcao == 5, 'E', 'I')
+						SC7->C7_XTPREQ := '5'
 						SC7->(MsUnlock())
 					Endif
 				Endif

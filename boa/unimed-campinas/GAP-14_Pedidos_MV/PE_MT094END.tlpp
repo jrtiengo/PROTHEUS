@@ -1,107 +1,180 @@
 #Include 'TOTVS.ch'
-#Include 'Topconn.ch'
+#Include 'TopConn.ch'
 #Include 'Protheus.ch'
 #Include 'tlpp-core.th'
 #Include 'tlpp-rest.th'
 
-#Define cTitApp "Ponto de Entrada MT094END"
 
 /*/{Protheus.doc} MT094END
-O ponto de entrada MT094END trás as seguintes informações: Número do Documento, Tipo do Documento, Operação que está sendo executada (Aprovação, Transferência e/ou Superior) e filial do documento com controle de alçadas, para serem usadas conforme necessidade do usuário. O mesmo não possui retorno e tem por finalidade somente mostrar as informações.
-Este Ponto de Entrada é executado antes da conclusão do tipo de operação que está em andamento (Liberar o Documento, Transferência do Documento, Transferência para Superior)
-1. GAP 014 - Na aprovação de um pedido IP o pedido e enviado ao MV U_INTPCMV
-2. GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição U_IntAprovFluig
+description Ponto de entrada no final do pedido de compras
 @type function
-@version V 1.00
-@author Tiengo Junior
-@since 24/05/2025
+@version  
+@author Silvan Ferreira
+@since 18/07/2025
+1; GAP 003 - Geração do Documento de Entrada de forma 
+2. GAP 014 - Na aprovação de um pedido IP e enviado ao MV U_INTPCMV
+3. GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição U_IntAprovFluig
+automática de acordo com o processo que está sendo 
+executado. 
 @obs PARAMIXB[1] Caracter Número do Documento
 @obs PARAMIXB[2] Caracter Tipo do documento (PC, NF, SA, IP, AE)
 @obs PARAMIXB[3] Numérico Operação a ser executada (1-Aprovar, 2-Estornar, 3-Aprovar pelo Superior, 4-Transferir para Superior, 5-Rejeitar, 6-Bloquear)
 @obs PARAMIXB[4] Caracter Filial do documento
-@klink https://tdn.totvs.com/display/public/PROT/TUMXYE_DT_PONTO_ENTRADA_MT094END
+@See https://tdn.totvs.com/display/public/PROT/TUMXYE_DT_PONTO_ENTRADA_MT094END 
 /*/
 User Function MT094END()
 
-	Local aArea         := FwGetArea()                  as Array
-	Local aAreaSC1      := SC1->(FwGetArea())           as Array
-	Local aAreaSC7      := SC7->(FwGetArea())           as Array
-	Local cDocto        := PARAMIXB[1]                  as Character
-	Local cTpDoc        := PARAMIXB[2]                  as Character
-	Local nOpc          := PARAMIXB[3]                  as Numeric
-	Local cFilDoc       := PARAMIXB[4]                  as Character
-	Local oError        := ErrorClass():New()           as Object
+	Local cDocto  		   := PARAMIXB[1]
+	Local cTipo   		   := PARAMIXB[2]
+	Local nOpc    		   := PARAMIXB[3]
+	Local cFilDoc		   := PARAMIXB[4]
+	Local cTes  		   := Alltrim(GetMV("UC_TESCOOP"))	as Character //Parametro da TES da NF nao cooperado
+	Local cSerie		   := Alltrim(GetMV("UC_SERCOOP"))	as Character //Parametro da Serie NF nao cooperado
+	Local cUrl        	   := Alltrim(GetMV('UC_XFLEND')) 	as Character //Parametro da Uri do Flig
+	Local nX			   := 0 							as Numeric
+	Local aParFluig		   := {} 							as Array
+	Local cMsgOk		   := "" 							as Character
+	Local cMsgErr		   := "" 							as Character
+	Local cEndPoit         := "" 							as Character
+	Local cAccess_Token    := "" 							as Character
+	Local cToken_Secret    := "" 							as Character
+	Local cConsumer_key	   := "" 							as Character
+	Local cConsumer_Secret := "" 							as Character
+	Local cBody 		   := "" 							as Character
 
-	TRY
+	//Se o fornecedor for Pessoa Jurídica
+	//Geração de NF automatica segundo regras do GA003
 
-		If nOpc == 1 .or. nOpc == 5
+	//valida se é pessoa fisica e não cooperado
+	//Abrindo a tabela de fornecedores e posicionando no topo
+	DbSelectArea('SA2')
+	SA2->(DbSetOrder(1))
+	SA2->(dbSeek(xFilial("SA2")+SC7->(C7_FORNECE+C7_LOJA)))
 
-			Do Case
-			Case cTpDoc == 'PC' .or. cTpDoc == 'IP'
-				cIdFluig := SC7->C7_XIDFLU
-			Case cTpDoc == 'SC'
-				cIdFluig := SC1->C1_XIDFLU
-			Case cTpDoc == 'CT' .or. cTpDoc == 'RV'
-				cIdFluig := CN9->CN9_XIDFLU
-			Case cTpDoc == 'MD'
-				cIdFluig := CND->CND_XIDFLU
-			EndCase
+	//Se o fornecedor for Pessoa Fisica e não cooperado
+	If FTipPessoa("1",SC7->(C7_FORNECE+C7_LOJA)) = "F" .and. SA2->A2_XCOOPER == "2"
 
-			If ! Empty(cIdFluig)
-				U_IntAprovFluig('SCR', cTpDoc, cDocto, '', '')
-			Endif
+		//Cabeçalho
+		aadd(aCab,{"F1_FILIAL" 	, cFilDoc				,NIL})
+		aadd(aCab,{"F1_TIPO" 	, cTipo					,NIL})
+		aadd(aCab,{"F1_FORMUL" 	, "N" 					,NIL})
+		aadd(aCab,{"F1_DOC" 	, cDocto				,NIL})
+		aadd(aCab,{"F1_SERIE" 	, cSerie				,NIL})
+		aadd(aCab,{"F1_EMISSAO" , DDATABASE 			,NIL})
+		aadd(aCab,{"F1_DTDIGIT" , DDATABASE 			,NIL})
+		aadd(aCab,{"F1_FORNECE" , SC7->C7_FORNECE		,NIL})
+		aadd(aCab,{"F1_LOJA" 	, SC7->C7_LOJA			,NIL})
+		aadd(aCab,{"F1_ESPECIE" , "SPED" 				,NIL})
+		aadd(aCab,{"F1_COND" 	, SC7->C7_COND			,NIL})
 
-			If cTpDoc == 'IP' .and. xChkSCR(cDocto, cTpDoc, SCR->(RecNo()), cFilDoc)
+		//Itens
+		For nX := 1 To 1
 
-				SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
-				If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
-					If Alltrim(SC1->C1_XORINT) == 'MV'
-						//Envia PC ao MV
-						If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
-							If ! U_INTPCMV(nOpc, @cMsgErr)
-								While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-									SC7->(RecLock('SC7',.F.))
-									SC7->C7_XSTREQ := '1'
-									SC7->C7_XTPREQ := 'I'
-									SC7->(MsUnlock())
-								EndDo
-							Else
-								While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-									SC7->(RecLock('SC7',.F.))
-									SC7->C7_XSTREQ := '0'
-									SC7->C7_XTPREQ := 'I'
-									SC7->(MsUnlock())
-								EndDo
-							Endif
+			aItem := {}
+			aadd(aItem,{"D1_ITEM" 	, StrZero(nX,4) 					 			,NIL})
+			aadd(aItem,{"D1_COD" 	, PadR(SC7->C7_PRODUTO,TamSx3("D1_COD")[1])		,NIL})
+			aadd(aItem,{"D1_UM" 	, SC7->C7_UM					 				,NIL})
+			aadd(aItem,{"D1_LOCAL" 	, SC7->C7_LOCAL 							 	,NIL})
+			aadd(aItem,{"D1_QUANT" 	, SC7->C7_QUANT						 			,NIL})
+			aadd(aItem,{"D1_VUNIT" 	, SC7->C7_PRECO					 				,NIL})
+			aadd(aItem,{"D1_TOTAL" 	, SC7->C7_TOTAL					 				,NIL})
+			aadd(aItem,{"D1_TES" 	, cTes 											,NIL})
+			aAdd(aItens,aItem)
+
+		Next nX
+
+		//chama rotina para incluir Documento de Entrada xExecMATA103
+		//MSExecAuto({|x,y,z| MATA103(x,y,z)},aCabec,aItens,nOpc)
+		jBody := JsonObject():New()
+		U_xExecMATA103(aCabec, aItens, nOpc, @cMsgOk, @cMsgErr, jBody )
+
+	EndIf
+
+	/*//
+	Compra de Medicação via Importação – Liminar
+	Se o campo C7_XENTPAC (Entrega ao Paciente) estiver preenchido com “S”
+	deverá ser enviado o encerramento do processo para o Fluig
+	cUrl    as Character
+	cPath   as Character
+	cMetodo as Character
+	cBody   as Json
+	*/
+	If SC7->C7_XENTPAC == "S"
+
+		cEndPoit         := "/api/public/2.0/workflows/cancelInstance"
+		cAccess_Token    := '5835717e-a734-4bf1-ba56-26bfeda0bfeb'
+		cToken_Secret    := '35223677-0415-4e7a-8a7e-54c5b91f0ab9643a9254-f8d4-4ec4-a74f-cc3a6e24e07e'
+		cConsumer_key	 := "integrador"
+		cConsumer_Secret := "integrador"
+		cBody 			 := '{"processInstanceId" : "'+cNumDoc+'","cancelText" : "Solicitação Cancelada Automaticamente via API","replacedId" : "integrador"}'
+
+		aAdd(aParFluig, cUrl+cEndPoit	)	//Url da chamada
+		aAdd(aParFluig, 'POST'			)	//Metodo(POST,GET,PUT)
+		aAdd(aParFluig, cAccess_Token	)	//Access Token
+		aAdd(aParFluig, cToken_Secret 	)	//Token Secret
+		aAdd(aParFluig, cConsumer_key	)	//Consumer_key
+		aAdd(aParFluig, cConsumer_Secret)	// Consumer Secret
+		aAdd(aParFluig, cBody			)	//Json Body para envio
+
+		//Chama função para enviar requisição para o Fluig
+		U_ENVFLUIG(aParFluig)
+
+	EndIf
+
+	If nOpc == 1 .or. nOpc == 5
+
+		Do Case
+		Case cTipo == 'PC' .or. cTipo == 'IP'
+			cIdFluig := SC7->C7_XIDFLU
+		Case cTipo == 'SC'
+			cIdFluig := SC1->C1_XIDFLU
+		Case cTipo == 'CT' .or. cTipo == 'RV'
+			cIdFluig := CN9->CN9_XIDFLU
+		Case cTipo == 'MD'
+			cIdFluig := CND->CND_XIDFLU
+		EndCase
+
+		If ! Empty(cIdFluig)
+			//U_IntAprovFluig('SCR', cTipo, cDocto, '', '')
+		Endif
+
+		If cTipo == 'IP' .and. xChkSCR(cDocto, cTipo, SCR->(RecNo()), cFilDoc)
+
+			SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+			If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+				If Alltrim(SC1->C1_XORINT) == 'MV'
+					//Envia PC ao MV
+					If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
+
+						If ! U_INTPCMV(3, @cMsgErr)
+							While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+								SC7->(RecLock('SC7',.F.))
+								SC7->C7_XSTREQ := '1'
+								SC7->C7_XTPREQ := '3'
+								SC7->(MsUnlock())
+							EndDo
+						Else
+							While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+								SC7->(RecLock('SC7',.F.))
+								SC7->C7_XSTREQ := '0'
+								SC7->C7_XTPREQ := '3'
+								SC7->(MsUnlock())
+							EndDo
 						Endif
 					Endif
 				Endif
 			Endif
 		Endif
+	Endif
 
-	CATCH oError
-
-		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
-
-	ENDTRY
-
-	FwRestArea(aAreaSC1)
-	FwRestArea(aAreaSC7)
-	FwRestArea(aArea)
-
-Return()
+Return
 
 /*/{Protheus.doc} xChkSCR
 Função que verifica se todos os níveis estão liberados
-@type function
-@version V 1.00
-@author Tiengo
-@since 18/08/2025
-@param 
-cDocto,		c, Numero do Documento 
-cTipo, 		c, Tipo do Documento
-nRecnoSCR,  n, Recno da SCR
-cFilDoc,	c, Filial do documento
+@param cDocto,		c, Numero do Documento 
+@param cTipo, 		c, Tipo do Documento
+@param nRecnoSCR,	n, Recno da SCR
+@param cFilDoc,		c, Filial do documento
 @return logical, Verdadeiro se todos liberados
 /*/
 Static Function xChkSCR(cDocto, cTipo, nRecnoSCR, cFilDoc) as Logical

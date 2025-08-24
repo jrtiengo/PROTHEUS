@@ -4,31 +4,31 @@
 #Include "TBIConn.ch"
 #Include "Protheus.ch"
 
-/*/{Protheus.doc} DocMVProc
-JOB Integração de documento entrada para o MV
+/*/{Protheus.doc} JOBPCMV
+JOB Integração de PC para o MV
 @type function
 @version  
 @author Tiengo Junior
 @since 30/05/2025
 @return variant, return_description
 /*/
-User Function JOBDOCMV()
+User Function JOBPCMV()
 
 	Local	lSchedule	:= FWGetRunSchedule()
 	Local 	cFunction	:= "JOBDOCMV"
-	Local	cTitle		:= "Integração de Documento Entrada para o MV"
+	Local	cTitle		:= "Integração de PC para o MV"
 	Local	cObs		:= ""
 	Local	oProcess	:= Nil
 	Local	cHInicio	:= Time()
 
-	Private CTITAPP  	:= "JOBDOCMV - Integração de Documento de Entrada para o MV"
+	Private CTITAPP  	:= "JOBPCMV - Integração de PC para o MV"
 
 	If ! lSchedule
-		cObs := "Essa rotina tem a finalidade de realizar Integração de Documento de Entrada para o MV"
-		oProcess := TNewProcess():New(cFunction, cTitle, {|oSelf, lSchedule| u_DocMVProc(oSelf, lSchedule, 0)}, cObs)
+		cObs := "Essa rotina tem a finalidade de realizar Integração de PC para o MV"
+		oProcess := TNewProcess():New(cFunction, cTitle, {|oSelf, lSchedule| u_PCMVProc(oSelf, lSchedule, 0)}, cObs)
 		Aviso("Aviso - " + cTitle + " - " + cHInicio + " - " + Time() , "Fim do processamento! ", {"OK"})
 	Else
-		u_DocMVProc(Nil, lSchedule, 0)
+		u_PCMVProc(Nil, lSchedule, 0)
 		Conout(cFunction +": " + cTitle + " - " + cHInicio + " - " + Time() +" - Fim do processamento!")
 	EndIf
 
@@ -39,14 +39,14 @@ User Function JOBDOCMV()
 Return(.T.)
 
 /*/{Protheus.doc} DocMVProc
-JOB Integração de documento entrada para o MV
+JOB Integração de PC para o MV
 @type function
 @version  
 @author Tiengo Junior
 @since 30/05/2025
 @return variant, return_description
 /*/
-User Function DocMVProc(oSelf, lSchedule, nN)
+User Function PCMVProc(oSelf, lSchedule, nN)
 
 	Local cQuery    := ""
 	Local cMsgErr 	:= ""
@@ -60,13 +60,14 @@ User Function DocMVProc(oSelf, lSchedule, nN)
 	jAuxLog := Jsonobject():New()
 
 	If !oLog:SetTab("SZL")
-		U_AdminMsg("[JOBDOCMV] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+		U_AdminMsg("[JOBPCMV] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		Return .T.
 	EndIf
 
-	cQuery := " SELECT R_E_C_N_O_ RECSF1, F1_XTPREQ TPREQ, *" + CRLF
-	cQuery += " FROM " + RetSqlName("SF1") + " SF1 " + CRLF
-	cQuery += " WHERE D_E_L_E_T_ = ' ' AND F1_XSTREQ = '0'  " + CRLF
+	cQuery := " SELECT R_E_C_N_O_ RECSC7, C7_XTPREQ TPREQ, *" + CRLF
+	cQuery += " FROM " + RetSqlName("SC7") + " SC7 " + CRLF
+	cQuery += " WHERE D_E_L_E_T_ = ' ' AND C7_XSTREQ = '0'  " + CRLF
+	cQuery += " GROUP BY C7_FILIAL, C7_NUM " + CRLF
 
 	cQuery 	  := ChangeQuery(cQuery)
 	cAliasTRB := MPSysOpenQuery(cQuery)
@@ -79,7 +80,7 @@ User Function DocMVProc(oSelf, lSchedule, nN)
 	Endif
 
 	While !(cAliasTRB)->(Eof())
-		SF1->(dbtoto((cAliasTRB)->RECSF1))
+		SC7->(dbtoto((cAliasTRB)->RECSC7))
 		U_IntDocMV(Val(TPREQ),@cMsgErr)
 		(cAliasTRB)->(dbSkip())
 	Enddo
@@ -99,7 +100,7 @@ description Função para utilização no Schedule
 Static Function SchedDef()
 
 	Local _aPar 	:= {}
-	Local _cFunc	:= "JOBDOCMV"
+	Local _cFunc	:= "JOBPCMV"
 	Local _cPerg	:= PadR(_cFunc, 10)
 
 

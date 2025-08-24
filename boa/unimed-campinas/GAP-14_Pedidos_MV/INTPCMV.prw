@@ -8,7 +8,7 @@ Envio de pedidos de compra para o MV - GAP-14
 @author Tiengo
 @since 28/05/2025
 @Param
-nOPC 	- N - Operação: 1 = Inclusão, 4 = Classificação
+nOPC 	- N - Operação: 3 = Inclusão = 5 exclusao
 cMsgErr - C - Mensagem de erro
 @Return lRet - Verdadeiro se tudo ok
 /*/
@@ -38,11 +38,7 @@ User Function INTPCMV(nOPC, cMsgErr)
 	EndIf
 
 	//Caso vier uma exclusão ou alteração, eu devo excluir no MV, pois o PC só será incluido novamente depois de ser aprovado PE MT094END.
-	If ! Empty(SC7->C7_XTPREQ)
-		cOperMV := SC7->C7_XTPREQ
-	Else
-		Iif(nOPC == 5, cOperMV := 'E', Iif(nOPC == 1, cOperMV := 'I', cOperMV := 'A'))
-	EndIf
+	Iif(nOPC == 3, cOperMV := 'I', cOperMV := 'E')
 
 	//Montando XML para envio ao MV
 	cMsgWS += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://br.com.mv.jintegra.core.webservicePadrao">'+CRLF
@@ -54,7 +50,7 @@ User Function INTPCMV(nOPC, cMsgErr)
 	cMsgWS += '		<Cabecalho>'+CRLF
 	cMsgWS += '			<mensagemID>'+xIDInt()+'</mensagemID>'+CRLF //C1_XIDINT
 	cMsgWS += '			<versaoXML>1</versaoXML>'+CRLF
-	cMsgWS += '			<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
+	cMsgWS += '			<identificacaoCliente>' +SM0->M0_CGC+ '</identificacaoCliente>'+CRLF
 	cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
 	cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
 	cMsgWS += '			<empresaOrigem>' +SM0->M0_CGC+ '</empresaOrigem>'+CRLF
@@ -66,13 +62,13 @@ User Function INTPCMV(nOPC, cMsgErr)
 	cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
 	cMsgWS += '			<codigoOrdemCompraDePara>' +SC7->C7_NUM+ '</codigoOrdemCompraDePara>'+CRLF
 	cMsgWS += '			<dataHoraEmissao>' +DtoS(SC7->C7_EMISSAO) + ' ' + time()+ '</dataHoraEmissao>'+CRLF
-	//cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
-	cMsgWS += '			<codigoSolicCompra>72566</codigoSolicCompra>'+CRLF //apagar
+	cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
+	//cMsgWS += '			<codigoSolicCompra>72566</codigoSolicCompra>'+CRLF //apagar
 	cMsgWS += '			<codigoEstoque>' +cEstMV+ '</codigoEstoque>'+CRLF
-	//cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
-	//cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
-	cMsgWS += '			<codigoFornecedor>84</codigoFornecedor>'+CRLF //apagar
-	cMsgWS += '			<cgcCpf>67729178000491</cgcCpf>'+CRLF //apagar
+	cMsgWS += '			<codigoFornecedorDePara>' +SC7->C7_FORNECE+SC7->C7_LOJA+ '</codigoFornecedorDePara>'+CRLF
+	cMsgWS += '			<cgcCpf>' +Alltrim(Posicione('SA2', 1, FWxFilial('SA2')+SC7->C7_FORNECE+SC7->C7_LOJA, 'A2_CGC'))+ '</cgcCpf>'+CRLF
+	//cMsgWS += '			<codigoFornecedor>84</codigoFornecedor>'+CRLF //apagar
+	//cMsgWS += '			<cgcCpf>67729178000491</cgcCpf>'+CRLF //apagar
 	cMsgWS += '			<codigoCondicaoPagamento>' +'1'+ '</codigoCondicaoPagamento>'+CRLF
 	cMsgWS += '			<tipoFrete>' +'C'+ '</tipoFrete>'+CRLF
 	cMsgWS += '			<valorTotalNota>' +xTotal(SC7->C7_NUM)+ '</valorTotalNota>'+CRLF
@@ -84,7 +80,8 @@ User Function INTPCMV(nOPC, cMsgErr)
 
 	//Query para buscar os Itens do pedido de compra
 	cQuery += " SELECT C7_PRODUTO,C7_QUANT,C7_PRECO
-	cQuery += " FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + cDocto + "' "
+	cQuery += " FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + SC7->C7_NUM + "' "
+
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)
 
@@ -94,10 +91,11 @@ User Function INTPCMV(nOPC, cMsgErr)
 
 		cMsgWS += '		<Produto>'+CRLF
 		cMsgWS += '			<operacao>' +cOperMV+ '</operacao>' + CRLF
-		cMsgWS += '			<codigoProduto>' +'22932'+ '</codigoProduto>' + CRLF //apagar
-		//cMsgWS += '			<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
+		//cMsgWS += '			<codigoProduto>' +'22932'+ '</codigoProduto>' + CRLF //apagar
+		cMsgWS += '			<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
 		cMsgWS += '			<quantidade>' +cValtoChar((cAlias)->C7_QUANT)+ '</quantidade>' + CRLF
 		cMsgWS += '			<valorUnitario>' +cValtoChar((cAlias)->C7_PRECO)+ '</valorUnitario>' + CRLF
+		//cMsgWS += '			<codigoUnidade>' +'UND'+ '</codigoUnidade>'+CRLF
 		cMsgWS += '			<codigoUnidade>' +Alltrim(Posicione("SAH",1,FWxFilial("SAH")+SD1->D1_UM,"AH_XUNIMV"))+ '</codigoUnidade>'+CRLF
 		cMsgWS += '			<codigoUnidadeDepara/>' + CRLF
 		cMsgWS += '		</Produto>'+CRLF
@@ -220,7 +218,6 @@ User Function INTPCMV(nOPC, cMsgErr)
 
 				//Verifico se existe a TAG Motivo de Erro
 				If At('<motivoErro>', cMsgRet) > 0
-
 					cMsgErr		:=  cMsgRet
 					lContinua	:= .F.
 				Else
