@@ -23,6 +23,8 @@ User Function JOBDOCMV()
 
 	Private CTITAPP  	:= "JOBDOCMV - Integração de Documento de Entrada para o MV"
 
+
+
 	If ! lSchedule
 		cObs := "Essa rotina tem a finalidade de realizar Integração de Documento de Entrada para o MV"
 		oProcess := TNewProcess():New(cFunction, cTitle, {|oSelf, lSchedule| u_DocMVProc(oSelf, lSchedule, 0)}, cObs)
@@ -79,7 +81,7 @@ User Function DocMVProc(oSelf, lSchedule, nN)
 	Endif
 
 	(cAliasTRB)->(dbCloseArea())
-    
+
 Return()
 
 /*/{Protheus.doc} SchedDef
@@ -104,3 +106,4 @@ Static Function SchedDef()
 	Nil		}	//Titulo (para Relatorio)
 
 Return(_aPar)
+

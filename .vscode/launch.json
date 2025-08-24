@@ -131,8 +131,14 @@
 		},
 		{
 			"label": "u_IntDocMV"
+		},
+		{
+			"label": "u_IntTracUsr"
+		},
+		{
+			"label": "u_IntUsrJob"
 		}
 	],
-	"lastProgramExecuted": "sigamdi",
+	"lastProgramExecuted": "u_IntUsrJob",
 	"lastProgramArguments": []
 }

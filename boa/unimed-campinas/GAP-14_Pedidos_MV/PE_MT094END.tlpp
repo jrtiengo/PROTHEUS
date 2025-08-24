@@ -9,6 +9,8 @@
 /*/{Protheus.doc} MT094END
 O ponto de entrada MT094END trás as seguintes informações: Número do Documento, Tipo do Documento, Operação que está sendo executada (Aprovação, Transferência e/ou Superior) e filial do documento com controle de alçadas, para serem usadas conforme necessidade do usuário. O mesmo não possui retorno e tem por finalidade somente mostrar as informações.
 Este Ponto de Entrada é executado antes da conclusão do tipo de operação que está em andamento (Liberar o Documento, Transferência do Documento, Transferência para Superior)
+1. GAP 014 - Na aprovação de um pedido IP o pedido e enviado ao MV U_INTPCMV
+2. GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição U_IntAprovFluig
 @type function
 @version V 1.00
 @author Tiengo Junior
@@ -27,19 +29,11 @@ User Function MT094END()
 	Local cDocto        := PARAMIXB[1]                  as Character
 	Local cTpDoc        := PARAMIXB[2]                  as Character
 	Local nOpc          := PARAMIXB[3]                  as Numeric
-	//Local cFilDoc       := PARAMIXB[4]                  as Character
+	Local cFilDoc       := PARAMIXB[4]                  as Character
 	Local oError        := ErrorClass():New()           as Object
-	Local cTipo 		:= 'APROV'					    as Character
 
 	TRY
 
-		//GAP 014 - Envio de PC para MV
-		If cTpDoc == 'IP' .and. nOpc == 1
-			// If ! U_INTPCMV(nOpc, cDocto, @cMsgErr)
-			//	Aviso('Falha na integração com MV', cMsgErr, {"Ok"}, 3, "",,, .T.)
-			//	Endif
-		Endif
-		//GAP 068 - Envio de Aprovações Fluig Compras - Aprovação e Rejeição
 		If nOpc == 1 .or. nOpc == 5
 
 			Do Case
@@ -47,16 +41,41 @@ User Function MT094END()
 				cIdFluig := SC7->C7_XIDFLU
 			Case cTpDoc == 'SC'
 				cIdFluig := SC1->C1_XIDFLU
-/*
 			Case cTpDoc == 'CT' .or. cTpDoc == 'RV'
 				cIdFluig := CN9->CN9_XIDFLU
 			Case cTpDoc == 'MD'
 				cIdFluig := CND->CND_XIDFLU
-*/
 			EndCase
 
 			If ! Empty(cIdFluig)
 				U_IntAprovFluig('SCR', cTpDoc, cDocto, '', '')
+			Endif
+
+			If cTpDoc == 'IP' .and. xChkSCR(cDocto, cTpDoc, SCR->(RecNo()), cFilDoc)
+
+				SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+				If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+					If Alltrim(SC1->C1_XORINT) == 'MV'
+						//Envia PC ao MV
+						If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
+							If ! U_INTPCMV(nOpc, @cMsgErr)
+								While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+									SC7->(RecLock('SC7',.F.))
+									SC7->C7_XSTREQ := '1'
+									SC7->C7_XTPREQ := 'I'
+									SC7->(MsUnlock())
+								EndDo
+							Else
+								While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+									SC7->(RecLock('SC7',.F.))
+									SC7->C7_XSTREQ := '0'
+									SC7->C7_XTPREQ := 'I'
+									SC7->(MsUnlock())
+								EndDo
+							Endif
+						Endif
+					Endif
+				Endif
 			Endif
 		Endif
 
@@ -76,44 +95,41 @@ Return()
 Função que verifica se todos os níveis estão liberados
 @type function
 @version V 1.00
-@author Edson Hornberger
-@since 30/09/2024
-@param cDocto, character, Numero do Documento 
-@param cTipo, character, Tipo do Documento
+@author Tiengo
+@since 18/08/2025
+@param 
+cDocto,		c, Numero do Documento 
+cTipo, 		c, Tipo do Documento
+nRecnoSCR,  n, Recno da SCR
+cFilDoc,	c, Filial do documento
 @return logical, Verdadeiro se todos liberados
 /*/
-Static Function xChkSCR(cDocto as Character, cTipo as Character, nRecnoSCR as Numeric) as Logical
+Static Function xChkSCR(cDocto, cTipo, nRecnoSCR, cFilDoc) as Logical
 
 	Local lRet      := .T.                as Logical
 	Local cQuery    := ""                 as Character
-	Local cAliasTmp := GetNextAlias()     as Character
+	Local cAlias 	:= ""     			  as Character
 	Local oError    := ErrorClass():New() as Object
 
 	TRY
 
-		Iif(Select(cAliasTmp) != 0, (cAliasTmp)->(dbCloseArea()), Nil)
-
-		cQuery := "SELECT" + Enter
-		cQuery += " COUNT(*) AS NREGS" + Enter
-		cQuery += "FROM" + Enter
-		cQuery += " " + RetSQLName("SCR") + " SCR" + Enter
-		cQuery += "WHERE" + Enter
-		cQuery += " SCR.CR_FILIAL = '" + xFilial("SCR") + "' AND" + Enter
-		cQuery += " SCR.CR_NUM = '" + cDocto + "' AND" + Enter
-		cQuery += " SCR.CR_TIPO = '" + cTipo + "' AND" + Enter
-		cQuery += " SCR.CR_STATUS NOT IN ('03', '05') AND" + Enter
-		cQuery += " SCR.R_E_C_N_O_ <> " + cValToChar(nRecnoSCR) + " AND" + Enter
-		cQuery += " SCR.D_E_L_E_T_ = ' '"
+		cQuery := "SELECT COUNT(*) AS NREGS										"
+		cQuery += "FROM " + RetSQLName("SCR") + " SCR							"
+		cQuery += "WHERE 	SCR.CR_FILIAL 	= '" + cFilDoc + "'					"
+		cQuery += " 	AND SCR.CR_NUM 		= '" + cDocto + "'					"
+		cQuery += " 	AND SCR.CR_TIPO 	= '" + cTipo + "'					"
+		cQuery += " 	AND SCR.CR_STATUS NOT IN ('03', '05') 					"
+		cQuery += " 	AND SCR.R_E_C_N_O_ <> '" + cValToChar(nRecnoSCR) + "'	"
+		cQuery += " 	AND SCR.D_E_L_E_T_ = ' '								"
 
 		cQuery := ChangeQuery(cQuery)
-		TcQuery cQuery New Alias (cAliasTmp)
-		dbSelectArea(cAliasTmp)
+		cAlias := MPSysOpenQuery(cQuery)
 
-		If (cAliasTmp)->NREGS > 0
-
+		If (cAlias)->NREGS > 0
 			lRet := .F.
-
 		EndIf
+
+		(cAlias)->(dbCloseArea())
 
 	CATCH oError
 
@@ -121,4 +137,4 @@ Static Function xChkSCR(cDocto as Character, cTipo as Character, nRecnoSCR as Nu
 
 	ENDTRY
 
-Return lRet
+Return(lRet)

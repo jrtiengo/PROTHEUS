@@ -8,6 +8,7 @@
 #Include "tlpp-rest.th"
 
 #Define cTitApp "API Aprovação"
+#Define Enter Chr(13)+Chr(10)
 
 /*/{Protheus.doc} aprovacao
 Função de API no método POST para aprovação de documentos na tabela SCR -> GAP068
@@ -104,9 +105,9 @@ User Function aprovacao() as Logical
 
 					if ! lRet
 						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Aprovacao Incluidos" + CHR(13) + CHR(10) + cMsgOk + CHR(13) + CHR(10) + "Aprovacao nao Incluidos" + CHR(13) + CHR(10) + cMsgErr, "Aprovacao nao Incluidos" + CHR(13) + CHR(10) + cMsgErr)
+						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Documentos Incluidos" + Enter + cMsgOk + Enter + "Documentos nao Incluidos" + Enter + cMsgErr, "Documentos nao Incluidos" + Enter + cMsgErr)
 						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Operacao concluida com erro", cMsgOk))
+						oRest:SetResponse(U_AnswerFormat(606, "Operacao concluida com erros", cMsgOk))
 					Else
 						oRest:SetStatusCode(201)
 						oDetail['detalhes']	:= cMsgOk
@@ -194,8 +195,10 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 
 				If SCR->(MsSeek(cChave))
 
+					nRecno := SCR->(RecNo())
+
 					//Caso seja o tipo seja IP preciso percorrer a tabela para gravação da aprovação
-					IF SCR->CR_STATUS == "02" .and. cTpOper == "001" .and. cTpDoc = 'IP'
+					IF SCR->CR_STATUS == "02" .and. cTpOper == "001" .and. cTpDoc == 'IP'
 
 						While ! SCR->(Eof()) .And. SCR->CR_FILIAL + SCR->CR_TIPO + SCR->CR_NUM + SCR->CR_APROV == cChave
 
@@ -211,11 +214,11 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 								oModel:CommitData()
 							EndIf
 
-							If(oModel:HasErrorMessage())
+							If (oModel:HasErrorMessage())
 
 								aMsgDeErro := oModel:GetErrorMessage()
 								cMsgErro   := aMsgDeErro[6]
-								cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+								cLogErro   += 'Documento: ' + cDocAprov + ' ' +  "Erro: " + cMsgErr + Enter
 
 								lRet := .F.
 
@@ -226,7 +229,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 								jAuxLog["nomapi"]   := "POST_APROVDOC"
 								jAuxLog["rotina"]   := "MATA094"
 								jAuxLog["tabela"]   := "SCR"
-								jAuxLog["recno"]    := SCR->(RecNo())
+								jAuxLog["recno"]    := nRecno
 								jAuxLog["data"]     := DToS(dDataBase)
 								jAuxLog["hora"]     := Time()
 								jAuxLog["msgresp"]  := "error"
@@ -235,12 +238,11 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 								jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
 
 								If !oLog:AddItem(jAuxLog)
-
 									ConOut(oLog:GetError())
 								EndIf
 							Else
 
-								cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+								cMsgOK  += 'Documento: ' + cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + Enter
 
 								FreeObj(jAuxLog)
 								jAuxLog     	   := JsonObject():New()
@@ -249,16 +251,15 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 								jAuxLog["nomapi"]  := "POST_APROVDOC"
 								jAuxLog["rotina"]  := "MATA094"
 								jAuxLog["tabela"]  := "SCR"
-								jAuxLog["recno"]   := SCR->(RecNo())
+								jAuxLog["recno"]   := nRecno
 								jAuxLog["data"]    := DToS(dDataBase)
 								jAuxLog["hora"]    := Time()
 								jAuxLog["msgresp"] := "success"
 								jAuxLog["msgerr"]  := ""
 								jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-								jAuxLog["jsonret"] := '{"result": Aprovacao/Rejeicao realizada com sucesso!!"}'
+								jAuxLog["jsonret"] := '{"result": Operacao realizada com sucesso!!"}'
 
 								If !oLog:AddItem(jAuxLog)
-
 									ConOut(oLog:GetError())
 								EndIf
 
@@ -267,8 +268,8 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							SCR->(dbSkip())
 						EndDo
 
-					//Caso não seja IP e também seja rejeição
-					ElseIf SCR->CR_STATUS == "02" .and. cTpDoc <>'IP' .and. (cTpOper == "001" .or. cTpOper == "005" )
+						//Caso não seja IP e também seja rejeição
+					ElseIf SCR->CR_STATUS == "02" .and. cTpDoc <>'IP' .and. (cTpOper == "001" .or. cTpOper == "005")
 
 						A094SetOp(cTpOper) //"001" - Liberado, "002" - Estornar, "003" - Superior, "004" - Transferir Superior, "005" - Rejeitado, "006" - Bloqueio, "007" - Visualizacao
 
@@ -286,7 +287,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 
 							aMsgDeErro := oModel:GetErrorMessage()
 							cMsgErro   := aMsgDeErro[6]
-							cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+							cLogErro   += 'Documento: ' + cDocAprov + ' ' +  "Erro: " + cMsgErro + Enter
 
 							lRet := .F.
 
@@ -297,7 +298,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							jAuxLog["nomapi"]   := "POST_APROVDOC"
 							jAuxLog["rotina"]   := "MATA094"
 							jAuxLog["tabela"]   := "SCR"
-							jAuxLog["recno"]    := 0
+							jAuxLog["recno"]    := nRecno
 							jAuxLog["data"]     := DToS(dDataBase)
 							jAuxLog["hora"]     := Time()
 							jAuxLog["msgresp"]  := "error"
@@ -306,12 +307,11 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
 						Else
 
-							cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+							cMsgOK  += 'Documento: ' + cDocAprov + Enter
 
 							FreeObj(jAuxLog)
 							jAuxLog     	   := JsonObject():New()
@@ -320,30 +320,29 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							jAuxLog["nomapi"]  := "POST_APROVDOC"
 							jAuxLog["rotina"]  := "MATA094"
 							jAuxLog["tabela"]  := "SCR"
-							jAuxLog["recno"]   := SCR->(RecNo())
+							jAuxLog["recno"]   := nRecno
 							jAuxLog["data"]    := DToS(dDataBase)
 							jAuxLog["hora"]    := Time()
 							jAuxLog["msgresp"] := "success"
 							jAuxLog["msgerr"]  := ""
 							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-							jAuxLog["jsonret"] := '{"result": Aprovacao/Rejeicao realizada com sucesso!!"}'
+							jAuxLog["jsonret"] := '{"result": Operacao realizada com sucesso!!"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
-
 						Endif
+
 						oModel:DeActivate()
 
-					//Caso deseje estornar a aprovação
+						//Caso deseje estornar a aprovação
 					ElseIf SCR->CR_STATUS == "03" .and. cTpOper == '002'
 
 						lEstorno := A094VldEst()
 
 						If ! lEstorno
 
-							cLogErro   += cDocAprov + ' ' +  "Erro: " + 'Erro ao estornar o documento ' + CRLF
+							cLogErro   += 'Documento: ' + cDocAprov + ' ' +  "Erro: " + 'Erro ao estornar o documento ' + Enter
 							lRet := .F.
 
 							FreeObj(jAuxLog)
@@ -362,12 +361,11 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							jAuxLog["jsonret"]  := '{"result": "' + cLogErro + '"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
 						Else
 
-							cMsgOK  += cDocAprov + ' ' + 'Item: ' + SCR->CR_ITGRP + CRLF
+							cMsgOK  += 'Documento: ' + cDocAprov + Enter
 
 							FreeObj(jAuxLog)
 							jAuxLog     	   := JsonObject():New()
@@ -385,7 +383,6 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 							jAuxLog["jsonret"] := '{"result": Estorno realizado com sucesso!!"}'
 
 							If !oLog:AddItem(jAuxLog)
-
 								ConOut(oLog:GetError())
 							EndIf
 						Endif
@@ -393,7 +390,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 				Else
 
 					cMsgErro   := "Documento ou aprovador não encontrado!"
-					cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+					cLogErro   += 'Documento: ' + cDocAprov + ' ' +  "Erro: " + cMsgErro + Enter
 					lRet := .F.
 
 					FreeObj(jAuxLog)
@@ -412,13 +409,12 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 					jAuxLog["jsonret"] := '{"result": Documento ou aprovador não encontrado!"}'
 
 					If !oLog:AddItem(jAuxLog)
-
 						ConOut(oLog:GetError())
 					EndIf
 				Endif
 			Else
 				cMsgErro   := "Codigo do Aprovador nao encontrado!"
-				cLogErro   += cDocAprov + ' ' +  "Erro: " + cMsgErro + CRLF
+				cLogErro   += 'Documento: ' + cDocAprov + ' ' +  "Erro: " + cMsgErro + Enter
 				lRet := .F.
 
 				FreeObj(jAuxLog)
@@ -437,7 +433,6 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 				jAuxLog["jsonret"] := '{"result": Codigo do Aprovador nao encontrado!"}'
 
 				If !oLog:AddItem(jAuxLog)
-
 					ConOut(oLog:GetError())
 				EndIf
 			Endif
@@ -446,7 +441,7 @@ Static Function fGeraAprovacao(cDocAprov, jbody, jDocAprov, lRet, cMsgOk, cLogEr
 	Catch oError
 
 		cMsgErro	:= oError:Description
-		cLogErro	+= cDocAprov + ' ' + "Erro: " + cMsgErro + CRLF
+		cLogErro	+= cDocAprov + ' ' + "Erro: " + cMsgErro +Enter
 		lRet 		:= .F.
 	EndTry
 

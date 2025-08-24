@@ -7,10 +7,13 @@ Envio de pedidos de compra para o MV - GAP-14
 @version V 1.00
 @author Tiengo
 @since 28/05/2025
+@Param
+nOPC 	- N - Operação: 1 = Inclusão, 4 = Classificação
+cMsgErr - C - Mensagem de erro
 @Return lRet - Verdadeiro se tudo ok
 /*/
 
-User Function INTPCMV(nOPC, cDocto, cMsgErr)
+User Function INTPCMV(nOPC, cMsgErr)
 
 	Local lRet        		:= .T.
 	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"http://10.210.2.123:8491/jintegra_core/services/WebservicePadrao?Wsdl")	// URL do Webservice
@@ -28,13 +31,18 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 
 	oLog    := CtrlLOG():New()
 	jAuxLog := JsonObject():New()
+
 	If ! oLog:SetTab("SZL")
 		U_AdminMsg("[PrepSendPed] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError())
 		Return (.T.)
 	EndIf
 
 	//Caso vier uma exclusão ou alteração, eu devo excluir no MV, pois o PC só será incluido novamente depois de ser aprovado PE MT094END.
-	Iif(nOpc == 1, cOperMV := "I", cOperMV := "E")
+	If ! Empty(SC7->C7_XTPREQ)
+		cOperMV := SC7->C7_XTPREQ
+	Else
+		Iif(nOPC == 5, cOperMV := 'E', Iif(nOPC == 1, cOperMV := 'I', cOperMV := 'A'))
+	EndIf
 
 	//Montando XML para envio ao MV
 	cMsgWS += '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:web="http://br.com.mv.jintegra.core.webservicePadrao">'+CRLF
@@ -49,14 +57,14 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 	cMsgWS += '			<identificacaoCliente>' +FWSM0Util():GetSM0Data(cEmpAnt , cFilAnt , { "M0_CGC" })[1][2]+ '</identificacaoCliente>'+CRLF
 	cMsgWS += '			<servico>' +'ORDEM_COMPRA'+ '</servico>'+CRLF
 	cMsgWS += '			<dataHora>' +RetDTHR(dDataBase,.T.)+ '</dataHora>'+CRLF
-	cMsgWS += '			<empresaOrigem>' +'1'+ '</empresaOrigem>'+CRLF
+	cMsgWS += '			<empresaOrigem>' +SM0->M0_CGC+ '</empresaOrigem>'+CRLF
 	cMsgWS += '			<sistemaOrigem>' +'TOTVS'+ '</sistemaOrigem>'+CRLF
-	cMsgWS += '			<empresaDestino>' +'2'+ '</empresaDestino>'+CRLF
-	cMsgWS += '			<sistemaDestino>' +'1'+ '</sistemaDestino>'+CRLF
+	cMsgWS += '			<empresaDestino>' +SM0->M0_CGC+ '</empresaDestino>'+CRLF
+	cMsgWS += '			<sistemaDestino>' +'SOULMV'+ '</sistemaDestino>'+CRLF
 	cMsgWS += '		</Cabecalho>'+CRLF
 	cMsgWS += '		<OrdemCompra>'+CRLF
 	cMsgWS += '			<operacao>' +cOperMV+ '</operacao>'+CRLF
-	cMsgWS += '			<codigoOrdemCompraDePara>' +cDocto+ '</codigoOrdemCompraDePara>'+CRLF
+	cMsgWS += '			<codigoOrdemCompraDePara>' +SC7->C7_NUM+ '</codigoOrdemCompraDePara>'+CRLF
 	cMsgWS += '			<dataHoraEmissao>' +DtoS(SC7->C7_EMISSAO) + ' ' + time()+ '</dataHoraEmissao>'+CRLF
 	//cMsgWS += '			<codigoSolicCompraDePara>' +SC7->C7_NUMSC+ '</codigoSolicCompraDePara>'+CRLF
 	cMsgWS += '			<codigoSolicCompra>72566</codigoSolicCompra>'+CRLF //apagar
@@ -90,8 +98,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 		//cMsgWS += '			<codigoProdutoDePara>' +SC7->C7_PRODUTO+ '</codigoProdutoDePara>'+CRLF
 		cMsgWS += '			<quantidade>' +cValtoChar((cAlias)->C7_QUANT)+ '</quantidade>' + CRLF
 		cMsgWS += '			<valorUnitario>' +cValtoChar((cAlias)->C7_PRECO)+ '</valorUnitario>' + CRLF
-		cMsgWS += '			<codigoUnidade>' +'UND'+ '</codigoUnidade>' + CRLF //apagar
-		//cMsgWS += '			<codigoUnidade>' +SC7->C7_UM+ '</codigoUnidade>'+CRLF
+		cMsgWS += '			<codigoUnidade>' +Alltrim(Posicione("SAH",1,FWxFilial("SAH")+SD1->D1_UM,"AH_XUNIMV"))+ '</codigoUnidade>'+CRLF
 		cMsgWS += '			<codigoUnidadeDepara/>' + CRLF
 		cMsgWS += '		</Produto>'+CRLF
 
@@ -225,10 +232,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 			If ! lContinua
 
 				//Informo que a integração não foi bem sucedida
-				SC7->(RecLock('SC7',.F.))
-				SC7->C7_XSTREQ := '0'
-				//SC7->C7_XTPREQ := Iif(nOPC == 3, '1', '2')
-				SC7->(MsUnlock())
+				lRet := .F.
 
 				cMsgErr   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" - Erro!"
 
@@ -249,15 +253,7 @@ User Function INTPCMV(nOPC, cDocto, cMsgErr)
 					U_AdminMsg("[PrepSendPed] " + DToC(dDataBase) + " - " + Time() + " -> " + cMsgErr, IsBlind())
 				Endif
 
-				lRet := .F.
-
 			Else
-				//Informo que a integração foi bem sucedida
-				SC7->(RecLock('SC7',.F.))
-				SC7->C7_XSTREQ := '1'
-				//SC7->C7_XTPREQ := Iif(nOPC == 3, '1', '2')
-				SC7->(MsUnlock())
-
 				cMsgOk   += "SC7: "+SC7->C7_NUM+ ' ' +SC7->C7_FORNECE+ ' ' +SC7->C7_LOJA+" - "+" - Sucesso!"
 
 				jAuxLog["status"]  := "1"
@@ -296,30 +292,29 @@ Static Function xIDInt()
 
 	Local cRet			:= ""
 	Local cQuery 		:= ""
+	Local cAlias		:= ""
 
-	cQuery += " SELECT MAX(C1_XIDINT ) C1_XIDINT   	"
-	cQuery += " FROM " + RetSqlName("SC1") + " SC1	"
-	cQuery += " WHERE D_E_L_E_T_ = ' '  			"
+	cQuery := " SELECT MAX(C1_XIDINT ) C1_XIDINT FROM " + RetSqlName("SC1") + " SC1	WHERE D_E_L_E_T_ = ' '	"
 
 	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
 
-	MPSysOpenQuery(cQuery, 'TMP')
-
-	If TMP->(EoF())
-		If ! Empty(TMP->C1_XIDINT)
-			cRet := soma1(Alltrim(TMP->C1_XIDINT))
+	If ! (cAlias)->(EoF())
+		If ! Empty((cAlias)->C1_XIDINT)
+			cRet := soma1(Alltrim((cAlias)->C1_XIDINT))
 		Else
 			cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
 		Endif
 	Else
 		cRet := StrZero(1,TamSX3("C1_XIDINT")[1])
 	Endif
-	TMP->(dbCloseArea())
+
+	(cAlias)->(dbCloseArea())
 
 Return(cRet)
 
 /*/{Protheus.doc} RetDTHR
-description Retorna data e hora atual do servidor formatada conforme documentaÃ§Ã£o
+description Retorna data e hora atual do servidor formatada conforme documentacao
 @type function
 @version  
 @author Marcio Martins
@@ -354,17 +349,18 @@ Static Function xTotal(cNum)
 
 	Local cRet			:= ""
 	Local cQuery 		:= ""
+	Local cAlias		:= ""
 
 	cQuery += " SELECT SUM(C7_TOTAL) TOTAL FROM " + RetSqlName("SC7") + " WHERE D_E_L_E_T_ = ' ' AND C7_NUM = '" + cNum + "' "
+
 	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
 
-	MPSysOpenQuery(cQuery, 'TMP')
-
-	If ! TMP->(EoF())
-		cRet := cValtoChar(TMP->TOTAL)
+	If ! (cAlias)->(EoF())
+		cRet := cValtoChar((cAlias)->TOTAL)
 	Endif
 
-	TMP->(dbCloseArea())
+	(cAlias)->(dbCloseArea())
 
 Return(cRet)
 

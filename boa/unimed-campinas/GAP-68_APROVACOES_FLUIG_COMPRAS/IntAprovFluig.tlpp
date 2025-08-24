@@ -400,7 +400,7 @@ User Function IntCancFluig(cTabela, cIDFluig, nRecno)
 Return(lCancela)
 
 //Aprovação de processo Fluig 
-Static Function fAprovaFluig(_nOpc, cIdFluig)
+Static Function fAprovaFluig(cIdFluig)
 
 	Local cBody         := ""						            as Character
 	Local oAprov        := Nil                                  as Object
@@ -414,10 +414,10 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 
 	TRY
 
-		oLog := CtrlLOG():New()
+		oLog 	:= CtrlLOG():New()
+		jAuxLog := JsonObject():New()
 
 		If ! oLog:SetTab("SZL")
-
 			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
@@ -473,8 +473,6 @@ Static Function fAprovaFluig(_nOpc, cIdFluig)
 				If ! oLog:AddItem(jAuxLog)
 					ConOut(oLog:GetError())
 				EndIf
-
-				U_AdminMsg("["+FunName()+"] " + DToC(Date()) + " - " + Time() + " -> " + cLogErro, IsBlind())
 			Endif
 		Endif
 
