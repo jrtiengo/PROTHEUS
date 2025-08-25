@@ -111,4 +111,3 @@ Static Function SchedDef()
 	Nil		}	//Titulo (para Relatorio)
 
 Return(_aPar)
-

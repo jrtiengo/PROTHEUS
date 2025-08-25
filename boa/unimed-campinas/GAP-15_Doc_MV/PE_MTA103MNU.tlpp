@@ -57,7 +57,6 @@ User Function IntDocRv()
 	TRY
 
 		If SF1->F1_XSTREQ == "1"
-
 			FWAlertError("Movimento já foi Integrado!", "Integração de Documento MV")
 			Return()
 		EndIf
@@ -71,3 +70,19 @@ User Function IntDocRv()
 	ENDTRY
 
 Return()
+
+/*/{Protheus.doc} EnvIntFor
+Função para verificar o Log de Integração
+@type function
+@version V 1.00
+@author Tiengo Junior
+@since 27/05/2025
+/*/
+User Function VerLogSF1()
+
+	Local oLogAPI	:= Nil 	as Object
+
+	oLogAPI := CtrlLOG():New()
+	oLogAPI:ViewLog('SF1', "", 'MATA103', 'SF1', SF1->(RECNO()) )
+
+Return(.T.)
