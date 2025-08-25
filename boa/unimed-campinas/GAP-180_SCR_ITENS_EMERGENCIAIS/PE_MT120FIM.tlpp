@@ -4,46 +4,108 @@
 #Include 'tlpp-core.th'
 #Include 'tlpp-rest.th'
 
+#Define cTitApp "MT120FIM"
+
 /*/{Protheus.doc} MT120FIM
 description Ponto de entrada no final do pedido de compras
+1. GAP 014 - Caso seja uma exclusão ou alteração, e existir SC do MV
+2. GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
+3. GAP 068 - Envio de Aprovações Fluig Compras
+4. GAP 201 - Estornar a tabela SZ0 quando a medição for estornada
 @type function
 @version  
 @author Marcio Martins
 @since 5/15/2025
-@obs PARAMIXB[1] Opção Escolhida pelo usuario - 03 inclusão - 04 alteração - 05 Exclusão - 09 - copia
+@obs PARAMIXB[1] Opção Escolhida pelo usuario - 03 inclusão - 04 alteração - 05 exclusão - 09 - copia
 @obs PARAMIXB[2] Numero do Pedido de Compras
 @obs PARAMIXB[3] Indica se a ação foi Cancelada = 0  ou Confirmada = 1
 @See https://tdn.totvs.com/display/public/PROT/MT120FIM
 /*/
 User Function MT120FIM()
 
+	Local aAreaSC1  := SC1->(FwGetArea())           as Array
 	Local aAreaSC7  := SC7->(FwGetArea())           as Array
 	Local aAreaSCR  := SCR->(FwGetArea())           as Array
 	Local nOpcao    := PARAMIXB[01]                 as Numeric
 	Local cNumPC    := PARAMIXB[02]                 as Character
 	Local nOpcA     := PARAMIXB[03]                 as Numeric
 	Local oError    := ErrorClass():New()           as Object
-	Local cChave	:= "" 							as Character
+	Local cMsgErr   := ""                           as Character
 
 	TRY
 
 		If !FwIsInCallStack("U_INSPC")
 			// GAP 001 - Caso o objeto C7_XENTPAC =  “N” E C7_XORINT = "MV" o Pedido de Compra deve ser enviado para o Sistema MV por integração
-
 			If Alltrim(SC7->C7_XORINT) == "MV" .And. SC7->C7_XENTPAC == "N" .And. Inclui
-				U_ENVIAPCMV()   // Fonte: ENVIAPCMV.tlpp
+				//U_INTPCMV()
+			Endif
+		Endif
+
+		If nOpcA == 1 .and. ! Empty(SC7->C7_NUMSC) .and. (nOpcao == 4 .or. nOpcao == 5)
+			SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+			If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+				If Alltrim(SC1->C1_XORINT) == 'MV'
+					//Envia PC ao MV
+
+					If ! U_INTPCMV(nOpcao, @cMsgErr)
+						SC7->(RecLock('SC7',.F.))
+						SC7->C7_XSTREQ := '1'
+						SC7->C7_XTPREQ := '5'
+						SC7->(MsUnlock())
+					Else
+						SC7->(RecLock('SC7',.F.))
+						SC7->C7_XSTREQ := '0'
+						SC7->C7_XTPREQ := '5'
+						SC7->(MsUnlock())
+					Endif
+				Endif
+			Endif
+		Endif
+
+		If nOpcA == 1
+
+			//Envia Cancelamento ao Fluig
+			If SC7->(MSSeek(FWxFilial("SC7") + cNumPC))
+				If ! Empty(SC7->C7_XIDFLU)
+					//U_IntCancFluig('SC7', SC7->C7_XIDFLU, SC7->(RecNo()))
+				Endif
+/*
+				If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
+
+					//Envia Documento ao Fluig
+					U_IntAprovFluig('SC7', 'IP', cNumPC, '', '')
+
+					While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
+						Reclock("SCR",.F.)
+						SCR->CR_XIEMERG := SC7->C7_XIEMERG
+						SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+						SCR->(MsUnlock())
+						SCR->(dbSkip())
+					EndDo
+
+				Elseif SCR->(MsSeek(FWxFilial("SCR")+'PC'+cNumPC))
+
+					//Envia Documento ao Fluig
+					U_IntAprovFluig('SC7', 'PC', cNumPC, '', '')
+
+					Reclock("SCR",.F.)
+					SCR->CR_XIEMERG := SC7->C7_XIEMERG
+					SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+					SCR->(MsUnlock())
+					SCR->(dbSkip())
+				Endif
+*/
 			Endif
 		Endif
 
 		//GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
 		If nOpcA == 1 .and. (nOpcao == 3 .or. nOpcao == 9)
-
 			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
 				While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
 					Reclock("SCR",.F.)
 					SCR->CR_XIEMERG := SC7->C7_XIEMERG
 					SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
-					SCR->(MsUnLock())
+					SCR->(MsUnlock())
 					SCR->(dbSkip())
 				EndDo
 
@@ -51,7 +113,7 @@ User Function MT120FIM()
 				Reclock("SCR",.F.)
 				SCR->CR_XIEMERG := SC7->C7_XIEMERG
 				SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
-				SCR->(MsUnLock())
+				SCR->(MsUnlock())
 				SCR->(dbSkip())
 			Endif
 		Endif

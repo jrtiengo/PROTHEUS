@@ -1,6 +1,7 @@
 #Include "TOTVS.ch"
 #Include "PROTHEUS.ch"
 #Include "TOPCONN.ch"
+#include "fileio.ch"
 
 /*/{Protheus.doc} xCTBAUC
 Este programa tem como objetivo gerar CNAB para Debito Automatico, inclusão, alteração e exclusão
@@ -77,7 +78,7 @@ Static Function fBusca(oSelf)
 		MakeDir(cLogDir)
 	Endif
 
-	FCreate(cLocDir + cArq)
+	nHandle := FCreate(cLocDir + cArq)
 
 	If nHandle = -1
 		FWAlertError('Erro ao criar arquivo','Erro')
@@ -124,9 +125,9 @@ Return()
  |----------------------------|--------------|-----------|-------------------|
  | A01 - Código do Registro   | 001 - 001    | X(001)    | "A"               |
  | A02 - Código de Remessa    | 002 - 002    | 9(001)    | 1=Remessa, 2=Ret. |
- | A03 - Código do Convênio   | 003 - 022    | X(020)    | Código do Banco   |
+ | A03 - Código do Convênio   | 003 - 022    | X(020)    | Código do Convênio|
  | A04 - Nome da Empresa      | 023 - 042    | X(020)    | Nome da Empresa   |
- | A05 - Código do Banco      | 043 - 045    | 9(003)    | Código Compensação|
+ | A05 - Código do Banco      | 043 - 045    | 9(003)    | Código do Banco na Câmara de compensação.|
  | A06 - Nome do Banco        | 046 - 065    | X(020)    | Nome do Banco     |
  | A07 - Data de Geração      | 066 - 073    | 9(008)    | AAAAMMDD          |
  | A08 - NSA                  | 074 - 079    | 9(006)    | Nº Sequencial     |
@@ -135,18 +136,90 @@ Return()
  | A11 - Reservado/Futuro     | 099 - 150    | X(052)    | Brancos/"TESTE"   |
  -----------------------------------------------------------------------------
 */
-Static Function fHeader()
+User Function fHeader()
+
+	local nHandle 			:= 0
+	Local cLocDir 			:= "C:\Temp\"
+	Local cArq 				:= ""
+
+	cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + "000001" + ".EDI"
+
+	RPCSetEnv("99" , "01",,,"FIN",,,,,,)
+
+	nHandle := FCreate(cLocDir + cArq)
+
+	If nHandle = -1
+		FWAlertError('Erro ao criar arquivo','Erro')
+		Return()
+	Endif
 
 	cRet := 'A'
 	cRet += '1'
-	cRet += PadR("Código do Convênio", 20)
-	cRet += PadR("Nome da Empresa ", 20)
-	cRet += PadL(Transform('Código do Banco', "@R 999"), 3, "0")
-	cRet += PadR("NOME DO BANCO", 20)
-	cRet += DToC(Date())
-	cRet += PadL(Transform(1, "@R 999999"), 6, "0")
+	cRet += PadR("14837", 20)
+	cRet += PadR("UNIMED CAMPINAS COOP", 20)
+	cRet += PadL("001", 3)
+	cRet += PadR("BANCO DO BRASIL S.A.", 20)
+	cRet += DtoS(ddatabase)
+	cRet += PadL("000001", 6)
 	cRet += "04"
 	cRet += PadR("DEBITO AUTOMATICO", 17)
+	cRet += Space(52)
 	cRet := Stuff(cRet, 146, 5, "TESTE")
 
-Return cRet
+	FWrite(nHandle, cRet + CRLF)
+
+	FClose(nHandle)
+
+	RpcClearEnv()
+
+Return (cRet)
+
+/* Registro de Débito - Detalhe - Registro D
+ -------------------------------------------------------------------------------------------------------------------
+ | Campo                                            | Posição   | Formato | Conteúdo                                                                                       |
+ |--------------------------------------------------|-----------|---------|------------------------------------------------------------------------------------------------|
+ | D01-Código do Registro                           | 001 - 001 | X(001)  | “D”                                                                                            |
+ | D02-Identificação do Cliente na Empresa - Anter  | 002 - 026 | X(025)  | Identificação do Cliente na Empresa - Anterior                                                 |
+ | D03-Agência para Débito                          | 027 - 030 | X(004)  | O conteúdo deverá ser idêntico ao anteriormente enviado pelo Banco, no registro tipo “B”       |
+ | D04-Identificação do Cliente no Banco            | 031 - 044 | X(014)  | O conteúdo deverá ser idêntico ao anteriormente enviado pelo Banco, no registro tipo “B”       |
+ | D05-Identificação do Cliente na Empresa - Atual  | 045 - 069 | X(025)  | Identificação do Cliente na Empresa - Atual                                                    |
+ | D06-Ocorrência                                   | 070 - 129 | X(060)  | Mensagem explicativa do movimento enviado pela Empresa, quando o Código do Movimento for igual a 1.|
+ | D07-Reservado para o futuro                      | 130 - 149 | X(020)  | Brancos                                                                                        |
+ | D08-Código do Movimento                          | 150 - 150 | 9(001)  | 0 = Alteração da Identificação do Cliente na Empresa                                           |
+ |                                                  |           |         | 1 = Exclusão de optante do Débito Automático                                                   |
+ -------------------------------------------------------------------------------------------------------------------
+*/
+
+User Function fExclusao()
+
+	local nHandle 			:= 0
+	Local cLocDir 			:= "C:\Temp\"
+	Local cArq 				:= ""
+
+	cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + "000001" + ".EDI"
+
+	RPCSetEnv("99" , "01",,,"FIN",,,,,,)
+
+	nHandle := FCreate(cLocDir + cArq)
+
+	If nHandle = -1
+		FWAlertError('Erro ao criar arquivo','Erro')
+		Return()
+	Endif
+
+	cRet := 'D'
+	cRet += PadR("IDCLI EMPRESA ANT", 25)
+	cRet += PadR("AG DE DÉBITO", 4)
+	cRet += PadL("IDCLI BANCO", 14)
+	cRet += PadR("IDCLI EMPRESA ATU", 25)
+	cRet += PadR("EXCLUSAO POR ALTERACAO CADASTRAL DO CLIENTE", 60)
+	cRet += Space(20)
+	cRet += '1'
+
+	FWrite(nHandle, cRet + CRLF)
+
+	FClose(nHandle)
+
+	RpcClearEnv()
+
+Return (cRet)

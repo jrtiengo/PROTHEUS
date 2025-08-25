@@ -46,7 +46,7 @@ User Function IntUsrTrac()
 
 	oJson['name']			        := Alltrim(SRA->RA_MAT + ' ' + '-' + ' ' + 	SRA->RA_NOME)
 	oJson['email']			        := Alltrim(SRA->RA_EMAIL)
-	//oJson['telefone']              := SRA->RA_TELEFON //Tracnian precisa criar o objeto na API
+	oJson['phone']              	:= Alltrim('+55' + SRA->RA_DDDFONE + StrTran(SRA->RA_TELEFON, "-", " "))
 	oJson['profileId']              := "689cf6ffa100173842043933" //Acessos será fixo
 	oJson["companyId"]              := "ff2ba000a561cea6bab088bc" //base testes
 	oJson['language']	            := "pt-BR"
