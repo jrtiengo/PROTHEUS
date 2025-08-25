@@ -122,7 +122,7 @@ User Function MT094END()
 	EndIf
 
 	If nOpc == 1 .or. nOpc == 5
-
+/*
 		Do Case
 		Case cTipo == 'PC' .or. cTipo == 'IP'
 			cIdFluig := SC7->C7_XIDFLU
@@ -135,32 +135,32 @@ User Function MT094END()
 		EndCase
 
 		If ! Empty(cIdFluig)
-			//U_IntAprovFluig('SCR', cTipo, cDocto, '', '')
+			U_IntAprovFluig('SCR', cTipo, cDocto, '', '')
 		Endif
+*/
+	Endif
+	If cTipo == 'IP' .and. nOpc == 1 .and. xChkSCR(cDocto, cTipo, SCR->(RecNo()), cFilDoc)
 
-		If cTipo == 'IP' .and. xChkSCR(cDocto, cTipo, SCR->(RecNo()), cFilDoc)
+		SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+		If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+			If Alltrim(SC1->C1_XORINT) == 'MV'
+				//Envia PC ao MV
+				If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
 
-			SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
-			If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
-				If Alltrim(SC1->C1_XORINT) == 'MV'
-					//Envia PC ao MV
-					If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
-
-						If ! U_INTPCMV(3, @cMsgErr)
-							While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-								SC7->(RecLock('SC7',.F.))
-								SC7->C7_XSTREQ := '1'
-								SC7->C7_XTPREQ := '3'
-								SC7->(MsUnlock())
-							EndDo
-						Else
-							While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-								SC7->(RecLock('SC7',.F.))
-								SC7->C7_XSTREQ := '0'
-								SC7->C7_XTPREQ := '3'
-								SC7->(MsUnlock())
-							EndDo
-						Endif
+					If ! U_INTPCMV(3, @cMsgErr)
+						While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+							SC7->(RecLock('SC7',.F.))
+							SC7->C7_XSTREQ := '1'
+							SC7->C7_XTPREQ := '3'
+							SC7->(MsUnlock())
+						EndDo
+					Else
+						While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
+							SC7->(RecLock('SC7',.F.))
+							SC7->C7_XSTREQ := '0'
+							SC7->C7_XTPREQ := '3'
+							SC7->(MsUnlock())
+						EndDo
 					Endif
 				Endif
 			Endif

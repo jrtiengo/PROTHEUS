@@ -4,7 +4,7 @@
 #include "fileio.ch"
 
 /*/{Protheus.doc} xCTBAUC
-Este programa tem como objetivo gerar CNAB para Debito Automatico, inclusão, alteração e exclusão
+Este programa tem como objetivo gerar solicitacao de exclusão para debito automatico.
 @type  Function
 @author Tiengo Junior
 @since 21/07/2025
@@ -12,11 +12,6 @@ Este programa tem como objetivo gerar CNAB para Debito Automatico, inclusão, alt
 @param 
 	MV_PAR01 = Cliente de ?                   
 	MV_PAR02 = Cliente Até ?                
-	MV_PAR03 = Banco Unimed ? 
-	MV_PAR04 = Subconta ?         
-	MV_PAR05 = Data de Movimentação de 
-	MV_PAR06 = Data de Movimentação Até  
-	MV_PAR07 = Tipo 1=Inclusão ? 2=Alteração ? 3=Exclusão ?
 /*/
 
 User Function xDACNAB()
@@ -25,7 +20,7 @@ User Function xDACNAB()
 	Local bProcess      := {|oSelf| fBusca(oSelf)}
 	Local cPerg         := "xDACNAB"
 	Local cTitulo       := "CNAB - Debito Automatico"
-	Local cDesc         := "Este programa tem como objetivo realizar a geração de CNAB para Debito Automatico, inclusão, alteração e exclusão."
+	Local cDesc         := "Este programa tem como objetivo realizar a geração de arquivo para exclusão do Debito Automatico banco."
 
 	If ! IsBlind()
 		tNewProcess():New( "xDACNAB", cTitulo, bProcess, cDesc, cPerg )
@@ -41,37 +36,38 @@ Static Function fBusca(oSelf)
 	Local aArea             := fWGetArea()
 	Local cQuery            := ''
 	Local cAlias            := ''
-	local nHandle 			:= 0
+	Local nHandle 			:= 0
 	Local cLocDir 			:= "C:\Temp\"
-	Local cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + StrZero(nNSA,6) + ".REM"
+	Local cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + StrZero(nNSA,6) + ".EDI"
+	Local cIdCliEmp			:= ""
+	Local cTotReg			:= "000001"
+	Local cTrailler			:= ""
+	Local cHeader			:= ""
+	Local cExcl				:= ""
 
-	cQuery := "SELECT	SZ6.Z6_CODCLI, 								"
-	cQuery += "			SZ6.Z6_BCOUNI,                              "
-	cQuery += "			SZ6.Z6_SUBCTA,                           	"
-	cQuery += "			SZ6.Z6_DTAMOV,                              "
-	cQuery += "			SZ6.Z6_TIPMOV, 	                          	"
-	cQuery += "         SZ6.R_E_C_N_O_                              "
-	cQuery += "FROM " + RetSqlName("SZ6") + " SZ6 				   	"
-	cQuery += "WHERE SZ6.D_E_L_E_T_ = '' "                         	"
-	cQuery += "	 AND SZ6.Z6_CODCLI >= '" + MV_PAR01 + "' "          "
-	cQuery += "	 AND SZ6.Z6_CODCLI <= '" + MV_PAR02 + "' "          "
-	cQuery += "	 AND SZ6.Z6_BCOUNI = '" + MV_PAR03 + "' "           "
-	cQuery += "	 AND SZ6.Z6_SUBCTA = '" + MV_PAR04 + "' "        	"
-	cQuery += "	 AND SZ6.Z6_DTAMOV >= '" + MV_PAR05 + "' "          "
-	cQuery += "	 AND SZ6.Z6_DTAMOV <= '" + MV_PAR06 + "' "          "
+	cQuery := "SELECT	SA1.A1_FILIAL, 								"
+	cQuery += "			SA1.A1_COD,                           		"
+	cQuery += "			SA1.A1_LOJA,                           	    "
+	cQuery += "			SA1.A1_XIDBCO,                              "
+	cQuery += "			SA1.A1_XBCO,                           		"
+	cQuery += "			SA1.A1_XAGE                           		"
+	cQuery += "FROM " + RetSqlName("SA1") + " SA1 				   	"
+	cQuery += "WHERE SA1.D_E_L_E_T_ = ' ' "                         "
+	cQuery += "	 AND SA1.A1_XCOBD = 'S' 				          	"
+	cQuery += "  AND SA1.A1_CODCLI >= '" + AllTrim(MV_PAR01) + "' 	"
+	cQuery += "	 AND SA1.A1_CODCLI <= '" + AllTrim(MV_PAR02) + "'   "
 
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)
 
 	If (cAlias)->(EoF())
 		If ! IsBlind()
-			FWAlertWarning('Atenção não foram encontrados registros','Atenção')
+			FWAlertWarning('Não foram encontrados registros','Atenção')
 			Return()
 		Endif
 	Endif
 
-	DbSelectArea("SZ6")
-	SZ6->(DbSetOrder(1)) //Z6_FILIAL+Z6_CODCLI+Z6_LOJA
+	SA1->(DbSetOrder(1)) //A1_FILIAL+A1_COD+A1_LOJA
 
 	//Cria o diretório e o arquivo de remessa
 	If ! ExistDir(cLogDir)
@@ -87,23 +83,31 @@ Static Function fBusca(oSelf)
 
 	While ! (cAlias)->(EoF())
 
+		cIdCliEmp := Alltrim((cAlias)->A1_FILIAL + (cAlias)->A1_COD + (cAlias)->A1_LOJA)
+		cTotReg   := SOMA1(cTotReg)
+
 		//Header(A)
-		cHeader := fHeader()
+		cHeader := fHeader((cAlias)->A1_XBCO)
 		FWrite(nHandle, cHeader + CRLF)
 
+		//Alteração(D)
+		cExcl := fExclusao(cIdCliEmp, (cAlias)->A1_XIDBCO, (cAlias)->A1_XAGE)
+		FWrite(nHandle, cExcl + CRLF)
 
+		If SA1->(MsSeek((cAlias)->A1_FILIAL) + AllTrim((cAlias)->A1_COD) + AllTrim((cAlias)->A1_LOJA))
+			SA1->(RecLock("SA1", .F.))
+			SA1->A1_XCOBD    := 'N'
+			SA1->(MsUnlock())
+		Endif
 
-		SZ6->(DbGoTo(nRecno))
-		SZ6->(RecLock("SZ6", .F.))
-		SZ6->Z6_DATPROC    := dDatabase
-		SZ6->Z6_BCOUNI 	   := MV_PAR03
-		SZ6->Z6_SUBCTA 	   := MV_PAR04
-		SZ6->Z6_TIPMOV     := MV_PAR07
-
-		SZ6->(MsUnlock())
+		cIdCliEmp := ''
 
 		(cAlias)->(dbSkip())
 	Enddo
+
+	//Trailler(Z)
+	cTrailler := fTrailler(cTotReg)
+	FWrite(nHandle, cHeader)
 
 	If Select(cAlias) > 0
 		(cAlias)->(DbCloseArea())
@@ -136,41 +140,38 @@ Return()
  | A11 - Reservado/Futuro     | 099 - 150    | X(052)    | Brancos/"TESTE"   |
  -----------------------------------------------------------------------------
 */
-User Function fHeader()
+static Function fHeader(cBanco)
 
-	local nHandle 			:= 0
-	Local cLocDir 			:= "C:\Temp\"
-	Local cArq 				:= ""
+	local cRet 			:= ""
+	Local cBcoDesc 		:= ""
 
-	cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + "000001" + ".EDI"
-
-	RPCSetEnv("99" , "01",,,"FIN",,,,,,)
-
-	nHandle := FCreate(cLocDir + cArq)
-
-	If nHandle = -1
-		FWAlertError('Erro ao criar arquivo','Erro')
-		Return()
-	Endif
+	Do Case
+	Case cBanco == '001'
+		cBcoDesc := "BANCO DO BRASIL S.A."
+	Case cBanco = '341'
+		cBcoDesc := " BANCO ITAU"
+	Case cBanco = '033'
+		cBcoDesc := "BANCO SANTANDER"
+	Case cBanco = '104'
+		cBcoDesc := "BANCO CAIXA"
+	Case cBanco = '237'
+		cBcoDesc := "BANCO BRADESCO"
+	Case cBanco = '136'
+		cBcoDesc := "BANCO UNICRED"
+	EndCase
 
 	cRet := 'A'
 	cRet += '1'
 	cRet += PadR("14837", 20)
 	cRet += PadR("UNIMED CAMPINAS COOP", 20)
-	cRet += PadL("001", 3)
-	cRet += PadR("BANCO DO BRASIL S.A.", 20)
+	cRet += PadL(cBanco, 3)
+	cRet += PadR(cBcoDesc, 20)
 	cRet += DtoS(ddatabase)
-	cRet += PadL("000001", 6)
+	cRet += PadL("000001", 6) //penso em criar um parametro para controlar o ultimo ID ou SX5
 	cRet += "04"
 	cRet += PadR("DEBITO AUTOMATICO", 17)
 	cRet += Space(52)
 	cRet := Stuff(cRet, 146, 5, "TESTE")
-
-	FWrite(nHandle, cRet + CRLF)
-
-	FClose(nHandle)
-
-	RpcClearEnv()
 
 Return (cRet)
 
@@ -190,36 +191,39 @@ Return (cRet)
  -------------------------------------------------------------------------------------------------------------------
 */
 
-User Function fExclusao()
+static Function fExclusao(cIdCliEmp, cIdCliBco, cAgencia)
 
-	local nHandle 			:= 0
-	Local cLocDir 			:= "C:\Temp\"
-	Local cArq 				:= ""
-
-	cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + "000001" + ".EDI"
-
-	RPCSetEnv("99" , "01",,,"FIN",,,,,,)
-
-	nHandle := FCreate(cLocDir + cArq)
-
-	If nHandle = -1
-		FWAlertError('Erro ao criar arquivo','Erro')
-		Return()
-	Endif
+	local cRet 			:= ""
 
 	cRet := 'D'
-	cRet += PadR("IDCLI EMPRESA ANT", 25)
-	cRet += PadR("AG DE DÉBITO", 4)
-	cRet += PadL("IDCLI BANCO", 14)
-	cRet += PadR("IDCLI EMPRESA ATU", 25)
+	cRet += PadR(cIdCliEmp, 25)
+	cRet += PadR(cAgencia, 4)
+	cRet += PadL(cIdCliBco, 14)
+	cRet += PadR(cIdCliEmp, 25)
 	cRet += PadR("EXCLUSAO POR ALTERACAO CADASTRAL DO CLIENTE", 60)
 	cRet += Space(20)
 	cRet += '1'
 
-	FWrite(nHandle, cRet + CRLF)
+Return (cRet)
 
-	FClose(nHandle)
+/* Trailler do arquivo - último registro físico do arquivo - Registro Z
+ -------------------------------------------------------------------------------------------------------------------
+ | Campo                               | Posição   | Formato | Conteúdo                                                                                       |
+ |-------------------------------------|-----------|---------|------------------------------------------------------------------------------------------------|
+ | Z01-Código do Registro              | 001 - 001 | X(001)  | “Z”                                                                                            |
+ | Z02-Total de registros do arquivo   | 002 - 007 | 9(006)  | No somatório dos registros, deverão ser também incluídos, os registros Header e Trailler.      |
+ | Z03-Valor total dos registros       | 008 - 024 | 9(017)  | Este campo deverá ser o somatório do campo E06 (remessa) ou F06 (retorno).                     |
+ | Z04-Reservado para o futuro         | 025 - 150 | X(126)  | Brancos                                                                                        |
+ -------------------------------------------------------------------------------------------------------------------
+*/
 
-	RpcClearEnv()
+static Function fTrailler(cTotReg)
+
+	local cRet 			:= ""
+
+	cRet := 'Z'
+	cRet += PadL(cTotReg, 6)
+	cRet += PadL("0", 17)
+	cRet += Space(126)
 
 Return (cRet)
