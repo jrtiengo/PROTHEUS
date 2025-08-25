@@ -55,7 +55,7 @@ User Function IntDocRv()
 	Local cMsgErr := ""                 as Character
 
 	TRY
-
+	
 		If SF1->F1_XSTREQ == "1"
 			FWAlertError("Movimento já foi Integrado!", "Integração de Documento MV")
 			Return()
