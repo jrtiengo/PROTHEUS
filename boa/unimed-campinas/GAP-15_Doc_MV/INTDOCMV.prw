@@ -68,13 +68,7 @@ User Function IntDocMV(nOpc, cMsgErr)
 	EndIf
 
 //Caso vier uma exclusão ou estorno, eu devo excluir no MV, pois o DOC só será incluido novamente depois de ser incluido ou classficado
-/*Ainda não foi definido se terá exclusão de NF no MV
-	If ! Empty(SF1->F1_XTPREQ)
-		cOperMV := SF1->F1_XTPREQ
-	Else
-		Iif(nOPC == 5, cOperMV := 'E', cOperMV := 'I')
-	EndIf
-*/
+//Ainda não foi definido se terá exclusão de NF no MV
 	Iif(nOPC == 5, cOperMV := 'E', cOperMV := 'I')
 
 //Montando XML para envio ao MV
@@ -350,22 +344,6 @@ User Function IntDocMV(nOpc, cMsgErr)
 	FwRestArea(aArea)
 
 Return(lRet)
-
-/*/{Protheus.doc} EnvIntFor
-Função para verificar o Log de Integração
-@type function
-@version V 1.00
-@author Tiengo Junior
-@since 27/05/2025
-/*/
-User Function VerLogSF1()
-
-	Local oLogAPI	:= Nil 	as Object
-
-	oLogAPI := CtrlLOG():New()
-	oLogAPI:ViewLog('SF1', "", 'MATA103', 'SF1', SF1->(RECNO()) )
-
-Return(.T.)
 
 /*/{Protheus.doc} xIDInt
 description Função que cria para o MV o MensagemID
