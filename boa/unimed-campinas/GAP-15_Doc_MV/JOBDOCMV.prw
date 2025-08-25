@@ -61,7 +61,7 @@ User Function DocMVProc(oSelf, lSchedule, nN)
 
 	If !oLog:SetTab("SZL")
 		U_AdminMsg("[JOBDOCMV] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
-		Return .T.
+		Return()
 	EndIf
 
 	cQuery := " SELECT R_E_C_N_O_ RECSF1, F1_XTPREQ TPREQ, *" + CRLF
