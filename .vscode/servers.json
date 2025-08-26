@@ -6,31 +6,7 @@
 	"permissions": {
 		"authorizationtoken": ""
 	},
-	"connectedServer": {
-		"id": "mmq39by0klm932a9xnxubpb9hjexh",
-		"type": "totvs_server_protheus",
-		"name": "app_local_2410",
-		"port": 7210,
-		"address": "localhost",
-		"buildVersion": "7.00.240223P",
-		"secure": true,
-		"includes": [
-			"C:\\TOTVS\\protheus12.1.2410\\Protheus\\include"
-		],
-		"environments": [
-			"protheus12.1.2410_rest"
-		],
-		"username": "admin",
-		"environment": "protheus12.1.2410_rest",
-		"token": "djM6bW1xMzlieTBrbG05MzJhOXhueHVicGI5aGpleGg6MTpsb2NhbGhvc3Q6NzIxMDoxOjcuMDAuMjQwMjIzUDoz:djE6cHJvdGhldXMxMi4xLjI0MTBfcmVzdDphZG1pbjpOamZRQUlGZUI4TXh1aHpMcmFLbUYyeWlYc0NJc2Z4b3FIblpZSWRtVU9VPQ==|djI6MTc1NjE0NDM2NDowOjE6MQ==.bFSAi6jI8xtEaKSt6hWEhAVTict6tQRnRcS3NHUMqIYat4RAHZ5vC5mFExHMkg8YJLwsZNLnTBni3Gtz/33UR0pYyv4mHa36xeyknATpHBi1ROoqhVwbJY0jlN9yZ8NiyGVyuX0hOE+2dvXdqrSztHio6MSONgmc7D2cfCR01gUM6V+Da8wKtt/vsLX7aXZHQg6/Z5ksdW2ZWODVfnNlCg4UT/s97L2PsW3dQpsLZx8eQwG+bhPeJX0GIV2JyCuWEYyhJfze/XR9aXRT/+ILe3GVgMHIA+vXXeoynnjquHHIR2YjxKAImR8/gotNikCjlTF4mUyd+tA+UPLue7zwjw==",
-		"informations": {
-			"permissions": [],
-			"errorMessage": "",
-			"environmentDetectedType": "totvs_server_protheus",
-			"serverDetectedType": "totvs_server_protheus"
-		},
-		"patchGenerateDir": "c:\\temp"
-	},
+	"connectedServer": {},
 	"configurations": [
 		{
 			"id": "mmq39by0klm932a9xnxubpb9hjexh",
