@@ -1,0 +1,58 @@
+#Include "TOTVS.ch"
+#Include "TopConn.ch"
+#Include "Protheus.ch"
+#Include "tlpp-core.th"
+#Include "tlpp-rest.th"
+
+/*/{Protheus.doc} MT103DRF
+description Ponto de entrada para atender GAP 087 para definição dos códigos de impostos
+    • IR PJ = 1708;
+    • CSRF  = 5952; e
+    • IR PF = 3208.
+@type function
+@version  
+@author Marcio Martins Pereira
+@since 3/28/2025
+@return array, return_description
+/*/
+User Function MT103DRF() as Array
+
+	Local aArea	:= FWGetArea()
+	Local aAreaSA2	:= SA2->(FWGetArea())
+	Local aImpRet 	:= PARAMIXB     as Array
+	Local nCombo 	:= PARAMIXB[1]  as Numeric
+	Local cCodRet 	:= PARAMIXB[2]  as Character
+
+	If cTipo == "N"
+
+		If SA2->A2_TIPO == "J" .And. Alltrim(cEspecie) = 'NFS'
+
+			aImpRet := {}
+			nCombo  := 1
+			cCodRet := "1708"
+			aadd(aImpRet,{"IRR",nCombo,cCodRet})
+
+			nCombo  := 1
+			cCodRet := "5952"
+			aadd(aImpRet,{"CSL",nCombo,cCodRet})
+
+		ElseIf SA2->A2_TIPO == "F"
+
+			// TODO: FALTA DEFINIÇÃO DE REGRA PARA PESSOA FÍSICA SEGUNDO A MARIANA
+			aImpRet := {}
+			nCombo  := 1
+			cCodRet := "3208"
+			aadd(aImpRet,{"IRR",nCombo,cCodRet})
+
+			nCombo  := 1
+			cCodRet := "5952"
+			aadd(aImpRet,{"CSL",nCombo,cCodRet})
+
+		Endif
+
+	Endif
+
+	FWRestArea(aAreaSA2)
+	FWRestArea(aArea)
+
+Return aImpRet

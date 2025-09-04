@@ -18,7 +18,7 @@ User Function GP010AGRV()
 	//Local lGrava :=Paramixb[2]
 
 	If cFilAnt == '0101' .and. (nOpc == 3 .or. nOpc == 4 .or. nOpc == 5)
-		If ! u_IntUsr(@cMsgErro)
+		If ! u_UsrTrac(@cMsgErro)
 			Aviso("Falha na integração com TracOS", cMsgErro, {"OK"}, 1, "Tractian")
 		Endif
 	Endif

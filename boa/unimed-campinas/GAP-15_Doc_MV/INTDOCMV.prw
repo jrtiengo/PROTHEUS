@@ -3,7 +3,7 @@
 
 /*/{Protheus.doc} IntDocMV
 1. GAP 015 - Envio de documento de entrada para o MV
-2. GAP 093 - Função fValidEst, Valida se a TES utiliza no documento de entrada atualiza estoque
+2. GAP 094 - Função fValidEst, Valida se a TES utiliza no documento de entrada atualiza estoque
 @version V 1.00
 @author Tiengo
 @since 28/05/2025

@@ -4,23 +4,25 @@
 #include "fileio.ch"
 
 /*/{Protheus.doc} xCTBAUC
-Este programa tem como objetivo gerar solicitacao de exclusão para debito automatico.
+Este programa tem como objetivo gerar solicitacao de exclusão para debito automatico ao banco selecionado .
+GAP 73 
 @type  Function
 @author Tiengo Junior
-@since 21/07/2025
+@since 21/08/2025
 @version version
 @param 
 	MV_PAR01 = Cliente de ?                   
-	MV_PAR02 = Cliente Até ?                
+	MV_PAR02 = Cliente Até ?
+	MV_PAR03 = Banco ?                 
 /*/
 
 User Function xDACNAB()
 
 	Local aArea         := FWGetArea()
-	Local bProcess      := {|oSelf| fBusca(oSelf)}
-	Local cPerg         := "xDACNAB"
-	Local cTitulo       := "CNAB - Debito Automatico"
+	Local bProcess      := {|oSelf| fBusca(oSelf) }
+	Local cTitulo       := "Debito Automatico - Exclusão"
 	Local cDesc         := "Este programa tem como objetivo realizar a geração de arquivo para exclusão do Debito Automatico banco."
+	Local cPerg         := "xDACNAB"
 
 	If ! IsBlind()
 		tNewProcess():New( "xDACNAB", cTitulo, bProcess, cDesc, cPerg )
@@ -38,24 +40,28 @@ Static Function fBusca(oSelf)
 	Local cAlias            := ''
 	Local nHandle 			:= 0
 	Local cLocDir 			:= "C:\Temp\"
-	Local cArq 				:= "CNAB_BB_" + DToS(Date()) + "_" + StrZero(nNSA,6) + ".EDI"
+	Local cArq 				:= ""
 	Local cIdCliEmp			:= ""
 	Local cTotReg			:= "000001"
 	Local cTrailler			:= ""
 	Local cHeader			:= ""
 	Local cExcl				:= ""
+	Local aSX5				:= {}
+	Local cIdSeq			:= ""
 
 	cQuery := "SELECT	SA1.A1_FILIAL, 								"
 	cQuery += "			SA1.A1_COD,                           		"
 	cQuery += "			SA1.A1_LOJA,                           	    "
-	cQuery += "			SA1.A1_XIDBCO,                              "
+	cQuery += "			SA1.A1_XDEBA,                           	"
 	cQuery += "			SA1.A1_XBCO,                           		"
 	cQuery += "			SA1.A1_XAGE                           		"
 	cQuery += "FROM " + RetSqlName("SA1") + " SA1 				   	"
 	cQuery += "WHERE SA1.D_E_L_E_T_ = ' ' "                         "
+	cQuery += "  AND SA1.A1_FILIAL = '" +FWxfilial('SA1')+ '"       "
 	cQuery += "	 AND SA1.A1_XCOBD = 'S' 				          	"
-	cQuery += "  AND SA1.A1_CODCLI >= '" + AllTrim(MV_PAR01) + "' 	"
-	cQuery += "	 AND SA1.A1_CODCLI <= '" + AllTrim(MV_PAR02) + "'   "
+	cQuery += "  AND SA1.A1_CODCLI >= '" + MV_PAR01 + "' 			"
+	cQuery += "	 AND SA1.A1_CODCLI <= '" + MV_PAR02 + "'   			"
+	cQuery += "	 AND SA1.A1_XBCO = '" + MV_PAR03 + "' 				"
 
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)
@@ -67,36 +73,47 @@ Static Function fBusca(oSelf)
 		Endif
 	Endif
 
-	SA1->(DbSetOrder(1)) //A1_FILIAL+A1_COD+A1_LOJA
+	//Busco o próximo ID Sequencial
+	aSX5 := FWGetSX5("UC", MV_PAR03)
+
+	If Len(aSX5) == 0
+		FWAlertWarning('Erro ao buscar ID Sequencial','Atenção')
+		Return()
+	Endif
+
+	cIdSeq := aSX5[1][4]
 
 	//Cria o diretório e o arquivo de remessa
 	If ! ExistDir(cLogDir)
 		MakeDir(cLogDir)
 	Endif
 
+	cArq 	:= "DA_" + MV_PAR03 + "_" + cIdSeq + ".EDI"
 	nHandle := FCreate(cLocDir + cArq)
 
-	If nHandle = -1
+	If nHandle == -1
 		FWAlertError('Erro ao criar arquivo','Erro')
 		Return()
 	Endif
+
+	//Header(A)
+	cHeader := fHeader((cAlias)->A1_XBCO, cIdSeq)
+	FWrite(nHandle, cHeader + CRLF)
+
+	SA1->(DbSetOrder(1)) //A1_FILIAL+A1_COD+A1_LOJA
 
 	While ! (cAlias)->(EoF())
 
 		cIdCliEmp := Alltrim((cAlias)->A1_FILIAL + (cAlias)->A1_COD + (cAlias)->A1_LOJA)
 		cTotReg   := SOMA1(cTotReg)
 
-		//Header(A)
-		cHeader := fHeader((cAlias)->A1_XBCO)
-		FWrite(nHandle, cHeader + CRLF)
-
 		//Alteração(D)
-		cExcl := fExclusao(cIdCliEmp, (cAlias)->A1_XIDBCO, (cAlias)->A1_XAGE)
+		cExcl := fExclusao(cIdCliEmp, (cAlias)->A1_XDEBA, (cAlias)->A1_XAGE)
 		FWrite(nHandle, cExcl + CRLF)
 
 		If SA1->(MsSeek((cAlias)->A1_FILIAL) + AllTrim((cAlias)->A1_COD) + AllTrim((cAlias)->A1_LOJA))
 			SA1->(RecLock("SA1", .F.))
-			SA1->A1_XCOBD    := 'N'
+			SA1->A1_XCOBD	:= 'N'
 			SA1->(MsUnlock())
 		Endif
 
@@ -106,8 +123,11 @@ Static Function fBusca(oSelf)
 	Enddo
 
 	//Trailler(Z)
-	cTrailler := fTrailler(cTotReg)
+	cTrailler := fTrailler(cTotReg, cIdSeq)
 	FWrite(nHandle, cHeader)
+
+	//Grava o próximo numero a ser gerado
+	FwPutSX5(, 'ZZ', MV_PAR03, SOMA1(cIdSeq), SOMA1(cIdSeq), SOMA1(cIdSeq))
 
 	If Select(cAlias) > 0
 		(cAlias)->(DbCloseArea())
@@ -138,42 +158,69 @@ Return()
  | A09 - Versão do Lay-out    | 080 - 081    | 9(002)    | "04"              |
  | A10 - Identificação Serviço| 082 - 098    | X(017)    | "DÉBITO AUTOMÁTICO"|
  | A11 - Reservado/Futuro     | 099 - 150    | X(052)    | Brancos/"TESTE"   |
- -----------------------------------------------------------------------------
-*/
-static Function fHeader(cBanco)
 
-	local cRet 			:= ""
+ CAIXA
+ -------------------------------------------------------------------------------------------------------------------
+ | Campo                               | Posição   | Formato | Conteúdo                                                                                       |
+ |-------------------------------------|-----------|---------|------------------------------------------------------------------------------------------------|
+ | A.11 Conta Compromisso              | 099 - 114 | 9(16)   | Nota 8                                                                                         |
+ | A.12 Identificação do Ambiente Cli  | 115 - 115 | X(01)   | “P” = Produção “T” = Teste                                                                     |
+ | A.13 Identificação do Ambiente Caixa| 116 - 116 | X(01)   | “P” = Produção “T” = Teste                                                                     |
+ | A.14 Filler                         | 117 - 143 | X(27)   | Espaços (brancos)                                                                              |
+ | A.15 Número Sequencial do Registro  | 144 - 149 | 9(06)   | "000000" = Remessa (Convenente para CAIXA) Espaços (brancos) = Retorno (CAIXA para Convenente) |
+ | A.16 Filler                         | 150 - 150 | X(01)   | Espaços (brancos)                                                                              |
+ -------------------------------------------------------------------------------------------------------------------
+*/
+static Function fHeader(cBanco, cIdSeq)
+
+	Local cRet 			:= ""
 	Local cBcoDesc 		:= ""
+	Local cBcoConv 		:= ""
 
 	Do Case
 	Case cBanco == '001'
 		cBcoDesc := "BANCO DO BRASIL S.A."
-	Case cBanco = '341'
-		cBcoDesc := " BANCO ITAU"
-	Case cBanco = '033'
+		cBcoConv := "001"
+	Case cBanco == '341'
+		cBcoDesc := "BANCO ITAU"
+	Case cBanco == '033'
 		cBcoDesc := "BANCO SANTANDER"
-	Case cBanco = '104'
-		cBcoDesc := "BANCO CAIXA"
-	Case cBanco = '237'
+	Case cBanco == '104'
+		cBcoDesc := "CAIXA"
+	Case cBanco == '237'
 		cBcoDesc := "BANCO BRADESCO"
-	Case cBanco = '136'
+	Case cBanco == '136'
 		cBcoDesc := "BANCO UNICRED"
 	EndCase
 
 	cRet := 'A'
 	cRet += '1'
-	cRet += PadR("14837", 20)
+	cRet += PadR("14837", 20) //codigo do convenio ???
 	cRet += PadR("UNIMED CAMPINAS COOP", 20)
 	cRet += PadL(cBanco, 3)
 	cRet += PadR(cBcoDesc, 20)
 	cRet += DtoS(ddatabase)
-	cRet += PadL("000001", 6) //penso em criar um parametro para controlar o ultimo ID ou SX5
+	cRet += PadL(cIdSeq, 6)
 	cRet += "04"
 	cRet += PadR("DEBITO AUTOMATICO", 17)
-	cRet += Space(52)
-	cRet := Stuff(cRet, 146, 5, "TESTE")
+	//cRet += Space(52)
+	//cRet := Stuff(cRet, 146, 5, "TESTE")
 
-Return (cRet)
+	// Diferença: Se for Caixa, monta conforme layout
+	If cBanco == '104'
+		cRet += PadL("1234567890123456",16)       // 099-114 Conta Compromisso (exemplo)
+		cRet += "T"                               // 115 Ambiente Cliente (P=Produção, T=Teste)
+		cRet += "T"                               // 116 Ambiente Caixa
+		cRet += Space(27)                         // 117-143 Filler
+		cRet += "000000"                          // 144-149 Seq. Registro (Remessa)
+		cRet += " "                               // 150 Filler
+	Else
+		// Demais bancos continuam usando os 52 brancos + TESTE
+		cRet += Space(52)                         // 099-150
+		cRet := Stuff(cRet, 146, 5, "TESTE")
+	EndIf
+
+Return(cRet)
 
 /* Registro de Débito - Detalhe - Registro D
  -------------------------------------------------------------------------------------------------------------------
@@ -193,7 +240,7 @@ Return (cRet)
 
 static Function fExclusao(cIdCliEmp, cIdCliBco, cAgencia)
 
-	local cRet 			:= ""
+	Local cRet 			:= ""
 
 	cRet := 'D'
 	cRet += PadR(cIdCliEmp, 25)
@@ -204,7 +251,7 @@ static Function fExclusao(cIdCliEmp, cIdCliBco, cAgencia)
 	cRet += Space(20)
 	cRet += '1'
 
-Return (cRet)
+Return(cRet)
 
 /* Trailler do arquivo - último registro físico do arquivo - Registro Z
  -------------------------------------------------------------------------------------------------------------------
@@ -215,15 +262,30 @@ Return (cRet)
  | Z03-Valor total dos registros       | 008 - 024 | 9(017)  | Este campo deverá ser o somatório do campo E06 (remessa) ou F06 (retorno).                     |
  | Z04-Reservado para o futuro         | 025 - 150 | X(126)  | Brancos                                                                                        |
  -------------------------------------------------------------------------------------------------------------------
+CAIXA
+ | Campo                               | Posição   | Formato | Conteúdo         |
+ |-------------------------------------|-----------|---------|------------------|
+ | Z.04 Reservado para o futuro        | 025 - 143 | X(119)  | Espaços (brancos)|
+ | Z.05 Número Sequencial do Registro  | 144 - 149 | 9(06)   | Nota 19          |
+ | Z.06 Reservado para o futuro        | 150 - 150 | 9(01)   | Espaços (brancos)|
+ -------------------------------------------------------------------------------
 */
 
-static Function fTrailler(cTotReg)
+static Function fTrailler(cTotReg, cIdSeq)
 
-	local cRet 			:= ""
+	Local cRet 			:= ""
 
-	cRet := 'Z'
-	cRet += PadL(cTotReg, 6)
-	cRet += PadL("0", 17)
-	cRet += Space(126)
+	// Parte comum até a posição 024
+	cRet := 'Z'                               // 001-001 Código do Registro
+	cRet += PadL(cTotReg, 6)                  // 002-007 Total de Registros (inclui Header e Trailler)
+	cRet += PadL(AllTrim(Str(nValorTotal)),17) // 008-024 Valor Total dos registros (E06/F06). Aqui somei como numérico.
 
-Return (cRet)
+	If cBanco == '104'   // CAIXA
+		cRet += Space(119)                   // 025-143 Reservado (brancos)
+		cRet += PadL(cIdSeq, 6)             // 144-149 Número Sequencial do Registro (remessa/retorno)
+		cRet += " "                          // 150 Filler
+	Else
+		cRet += Space(126)                   // 025-150 Reservado (brancos)
+	EndIf
+
+Return(cRet)

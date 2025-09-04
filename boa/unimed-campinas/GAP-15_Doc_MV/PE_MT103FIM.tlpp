@@ -28,6 +28,7 @@ User Function MT103FIM()
 	Local aAreaSD1      := SD1->(FwGetArea())     as Array
 	Local nOpc          := PARAMIXB[1]            as Numeric
 	Local nConfirmado   := PARAMIXB[2]            as Numeric
+	Local cMsgErr	    := ""                      as Character	
 
 	Private cTitApp := "MT103FIM"                          as Character
 
@@ -41,25 +42,24 @@ User Function MT103FIM()
 			U_XMT103265(nOpc,nConfirmado)
 
 			U_INTDOCMV(nOpc,@cMsgErr)
-		Endif
 
-	ElseIf nConfirmado == 0 .And. nOpc == 5
-		If GetGlbValue("GlblContinua") == "F"
-			U_XMT103265(5,nConfirmado)
+		ElseIf nConfirmado == 0 .And. nOpc == 5
+			If GetGlbValue("GlblContinua") == "F"
+				U_XMT103265(5,nConfirmado)
+			Endif
 		Endif
-	Endif
 //====================================================================================================================
 // Fim
 //====================================================================================================================
 
-CATCH oError
+	CATCH oError
 
-	U_AdminMsg("[MT103FIM] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		U_AdminMsg("[MT103FIM] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
-ENDTRY
+	ENDTRY
 
-FwRestArea(aAreaSD1)
-FwRestArea(aAreaSC7)
-FwRestArea(aArea)
+	FwRestArea(aAreaSD1)
+	FwRestArea(aAreaSC7)
+	FwRestArea(aArea)
 
 Return
