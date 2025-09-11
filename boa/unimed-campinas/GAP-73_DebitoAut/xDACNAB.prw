@@ -3,7 +3,7 @@
 #Include "TOPCONN.ch"
 #include "fileio.ch"
 
-/*/{Protheus.doc} xCTBAUC
+/*/{Protheus.doc} xDACNAB
 Este programa tem como objetivo gerar solicitacao de exclusão para debito automatico ao banco selecionado .
 GAP 73 
 @type  Function
@@ -19,21 +19,25 @@ GAP 73
 User Function xDACNAB()
 
 	Local aArea         := FWGetArea()
-	Local bProcess      := {|oSelf| fBusca(oSelf) }
-	Local cTitulo       := "Debito Automatico - Exclusão"
-	Local cDesc         := "Este programa tem como objetivo realizar a geração de arquivo para exclusão do Debito Automatico banco."
-	Local cPerg         := "xDACNAB"
+	Local aPergs  		:= {}
 
-	If ! IsBlind()
-		tNewProcess():New( "xDACNAB", cTitulo, bProcess, cDesc, cPerg )
-	Endif
+
+	//Adicionando os parametros do ParamBox
+	aAdd(aPergs, {1, "Cliente De",  	Space(TamSX3('A1_COD')[1]), "", "", "SA1CLI", 	"", 060,	.F.})
+	aAdd(aPergs, {1, "Cliente Até", 	Space(TamSX3('A1_COD')[1]), "", "", "SA1CLI", 	"", 060,	.T.})
+	aAdd(aPergs, {1, "Banco", 		Space(TamSX3('A1_COD')[1]), "", "", "SA6BCO", 	"", 060,	.T.})
+
+	//Se a pergunta for confirma, chama a tela
+	If ParamBox(aPergs, 'Informe os parâmetros', /*aRet*/, /*bOk*/, /*aButtons*/, /*lCentered*/, /*nPosx*/, /*nPosy*/, /*oDlgWizard*/, /*cLoad*/, .F., .F.)
+		Processa({|| fBusca(Alltrim(MV_PAR01), Alltrim(MV_PAR02), Alltrim(MV_PAR03))}, "Processando...", , , , )
+	EndIf
 
 	FwRestArea(aArea)
 
 Return()
 
 //Consulta com base nos parametros informados
-Static Function fBusca(oSelf)
+Static Function fBusca(cClide, cCliAte, cBanco)
 
 	Local aArea             := fWGetArea()
 	Local cQuery            := ''
@@ -42,7 +46,7 @@ Static Function fBusca(oSelf)
 	Local cLocDir 			:= "C:\Temp\"
 	Local cArq 				:= ""
 	Local cIdCliEmp			:= ""
-	Local cTotReg			:= "000001"
+	Local cTotReg			:= "000002"
 	Local cTrailler			:= ""
 	Local cHeader			:= ""
 	Local cExcl				:= ""
@@ -56,12 +60,12 @@ Static Function fBusca(oSelf)
 	cQuery += "			SA1.A1_XBCO,                           		"
 	cQuery += "			SA1.A1_XAGE                           		"
 	cQuery += "FROM " + RetSqlName("SA1") + " SA1 				   	"
-	cQuery += "WHERE SA1.D_E_L_E_T_ = ' ' "                         "
-	cQuery += "  AND SA1.A1_FILIAL = '" +FWxfilial('SA1')+ '"       "
+	cQuery += "WHERE SA1.D_E_L_E_T_ = ' ' 	                        "
+	cQuery += "  AND SA1.A1_FILIAL = '" +FWxfilial('SA1')+ "'       "
 	cQuery += "	 AND SA1.A1_XCOBD = 'S' 				          	"
-	cQuery += "  AND SA1.A1_CODCLI >= '" + MV_PAR01 + "' 			"
-	cQuery += "	 AND SA1.A1_CODCLI <= '" + MV_PAR02 + "'   			"
-	cQuery += "	 AND SA1.A1_XBCO = '" + MV_PAR03 + "' 				"
+	cQuery += "  AND SA1.A1_COD >= '" +cClide+ "' 					"
+	cQuery += "	 AND SA1.A1_COD <= '" +cCliAte+ "'   				"
+	cQuery += "	 AND SA1.A1_XBCO = '" +cBanco+ "' 					"
 
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)
@@ -74,7 +78,7 @@ Static Function fBusca(oSelf)
 	Endif
 
 	//Busco o próximo ID Sequencial
-	aSX5 := FWGetSX5("UC", MV_PAR03)
+	aSX5 := FWGetSX5("Z1", cBanco)
 
 	If Len(aSX5) == 0
 		FWAlertWarning('Erro ao buscar ID Sequencial','Atenção')
@@ -84,12 +88,12 @@ Static Function fBusca(oSelf)
 	cIdSeq := aSX5[1][4]
 
 	//Cria o diretório e o arquivo de remessa
-	If ! ExistDir(cLogDir)
-		MakeDir(cLogDir)
+	If ! ExistDir(cLocDir)
+		MakeDir(cLocDir)
 	Endif
 
-	cArq 	:= "DA_" + MV_PAR03 + "_" + cIdSeq + ".EDI"
-	nHandle := FCreate(cLocDir + cArq)
+	cArq 	:= "DA_" + cBanco + "_" + cIdSeq + ".EDI"
+	nHandle := FCreate(cLocDir + cArq, Nil, Nil, .F.)
 
 	If nHandle == -1
 		FWAlertError('Erro ao criar arquivo','Erro')
@@ -97,21 +101,21 @@ Static Function fBusca(oSelf)
 	Endif
 
 	//Header(A)
-	cHeader := fHeader((cAlias)->A1_XBCO, cIdSeq)
+	cHeader := fHeader(Alltrim((cAlias)->A1_XBCO), cIdSeq)
 	FWrite(nHandle, cHeader + CRLF)
 
 	SA1->(DbSetOrder(1)) //A1_FILIAL+A1_COD+A1_LOJA
 
 	While ! (cAlias)->(EoF())
 
-		cIdCliEmp := Alltrim((cAlias)->A1_FILIAL + (cAlias)->A1_COD + (cAlias)->A1_LOJA)
+		cIdCliEmp := (cAlias)->A1_COD + (cAlias)->A1_LOJA
 		cTotReg   := SOMA1(cTotReg)
 
 		//Alteração(D)
-		cExcl := fExclusao(cIdCliEmp, (cAlias)->A1_XDEBA, (cAlias)->A1_XAGE)
+		cExcl := fExclusao(Alltrim((cAlias)->A1_XBCO), cIdCliEmp, Alltrim((cAlias)->A1_XDEBA), Alltrim((cAlias)->A1_XAGE), cIdSeq)
 		FWrite(nHandle, cExcl + CRLF)
 
-		If SA1->(MsSeek((cAlias)->A1_FILIAL) + AllTrim((cAlias)->A1_COD) + AllTrim((cAlias)->A1_LOJA))
+		If SA1->(MSSeek((cAlias)->A1_FILIAL + (cAlias)->A1_COD + (cAlias)->A1_LOJA))
 			SA1->(RecLock("SA1", .F.))
 			SA1->A1_XCOBD	:= 'N'
 			SA1->(MsUnlock())
@@ -123,11 +127,11 @@ Static Function fBusca(oSelf)
 	Enddo
 
 	//Trailler(Z)
-	cTrailler := fTrailler(cTotReg, cIdSeq)
-	FWrite(nHandle, cHeader)
+	cTrailler := fTrailler(cTotReg, cIdSeq, cBanco)
+	FWrite(nHandle, cTrailler)
 
 	//Grava o próximo numero a ser gerado
-	FwPutSX5(, 'ZZ', MV_PAR03, SOMA1(cIdSeq), SOMA1(cIdSeq), SOMA1(cIdSeq))
+	FwPutSX5(, 'Z1', cBanco, SOMA1(cIdSeq), SOMA1(cIdSeq), SOMA1(cIdSeq))
 
 	If Select(cAlias) > 0
 		(cAlias)->(DbCloseArea())
@@ -138,7 +142,7 @@ Static Function fBusca(oSelf)
 	FwRestArea(aArea)
 
 	If ! IsBlind()
-		FWAlertInfo('Processamento finalizado!','Processamento')
+		FWAlertInfo('Processamento finalizado! Arquivo gerado em ' + cLocDir + cArq,'Processamento')
 	Endif
 
 Return()
@@ -176,26 +180,34 @@ static Function fHeader(cBanco, cIdSeq)
 	Local cRet 			:= ""
 	Local cBcoDesc 		:= ""
 	Local cBcoConv 		:= ""
+	Local lAmbiente 	:= .F.
+
+	lAmbiente := SuperGetMV("UC_DAAMB", .F., .F.)
 
 	Do Case
 	Case cBanco == '001'
 		cBcoDesc := "BANCO DO BRASIL S.A."
-		cBcoConv := "001"
+		cBcoConv := SuperGetMV("UC_DABBCV", .F., "")
 	Case cBanco == '341'
 		cBcoDesc := "BANCO ITAU"
+		cBcoConv := SuperGetMV("UC_DAITCV", .F., "")
 	Case cBanco == '033'
 		cBcoDesc := "BANCO SANTANDER"
+		cBcoConv := SuperGetMV("UC_DASACV", .F., "")
 	Case cBanco == '104'
 		cBcoDesc := "CAIXA"
+		cBcoConv := SuperGetMV("UC_DACXCV", .F., "")
 	Case cBanco == '237'
 		cBcoDesc := "BANCO BRADESCO"
+		cBcoConv := SuperGetMV("UC_DABRCV", .F., "")
 	Case cBanco == '136'
 		cBcoDesc := "BANCO UNICRED"
+		cBcoConv := SuperGetMV("UC_DAUNCV", .F., "")
 	EndCase
 
 	cRet := 'A'
 	cRet += '1'
-	cRet += PadR("14837", 20) //codigo do convenio ???
+	cRet += PadR(cBcoConv, 20) //codigo do convenio ???
 	cRet += PadR("UNIMED CAMPINAS COOP", 20)
 	cRet += PadL(cBanco, 3)
 	cRet += PadR(cBcoDesc, 20)
@@ -203,21 +215,19 @@ static Function fHeader(cBanco, cIdSeq)
 	cRet += PadL(cIdSeq, 6)
 	cRet += "04"
 	cRet += PadR("DEBITO AUTOMATICO", 17)
-	//cRet += Space(52)
-	//cRet := Stuff(cRet, 146, 5, "TESTE")
 
 	// Diferença: Se for Caixa, monta conforme layout
 	If cBanco == '104'
-		cRet += PadL("1234567890123456",16)       // 099-114 Conta Compromisso (exemplo)
-		cRet += "T"                               // 115 Ambiente Cliente (P=Produção, T=Teste)
-		cRet += "T"                               // 116 Ambiente Caixa
+		cRet += PadL("42729553199 ",16)       	  // 099-114 Conta Compromisso (exemplo)
+		cRet += iif(lAmbiente, "P", "T")       	  // 115 Ambiente Cliente (P=Produção, T=Teste)
+		cRet += iif(lAmbiente, "P", "T")          // 116 Ambiente Caixa (P=Produção, T=Teste)
 		cRet += Space(27)                         // 117-143 Filler
 		cRet += "000000"                          // 144-149 Seq. Registro (Remessa)
 		cRet += " "                               // 150 Filler
 	Else
 		// Demais bancos continuam usando os 52 brancos + TESTE
 		cRet += Space(52)                         // 099-150
-		cRet := Stuff(cRet, 146, 5, "TESTE")
+		cRet := iif(lAmbiente, "", Stuff(cRet, 146, 5, "TESTE"))
 	EndIf
 
 Return(cRet)
@@ -236,9 +246,14 @@ Return(cRet)
  | D08-Código do Movimento                          | 150 - 150 | 9(001)  | 0 = Alteração da Identificação do Cliente na Empresa                                           |
  |                                                  |           |         | 1 = Exclusão de optante do Débito Automático                                                   |
  -------------------------------------------------------------------------------------------------------------------
+ |CAIXA
+ |D.07 Filler 										| 130 - 143 | X(14)    |Espaços (brancos)
+ |D.08 Número Sequencial do Registro 				| 144 - 149 | 9(06)    |Nota 19
+ |D.09 Código do movimento 							| 150 - 150 | 9(001)   | 0 = Alteração da Identificação do Cliente na Empresa
+ |                                                  |           |          | 1 = Exclusão de optante do Débito Autom
 */
 
-static Function fExclusao(cIdCliEmp, cIdCliBco, cAgencia)
+static Function fExclusao(cBanco, cIdCliEmp, cIdCliBco, cAgencia, cIdSeq)
 
 	Local cRet 			:= ""
 
@@ -248,7 +263,13 @@ static Function fExclusao(cIdCliEmp, cIdCliBco, cAgencia)
 	cRet += PadL(cIdCliBco, 14)
 	cRet += PadR(cIdCliEmp, 25)
 	cRet += PadR("EXCLUSAO POR ALTERACAO CADASTRAL DO CLIENTE", 60)
-	cRet += Space(20)
+	If cBanco == '104'
+		cRet += Space(14)
+		cRet += PadL(cIdSeq, 6)
+	Else
+		cRet += Space(20)
+	EndIf
+
 	cRet += '1'
 
 Return(cRet)
@@ -271,18 +292,19 @@ CAIXA
  -------------------------------------------------------------------------------
 */
 
-static Function fTrailler(cTotReg, cIdSeq)
+static Function fTrailler(cTotReg, cIdSeq, cBanco)
 
 	Local cRet 			:= ""
+	Local cValReg		:= "00000000000000000"
 
 	// Parte comum até a posição 024
 	cRet := 'Z'                               // 001-001 Código do Registro
 	cRet += PadL(cTotReg, 6)                  // 002-007 Total de Registros (inclui Header e Trailler)
-	cRet += PadL(AllTrim(Str(nValorTotal)),17) // 008-024 Valor Total dos registros (E06/F06). Aqui somei como numérico.
+	cRet += PadL(cValReg,17)	  			  // 008-024 Valor Total dos registros (E06/F06).
 
 	If cBanco == '104'   // CAIXA
 		cRet += Space(119)                   // 025-143 Reservado (brancos)
-		cRet += PadL(cIdSeq, 6)             // 144-149 Número Sequencial do Registro (remessa/retorno)
+		cRet += PadL(cIdSeq, 6)              // 144-149 Número Sequencial do Registro (remessa/retorno)
 		cRet += " "                          // 150 Filler
 	Else
 		cRet += Space(126)                   // 025-150 Reservado (brancos)

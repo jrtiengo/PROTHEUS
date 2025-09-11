@@ -7,7 +7,7 @@
 #Define Enter Chr(13) + Chr(10)
 
 /*/{Protheus.doc} inclui_contratos
-API para Inclusão de Contratos GAP19
+API para Inclusão de Contratos GAP 19
 @version V 1.00
 @author Tiengo
 @since 11/04/2025
@@ -30,7 +30,6 @@ User Function inclui_contratos() as logical
 	Local cPathSch 		:= ""                   as Character
 	Local jContrato		:= Nil      			as jSon
 	Local lRet     		:= .T.                  as Logical
-	Local cContrato		:= ""                   as Character
 	Local cCNPJ			:= ""                   as Character
 
 	Try
@@ -91,28 +90,89 @@ User Function inclui_contratos() as logical
 					EndIf
 				EndIf
 
-				// Inicia o processo
-				oAux := JsonObject():New()
-				If oBody:HasProperty("contrato")
+				//Valida se o jSon enviado e um array
+				If Valtype(oBody:GetJsonObject("contrato")) == 'A'
 
-					fGeraContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+					// Verifica se o ID Informado já existe no Protheus
+					If ChkIDInt(oBody, @cMsgErr)
 
-					if ! lRet
-						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
-						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+						oRest:SetStatusCode(503)
+						oDetail['detalhes']	:= cMsgErr
+						cMsgErr := oDetail:ToJson()
+						oRest:SetResponse(U_AnswerFormat(503, "Chave IDint duplicada", cMsgErr))
+
+						FreeObj(jAuxLog)
+						jAuxLog := JsonObject():New()
+
+						jAuxLog["status"]  := "0"
+						jAuxLog["idinteg"] := ""
+						jAuxLog["nomapi"]  := "POST_INCCONTR"
+						jAuxLog["rotina"]  := "CNTA300"
+						jAuxLog["tabela"]  := "CN9"
+						jAuxLog["recno"]   := 0
+						jAuxLog["data"]    := DToS(dDataBase)
+						jAuxLog["hora"]    := Time()
+						jAuxLog["msgresp"] := "error"
+						jAuxLog["msgerr"]  := "Chave IDint duplicada"
+						jAuxLog["jsonbod"] := oBody:ToJSON()
+						jAuxLog["jsonret"] := U_AnswerFormat(503, "Chave IDint duplicada", cMsgRet)
+
+						If !oLog:AddItem(jAuxLog)
+							U_AdminMsg("[IncContr] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+						EndIf
+
+						Return(.T.)
 					Else
-						oRest:SetStatusCode(201)
-						oDetail['detalhes']	:= cMsgOk
-						cMsgOk := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
-					Endif
+						// Inicia o processo
+						oAux := JsonObject():New()
+						If oBody:HasProperty("contrato")
+
+							fGeraContrato(oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+
+							if ! lRet
+								oRest:SetStatusCode(606)
+								oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Incluidos"+ Enter + cMsgOk + Enter + "Contratos nao Incluidos" + Enter + cMsgErr, "Contratos nao Incluidos" + Enter + cMsgErr)
+								cMsgOk 	:= oDetail:ToJson()
+								oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Inclusao", cMsgOk))
+							Else
+								oRest:SetStatusCode(201)
+								oDetail['detalhes']	:= cMsgOk
+								cMsgOk := oDetail:ToJson()
+								oRest:SetResponse(U_AnswerFormat(201, "Contratos Incluidos com sucesso!", cMsgOk))
+							Endif
+						Else
+							oRest:SetStatusCode(602)
+							oDetail['detalhes']	:= cMsgErr
+							cMsgErr := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto contrato", "Objeto contrato invalido"))
+
+							FreeObj(jAuxLog)
+							jAuxLog := JsonObject():New()
+
+							jAuxLog["status"]  := "0"
+							jAuxLog["idinteg"] := ""
+							jAuxLog["nomapi"]  := "POST_INCCONTR"
+							jAuxLog["rotina"]  := "CNTA300"
+							jAuxLog["tabela"]  := "CN9"
+							jAuxLog["recno"]   := 0
+							jAuxLog["data"]    := DToS(dDataBase)
+							jAuxLog["hora"]    := Time()
+							jAuxLog["msgresp"] := "error"
+							jAuxLog["msgerr"]  := "Nao informado o objeto contrato"
+							jAuxLog["jsonbod"] := oRest:GetBodyRequest()
+							jAuxLog["jsonret"] := u_AnswerFormat(602, "jSon não é um Array", cMsgErr)
+
+							If !oLog:AddItem(jAuxLog)
+								U_AdminMsg("[IncContr] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+							EndIf
+						Endif
+					EndIf
 				Else
-					oRest:SetStatusCode(602)
+					oRest:SetStatusCode(603)
+					cMsgErr := 'jSon nao e um Array'
 					oDetail['detalhes']	:= cMsgErr
 					cMsgErr := oDetail:ToJson()
-					oRest:SetResponse(U_AnswerFormat(602, "Nao informado objeto contrato", "Objeto contrato invalido"))
+					oRest:SetResponse(U_AnswerFormat(603, "Corrija o jSon", cMsgErr))
 
 					FreeObj(jAuxLog)
 					jAuxLog := JsonObject():New()
@@ -126,18 +186,21 @@ User Function inclui_contratos() as logical
 					jAuxLog["data"]    := DToS(dDataBase)
 					jAuxLog["hora"]    := Time()
 					jAuxLog["msgresp"] := "error"
-					jAuxLog["msgerr"]  := "Nao informado o objeto contrato"
-					jAuxLog["jsonbod"] := oRest:GetBodyRequest()
-					jAuxLog["jsonret"] := '{"result": "Nao foi informada objeto Contrato"}'
-				Endif
-			Endif
+					jAuxLog["msgerr"]  := "jSon não é um Array"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := u_AnswerFormat(603, "jSon não é um Array", cMsgErr)
+
+					If !oLog:AddItem(jAuxLog)
+						U_AdminMsg("[IncContr] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+					EndIf
+				EndIf
+			EndIf
 		EndIf
 
 	Catch oError
 
-		cMsgOk := '{"erros": ["' + oError:Description + '"]}'
 		oRest:SetStatusCode(501)
-		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", cMsgOk))
+		oRest:SetResponse(U_AnswerFormat(501, "Erro DEV", oError:Description))
 		FreeObj(oBody)
 		FreeObj(oResult)
 	EndTry
@@ -145,11 +208,10 @@ User Function inclui_contratos() as logical
 Return(.T.)
 
 //Gravar o contrato
-Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErro)
+Static Function fGeraContrato(jbody, jContrato, lRet, cMsgOk, cLogErro)
 
 	Local aArea             := FWGetArea()          as Array
 	Local oModel            := Nil                  as Object
-	Local oModelCNB         := Nil                  as Object
 	Local cContrAux         := ""                   as Character
 	Local aMsgDeErro        := {}                   as Array
 	Local jAuxLog           := Nil                  as Json
@@ -160,12 +222,13 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 	Local nY				:= 0 					as Numeric
 	Local cTpContr         	:= ""                   as Character
 	Local cCtrFixo			:= ""                   as Character
+	Local cContrato			:= ""                   as Character
 
 	Try
-		oLog := CtrlLOG():New()
+		oLog 	:= CtrlLOG():New()
 		jAuxLog := JsonObject():New()
-		If ! oLog:SetTab("SZL")
 
+		If ! oLog:SetTab("SZL")
 			U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
@@ -224,31 +287,22 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_FORNEC'       ,jContrato[nC]["CNC_CODIGO"])
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_LJFORN'       ,jContrato[nC]["CNC_LOJA"])
 				oModel:SetValue(    'CNADETAIL'     ,'CNA_TIPPLA'       ,jContrato[nC]["CNA_TIPPLA"])
-				If cCtrFixo <> '1' 
-					oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
-				Endif
+				oModel:SetValue(    'CNADETAIL'     ,'CNA_VLTOT'        ,jContrato[nC]["CNA_VLTOT"])
 
 				//Itens da Planilha do Contrato
 				If cCtrFixo <> '2' //Contrato Não fixo (Flexivel) não gera Itens
 					If Valtype(jContrato[nC]:GetJsonObject("planilha_itens")) == 'A'
-						
-						oModelCNB := oModel:GetModel("CNBDETAIL")
-
 						For nI := 1 to Len(jContrato[nC]["planilha_itens"])
 
-							If nI > 1
-								oModelCNB:AddLine()
-							EndiF
-
-							oModelCNB:SetValue(    'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
-							oModelCNB:SetValue(    'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
+							oModel:SetValue(    'CNBDETAIL'    , 'CNB_ITEM'         ,PadL(cValtoChar(nI), CNB->(Len(CNB_ITEM)), "0"))
+							oModel:SetValue(    'CNBDETAIL'     ,'CNB_PRODUT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_PRODUT"])
 							If cCtrFixo <> '3' //Contrato SEMI-FIXO, nao preenche quantidade
-								oModelCNB:SetValue(		'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
+								oModel:SetValue(    'CNBDETAIL'     ,'CNB_QUANT'        ,jContrato[nC]["planilha_itens"][nI]["CNB_QUANT"])
 							Endif
-							oModelCNB:SetValue(    'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
-							oModelCNB:SetValue(    'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
-							oModelCNB:SetValue(    'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
-							oModelCNB:SetValue(    'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
+							oModel:SetValue(    'CNBDETAIL'     ,'CNB_VLUNIT'       ,jContrato[nC]["planilha_itens"][nI]["CNB_VLUNIT"])
+							oModel:SetValue(    'CNBDETAIL'     ,'CNB_CONTA'        ,jContrato[nC]["planilha_itens"][nI]["CNB_CONTA"])
+							oModel:SetValue(    'CNBDETAIL'     ,'CNB_TE'           ,jContrato[nC]["planilha_itens"][nI]["CNB_TE"])
+							oModel:SetValue(    'CNBDETAIL'     ,'CNB_CC'           ,jContrato[nC]["planilha_itens"][nI]["CNB_CC"])
 						Next nI
 					Endif
 				Endif
@@ -360,7 +414,7 @@ Static Function fGeraContrato(cContrato, jbody, jContrato, lRet, cMsgOk, cLogErr
 					FreeObj(oModel)
 
 					//Gera os documentos do contrato documentos.
-					If ! Empty(Alltrim(cContrAux))
+					If ! Empty(Alltrim(cContrAux)) .and. jContrato[nC]:HasProperty("documentos")
 						fGeraDoc(jContrato[nC]["documentos"],cContrAux,.T.,cIDInteg)
 					Endif
 				Endif
@@ -461,27 +515,57 @@ User Function rev_contratos() as logical
 					EndIf
 				EndIf
 
-				// Inicia o processo
-				oAux := JsonObject():New()
-				If oBody:HasProperty("contrato")
+				//Valida se o jSon enviado e um array
+				If Valtype(oBody:GetJsonObject("contrato")) == 'A'
 
-					cbody := obody:toJson()
+					// Inicia o processo
+					oAux := JsonObject():New()
+					If oBody:HasProperty("contrato")
 
-					fRevContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+						cbody := obody:toJson()
 
-					if ! lRet
-						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Revisados"+ Enter + cMsgOk + Enter + "Contratos nao Revisados" + Enter + cMsgErr, "Contratos nao Revisados" + Enter + cMsgErr)
-						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Revisao", cMsgOk))
-					Else
-						oRest:SetStatusCode(201)
-						oDetail['detalhes']	:= cMsgOk
-						cMsgOk := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(201, "Contratos Revisados com sucesso!", cMsgOk))
+						fRevContrato(@cContrato, oBody, jContrato, @lRet, @cMsgOk, @cMsgErr)
+
+						if ! lRet
+							oRest:SetStatusCode(606)
+							oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Revisados"+ Enter + cMsgOk + Enter + "Contratos nao Revisados" + Enter + cMsgErr, "Contratos nao Revisados" + Enter + cMsgErr)
+							cMsgOk 	:= oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Revisao", cMsgOk))
+						Else
+							oRest:SetStatusCode(201)
+							oDetail['detalhes']	:= cMsgOk
+							cMsgOk := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(201, "Contratos Revisados com sucesso!", cMsgOk))
+						Endif
 					Endif
 				Endif
 			Endif
+		Else
+			oRest:SetStatusCode(603)
+			cMsgErr := 'jSon nao e um Array'
+			oDetail['detalhes']	:= cMsgErr
+			cMsgErr := oDetail:ToJson()
+			oRest:SetResponse(U_AnswerFormat(603, "Corrija o jSon", cMsgErr))
+
+			FreeObj(jAuxLog)
+			jAuxLog := JsonObject():New()
+
+			jAuxLog["status"]  := "0"
+			jAuxLog["idinteg"] := ""
+			jAuxLog["nomapi"]  := "POST_REVCONTR"
+			jAuxLog["rotina"]  := "CNTA300"
+			jAuxLog["tabela"]  := "CN9"
+			jAuxLog["recno"]   := 0
+			jAuxLog["data"]    := DToS(dDataBase)
+			jAuxLog["hora"]    := Time()
+			jAuxLog["msgresp"] := "error"
+			jAuxLog["msgerr"]  := "jSon não é um Array"
+			jAuxLog["jsonbod"] := oBody:ToJSON()
+			jAuxLog["jsonret"] := u_AnswerFormat(603, "jSon não é um Array", cMsgErr)
+
+			If !oLog:AddItem(jAuxLog)
+				U_AdminMsg("[IncContr] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+			EndIf
 		Endif
 
 	Catch oError
@@ -841,13 +925,24 @@ User Function altera_contratos() as logical
 
 				EndIf
 
-				// Realiza a Validacao do JSON enviado com Schema
-				If File(cPathSch + "\AltContr.json")
+				//Valida se o jSon enviado e um array
+				If Valtype(oBody:GetJsonObject("contrato")) == 'A'
 
-					oVldSch := VldSchJSON():New()
-					If oVldSch:SetFileSch(cPathSch + "\AltContr.json", @cMsgErr)
+					// Realiza a Validacao do JSON enviado com Schema
+					If File(cPathSch + "\AltContr.json")
 
-						If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+						oVldSch := VldSchJSON():New()
+						If oVldSch:SetFileSch(cPathSch + "\AltContr.json", @cMsgErr)
+
+							If ! oVldSch:ValidJSON(oBody, @cMsgErr)
+
+								oRest:SetStatusCode(502)
+								oDetail['detalhes']	:= cMsgErr
+								cMsgErr := oDetail:ToJson()
+								oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
+								Return (.T.)
+							EndIf
+						Else
 
 							oRest:SetStatusCode(502)
 							oDetail['detalhes']	:= cMsgErr
@@ -855,36 +950,55 @@ User Function altera_contratos() as logical
 							oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
 							Return (.T.)
 						EndIf
-					Else
-
-						oRest:SetStatusCode(502)
-						oDetail['detalhes']	:= cMsgErr
-						cMsgErr := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(502, "Validacao de Schema", cMsgErr))
-						Return (.T.)
 					EndIf
-				EndIf
 
-				// Inicia o processo
-				oAux := JsonObject():New()
-				If oBody:HasProperty("contrato")
+					// Inicia o processo
+					oAux := JsonObject():New()
+					If oBody:HasProperty("contrato")
 
-					fAltContrato(@cContrato, oBody, @lRet, @cMsgOk, @cMsgErr)
+						fAltContrato(@cContrato, oBody, @lRet, @cMsgOk, @cMsgErr)
 
-					if ! lRet
-						oRest:SetStatusCode(606)
-						oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Alterado"+ Enter + cMsgOk + Enter + "Contratos nao Alterado" + Enter + cMsgErr, "Contratos nao Alterado" + Enter + cMsgErr)
-						cMsgOk 	:= oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Alteracao", cMsgOk))
-					Else
-						oRest:SetStatusCode(201)
-						oDetail['detalhes']	:= cMsgOk
-						cMsgOk := oDetail:ToJson()
-						oRest:SetResponse(U_AnswerFormat(201, "Contratos Alterados com sucesso!", cMsgOk))
+						if ! lRet
+							oRest:SetStatusCode(606)
+							oDetail['detalhes']	:= IIf(!Empty(cMsgOk), "Contratos Alterado"+ Enter + cMsgOk + Enter + "Contratos nao Alterado" + Enter + cMsgErr, "Contratos nao Alterado" + Enter + cMsgErr)
+							cMsgOk 	:= oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(606, "Alguns Contratos com erro na Alteracao", cMsgOk))
+						Else
+							oRest:SetStatusCode(201)
+							oDetail['detalhes']	:= cMsgOk
+							cMsgOk := oDetail:ToJson()
+							oRest:SetResponse(U_AnswerFormat(201, "Contratos Alterados com sucesso!", cMsgOk))
+						Endif
 					Endif
+				Else
+					oRest:SetStatusCode(603)
+					cMsgErr := 'jSon nao e um Array'
+					oDetail['detalhes']	:= cMsgErr
+					cMsgErr := oDetail:ToJson()
+					oRest:SetResponse(U_AnswerFormat(603, "Corrija o jSon", cMsgErr))
+
+					FreeObj(jAuxLog)
+					jAuxLog := JsonObject():New()
+
+					jAuxLog["status"]  := "0"
+					jAuxLog["idinteg"] := ""
+					jAuxLog["nomapi"]  := "POST_ALTCONTR"
+					jAuxLog["rotina"]  := "CNTA300"
+					jAuxLog["tabela"]  := "CN9"
+					jAuxLog["recno"]   := 0
+					jAuxLog["data"]    := DToS(dDataBase)
+					jAuxLog["hora"]    := Time()
+					jAuxLog["msgresp"] := "error"
+					jAuxLog["msgerr"]  := "jSon não é um Array"
+					jAuxLog["jsonbod"] := oBody:ToJSON()
+					jAuxLog["jsonret"] := u_AnswerFormat(603, "jSon não é um Array", cMsgErr)
+
+					If !oLog:AddItem(jAuxLog)
+						U_AdminMsg("[IncContr] " + DToC(Date()) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
+					EndIf
 				Endif
-			Endif
-		Endif
+			EndIf
+		EndIf
 
 	Catch oError
 
@@ -1073,11 +1187,11 @@ Static Function fGeraDoc(jDocs, cContra, lRet, cIdInt)
 
 		CN9->(DbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
 		If CN9->(MSSeek(cChave))
+
 			oLog    := CtrlLOG():New()
 			jAuxLog := JsonObject():New()
 
 			If ! oLog:SetTab("SZL")
-
 				U_AdminMsg("[CNTA300] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 			EndIf
 
@@ -1153,7 +1267,7 @@ Static Function fGeraDoc(jDocs, cContra, lRet, cIdInt)
 				Else
 					aErro := oModel:GetErrorMessage()
 					cMsgErro   := aErro[6]
-					cLogErro   += cContrato + ' ' +  "Erro: " + cMsgErro + CRLF
+					cLogErro   += cContra + ' ' +  "Erro: " + cMsgErro + CRLF
 
 					FreeObj(jAuxLog)
 					jAuxLog             := JsonObject():New()
@@ -1236,3 +1350,55 @@ Static Function fImpArq(cImp, cCont, cEnt)
 	Endif
 
 Return()
+
+/*/{Protheus.doc} ChkIDInt
+Função para checar de o ID existe 
+@type function
+@version V 1.00
+@author Tiengo
+@since 05/09/2025
+@param cID, character, ID passado no JSON
+@param cMsgErr, character, Mensagem de Erro
+@return logical, Verdadeiro se existe o ID
+/*/
+Static Function ChkIDInt(oContrato, cMsgErr) as Logical
+
+	Local lRet      := .F.                as Logical
+	Local oError    := ErrorClass():New() as Object
+	Local cQuery    := ""                 as Character
+	Local cAlias    := ""                 as Character
+	Local nX		:= 0				  as Numeric
+	Local cIdValid  := ""                 as Character
+
+	TRY
+
+		For nX:= 1 to len(oContrato["contrato"])
+			cIdValid += "'" + Alltrim(oContrato["contrato"][nX]:GetJSonObject("idint")) + "',"
+		Next nX
+
+		cIdValid := Left(cIdValid, Len(cIdValid) - 1)
+
+		cQuery := " SELECT COUNT(*) AS NREG		 						"
+		cQuery += " FROM " + RetSqlName("CN9") + " CN9 					"
+		cQuery += " WHERE CN9.D_E_L_E_T_ = ' ' 							"
+		cQuery += "   AND CN9.CN9_FILIAL = '" + FWxFilial('CN9') + "' 	"
+		cQuery += "   AND CN9.CN9_XFLUI IN (" + cIdValid + ") 			"
+
+		cQuery := ChangeQuery(cQuery)
+		cAlias := MPSysOpenQuery(cQuery)
+
+		If (cAlias)->NREG > 0
+			cMsgErr += "ID já existente no Protheus. ID: " + cIdValid
+			lRet    := .T.
+		Endif
+
+	CATCH oError
+
+		cMsgErr += "ChkIDInt - Erro DEV: " + oError:Description
+		lRet    := .T.
+
+	ENDTRY
+
+	(cAlias)->(dbCloseArea())
+
+Return(lRet)
