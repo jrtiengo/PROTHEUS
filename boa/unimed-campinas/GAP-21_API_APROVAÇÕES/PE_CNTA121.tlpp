@@ -14,6 +14,8 @@ Ponto de entrada em MVC para a rotina CNTA121 - Nova Medição
 3. FORMLINEPOS = GAP_123 - Preencher os campos do cliente (Nome/CPF-CNPJ) vinculado nos campos do cabeçalho ao
     selecionar a planilha (tabela CND)
     (Silvan Ferreira)
+4. MODELCOMMITNTTS = GAP_201 - Se o CND_XRATEI tiver dados, ira tratar para gravar na tabela SZ0 os rateios contabeis
+    (Tiengo Junior)
 @type function
 @version V 1.00
 @author Carla Barbosa
@@ -80,15 +82,17 @@ User Function CNTA121()
 				If ! SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM))
 
 					For nI := 1 to Len(oRateio['contabil'])
-						
 						RecLock("SZ0",.T.)
 						SZ0->Z0_FILIAL  := FWxFilial("SZ0")
 						SZ0->Z0_NUMPED  := SC7->C7_NUM
-						SZ0->Z0_TIPO 	:= '1'
+						SZ0->Z0_IDINT   := CND->CND_XIDINT
 						For nZ := 1 to len(oRateio['contabil'][nI]:Getnames())
-							SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := oRateio['contabil'][nI][oRateio['contabil'][nI]:GetNames()[nZ]]
+							If Alltrim(oRateio['contabil'][nI]:Getnames()[nZ]) == "Z0_EMISSAO"
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := SC7->C7_EMISSAO
+							Else
+								SZ0->&(oRateio['contabil'][nI]:Getnames()[nZ]) := oRateio['contabil'][nI][oRateio['contabil'][nI]:GetNames()[nZ]]
+							Endif
 						Next nZ
-
 						SZ0->(MsUnLock())
 					Next nI
 				Endif

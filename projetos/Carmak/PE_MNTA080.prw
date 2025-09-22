@@ -3,7 +3,7 @@
 #Include 'PARMTYPE.CH'
 #Include "FWMVCDEF.ch"
 
-/*/{Protheus.doc} CRMA980
+/*/{Protheus.doc} MNTA080
 description Pontos de entrada no cadastro de Bens - MV_MVCSA1 
 @type function
 @version  

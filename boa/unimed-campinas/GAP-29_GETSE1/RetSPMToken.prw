@@ -22,7 +22,7 @@ User Function RetSPMToken()
 
     oRest := FWRest():New(cUrl)
 
-    oRest:SetPath("/authenticate/v1/gerartoken")
+    oRest:SetPath("/autenticacao/v1/gerartoken")
 
 	aAdd(aHeader, "Accept: application/json")
 	aAdd(aHeader, "Content-Type: application/json; charset=UTF-8")

@@ -33,7 +33,7 @@ User Function M110STTS()
 
 		//Envia Documento ao Fluig
 		If SCR->(MSSeek(FWxFilial("SCR") + "SC" + cNumSc)) //CR_FILIAL+CR_TIPO+CR_NUM+CR_NIVEL
-			U_IntAprovFluig('SC1', 'SC', cNumSc, '', '')
+			U_IntAprovFluig('SC1', cNumSc, '', '')
 		Endif
 
 	CATCH oError
