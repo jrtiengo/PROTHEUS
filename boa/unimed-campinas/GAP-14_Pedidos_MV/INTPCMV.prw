@@ -15,6 +15,9 @@ cMsgErr - C - Mensagem de erro
 
 User Function INTPCMV(nOPC, cMsgErr)
 
+	Local aArea     		:= FwGetArea()
+	Local aAreaSC1  		:= SC1->(FwGetArea())
+	Local aAreaSC7  		:= SC7->(FwGetArea())
 	Local lRet        		:= .T.
 	Local cUrl              := SuperGetMV("UC_URLMV",.F.,"http://10.210.2.123:8491/jintegra_core/services/WebservicePadrao?Wsdl")	// URL do Webservice
 	Local cEstMV			:= SuperGetMV("UC_ESTMV",.F.,"")																		// Local de Estoque MV
@@ -28,6 +31,7 @@ User Function INTPCMV(nOPC, cMsgErr)
 	Local cMsgOk			:= ""
 	Local cQuery			:= ""
 	Local cAlias			:= ""
+	Local cNumPC 			:= SC7->C7_NUM
 
 	oLog    := CtrlLOG():New()
 	jAuxLog := JsonObject():New()
@@ -273,7 +277,31 @@ User Function INTPCMV(nOPC, cMsgErr)
 		EndIf
 	EndIf
 
+	If lRet
+		
+		While SC7->(!EOF()) .AND. SC7->C7_FILIAL == FWxFilial("SC7") .AND. Alltrim(SC7->C7_NUM) == Alltrim(cNumPC)
+			SC7->(RecLock('SC7',.F.))
+			SC7->C7_XSTREQ := '1'
+			SC7->C7_XTPREQ := cValtoChar(nOPC)
+			SC7->(MsUnlock())
+			SC7->(dbSkip())
+		EndDo
+	Else
+		While SC7->(!EOF()) .AND. SC7->C7_FILIAL == FWxFilial("SC7") .AND. Alltrim(SC7->C7_NUM) == Alltrim(cNumPC)
+
+			SC7->(RecLock('SC7',.F.))
+			SC7->C7_XSTREQ := '0'
+			SC7->C7_XTPREQ := cValtoChar(nOPC)
+			SC7->(MsUnlock())
+			SC7->(dbSkip())
+		Enddo
+	Endif
+
 	(cAlias)->(DbCloseArea())
+
+	FwRestArea(aAreaSC7)
+	FwRestArea(aAreaSC1)
+	FwRestArea(aArea)
 
 Return(lRet)
 

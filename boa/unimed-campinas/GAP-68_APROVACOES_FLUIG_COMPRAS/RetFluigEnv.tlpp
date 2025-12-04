@@ -22,7 +22,6 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody, cQuery)
 	Local jInfoRet      := JsonObject():New()
 	Local cResultado    := ''
 	Local oClientFluig  := Nil
-	//Local oAutUrl       := Nil
 	Local lContinua     := .T.
 	Local cUrl          := GetNewPar('UC_URLFLUI'   ,'https://devfluig.xplanning.com.br')                                         //Armazenará a URL base da API do Fluig
 	Local cCkey         := GetNewPar('UC_CKEYFLU'   ,'integrador')                                                                //Consumer Key para autenticação OAuth 1.0a.
@@ -30,12 +29,14 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody, cQuery)
 	Local cToken        := GetNewPar('UC_ACTKFLU'   ,'5835717e-a734-4bf1-ba56-26bfeda0bfeb')                                      //Access Token para autenticação OAuth 1.0a.
 	Local cTSecret      := GetNewPar('UC_SETKFLU'   ,'35223677-0415-4e7a-8a7e-54c5b91f0ab9643a9254-f8d4-4ec4-a74f-cc3a6e24e07e')  //Token Secret para autenticação OAuth 1.0a.
 
+	Default cTipo  		:= ''
+	Default cEPFluig 	:= ''
 	Default cBody  		:= ''
 	Default cQuery 		:= ''
-	
-	//Valida o cBody recebido 
+
+	//Valida o cBody recebido
 	If cTipo == 'POST'
-	
+
 		cStringJson         := jInfoRet:FromJson(cBody)
 
 		//Se houve falha na transformação do body em JsonObject, flaga para não continuar
@@ -56,9 +57,6 @@ User Function RetFluigEnv(cTipo, cEPFluig, cBody, cQuery)
 		cResultado := oClientFluig:Post(cUrl+cEPFluig,"",cBody)
 
 	Elseif lContinua .and. cTipo == 'GET'
-
-		//oAutUrl 		:= FWoAuthURL():New(cUrl, cUrl, cUrl)
-		//oClientFluig 	:= FWoAuthClient():New(cCkey, cCsecret, oAutUrl, '')
 		oClientFluig := FWoAuth1Fluig():New(cCkey, cCsecret, cUrl, '')
 		oClientFluig:SetToken(cToken)            //Access Token
 		oClientFluig:SetSecretToken(cTSecret)    //Token Secret

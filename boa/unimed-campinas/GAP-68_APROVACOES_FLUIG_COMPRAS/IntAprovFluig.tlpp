@@ -53,7 +53,16 @@ Return()
 //Envia dados para o Fluig
 Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 
+	Local aArea 		:= FwGetArea()							as Array
+	Local aAreaSC1 		:= SC1->(FwGetArea())           		as Array
+	Local aAreaSC7 		:= SC7->(FwGetArea())           		as Array
+	Local aAreaSCR  	:= SCR->(FwGetArea())           		as Array
+	Local aAreaCN9 		:= CN9->(FwGetArea())           		as Array
+	Local aAreaCND 		:= CND->(FwGetArea())           		as Array
 	Local cQuery		:= ""						            as Character
+	Local cAlias		:= ""									as Character
+	Local cAliasAux		:= ""									as Character
+	Local cQryAux		:= ""						            as Character
 	Local cBody         := ""						            as Character
 	Local oJSon         := JsonObject():New()		            as Object
 	Local cLogErro      := ""						            as Character
@@ -64,6 +73,7 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 	Local nRecno		:= 0 									as Numeric
 	Local nItem			:= 0 									as Numeric
 	Local cAprov 		:= ''									as Character
+	Local cUsrValid		:= ''									as Character
 
 	TRY
 
@@ -120,23 +130,28 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 			oJSon["formFields"]["fornecedor_nome"]   	:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + SC7->C7_FORNECE + SC7->C7_LOJA, "A2_NOME"))
 
 			// Percorre os itens da SC7 e adiciona ao JSON
-			
-			If SC7->(MSSeek(FWxFilial('SC7') + cNum)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
+			cQryAux := " SELECT C7_ITEM, C7_PRODUTO, C7_DESCRI, C7_UM, C7_QUANT, C7_PRECO, C7_TOTAL "
+			cQryAux += " FROM " + RetSqlName("SC7") + " SC7 "
+			cQryAux += " WHERE SC7.C7_FILIAL = '" + FWxFilial('SC7') + "' "
+			cQryAux += "   AND SC7.C7_NUM = '" + cNum + "' "
+			cQryAux += "   AND SC7.D_E_L_E_T_ = ' ' "
+			cQryAux += " ORDER BY SC7.C7_ITEM "
 
-				While ! SC7->(EoF()) .and. FWxFilial("SC7") + cNum == SC7->C7_FILIAL + SC7->C7_NUM
+			cQryAux 	:= ChangeQuery(cQryAux)
+			cAliasAux  	:= MPSysOpenQuery(cQryAux)
 
-					nItem ++
-					oJSon["formFields"]["C7_ITEM___"    + cValtoChar(nItem)]   := SC7->C7_ITEM
-					oJSon["formFields"]["C7_PRODUTO___" + cValtoChar(nItem)]   := SC7->C7_PRODUTO
-					oJSon["formFields"]["C7_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC7->C7_DESCRI)
-					oJSon["formFields"]["C7_UM___"      + cValtoChar(nItem)]   := SC7->C7_UM
-					oJSon["formFields"]["C7_QUANT___"   + cValtoChar(nItem)]   := SC7->C7_QUANT
-					oJSon["formFields"]["C7_PRECO___"   + cValtoChar(nItem)]   := SC7->C7_PRECO
-					oJSon["formFields"]["C7_TOTAL___"   + cValtoChar(nItem)]   := SC7->C7_TOTAL
+			While ! (cAliasAux)->(EoF())
+				nItem++
+				oJSon["formFields"]["C7_ITEM___"    + cValtoChar(nItem)] := (cAliasAux)->C7_ITEM
+				oJSon["formFields"]["C7_PRODUTO___" + cValtoChar(nItem)] := (cAliasAux)->C7_PRODUTO
+				oJSon["formFields"]["C7_DESCRI___"  + cValtoChar(nItem)] := Alltrim((cAliasAux)->C7_DESCRI)
+				oJSon["formFields"]["C7_UM___"      + cValtoChar(nItem)] := (cAliasAux)->C7_UM
+				oJSon["formFields"]["C7_QUANT___"   + cValtoChar(nItem)] := (cAliasAux)->C7_QUANT
+				oJSon["formFields"]["C7_PRECO___"   + cValtoChar(nItem)] := (cAliasAux)->C7_PRECO
+				oJSon["formFields"]["C7_TOTAL___"   + cValtoChar(nItem)] := (cAliasAux)->C7_TOTAL
 
-					SC7->(DbSkip())
-				EndDo
-			Endif
+				(cAliasAux)->(DbSkip())
+			EndDo
 
 		Case cTabela == 'SC1'
 
@@ -156,24 +171,33 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 			oJSon["formFields"]["valor_total"]      	:= xTotal(cNum,'total')
 
 			// Percorre os itens da SC1 e adiciona ao JSON
-			If SC1->(MSSeek(FWxFilial('SC1') + cNum)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+			cQryAux := " SELECT C1_ITEM, C1_PRODUTO, C1_DESCRI, C1_UM, C1_QUANT, C1_PRECO, C1_TOTAL "
+			cQryAux += " FROM " + RetSqlName("SC1") + " SC1 "
+			cQryAux += " WHERE SC1.C1_FILIAL = '" + FWxFilial('SC1') + "' "
+			cQryAux += "   AND SC1.C1_NUM = '" + cNum + "' "
+			cQryAux += "   AND SC1.D_E_L_E_T_ = ' ' "
+			cQryAux += " ORDER BY SC1.C1_ITEM "
 
-				While ! SC1->(EoF()) .and. FWxFilial("SC1") + cNum == SC1->C1_FILIAL + SC1->C1_NUM
+			cQryAux 	:= ChangeQuery(cQryAux)
+			cAliasAux  	:= MPSysOpenQuery(cQryAux)
 
-					nItem ++
-					oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)]   := SC1->C1_ITEM
-					oJSon["formFields"]["C1_PRODUTO___" + cValtoChar(nItem)]   := SC1->C1_PRODUTO
-					oJSon["formFields"]["C1_DESCRI___"  + cValtoChar(nItem)]   := Alltrim(SC1->C1_DESCRI)
-					oJSon["formFields"]["C1_UM___"      + cValtoChar(nItem)]   := SC1->C1_UM
-					oJSon["formFields"]["C1_QUANT___"   + cValtoChar(nItem)]   := SC1->C1_QUANT
-					oJSon["formFields"]["C1_PRECO___"   + cValtoChar(nItem)]   := SC1->C1_PRECO
-					oJSon["formFields"]["C1_TOTAL___"   + cValtoChar(nItem)]   := SC1->C1_TOTAL
+			While !(cAliasAux)->(EoF())
+				nItem++
+				oJSon["formFields"]["C1_ITEM___"    + cValtoChar(nItem)] := (cAliasAux)->C1_ITEM
+				oJSon["formFields"]["C1_PRODUTO___" + cValtoChar(nItem)] := (cAliasAux)->C1_PRODUTO
+				oJSon["formFields"]["C1_DESCRI___"  + cValtoChar(nItem)] := Alltrim((cAliasAux)->C1_DESCRI)
+				oJSon["formFields"]["C1_UM___"      + cValtoChar(nItem)] := (cAliasAux)->C1_UM
+				oJSon["formFields"]["C1_QUANT___"   + cValtoChar(nItem)] := (cAliasAux)->C1_QUANT
+				oJSon["formFields"]["C1_PRECO___"   + cValtoChar(nItem)] := (cAliasAux)->C1_PRECO
+				oJSon["formFields"]["C1_TOTAL___"   + cValtoChar(nItem)] := (cAliasAux)->C1_TOTAL
 
-					SC1->(DbSkip())
-				EndDo
-			Endif
+				(cAliasAux)->(DbSkip())
+			EndDo
 
 		Case cTabela == 'CN9'
+
+			//Ainda nao implementado no fluig
+			Return()
 
 			oJSon["comment"] 						:= "Solicitação de Aprovação de Contrato: " + cNum
 
@@ -186,6 +210,9 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 			oJSon["formFields"]["A2_NOME"]    		:= Alltrim(Posicione('SA2',1, FWxFilial("SA2") + CNC->CNC_CODIGO + CNC->CNC_LOJA, "A2_NOME"))
 
 		Case cTabela == 'CND'
+
+			//Ainda nao implementado no fluig
+			Return()
 
 			oJSon["comment"] 						:= "Solicitação de Aprovação de Medição: " + cNum
 
@@ -200,19 +227,15 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 		Endcase
 
 		//Percorrer a query para montar os aprovadores
-		cAprov := "["
+		cAprov 		:= "["
+		cUsrValid 	:= "["
+
 		While ! (cAlias)->(EoF())
 
-			//cUsrMail := AllTrim(UsrRetMail((cAlias)->CR_USER))
-
-			//Se algum usuário não for encontrado, não continua
-			If ! fValidUsr((cAlias)->CR_USER)
-				FwAlertError('Erro ao validar o usuário "' + PswChave((cAlias)->CR_USER) + '" no Fluig.')
-				Return()
-			Endif
+			cUsrValid += '{"email": "' + AllTrim(UsrRetMail((cAlias)->CR_USER)) + '"},'
 
 			cAprov += '{ "nivel": ' + AllTrim(Str(Val((cAlias)->CR_NIVEL)))
-			cAprov += ', "email": "' + cUsrMail
+			cAprov += ', "email": "' + AllTrim(UsrRetMail((cAlias)->CR_USER))
 			cAprov += '", "usuario": "' + PswChave((cAlias)->CR_USER) + '" },'
 
 			(cAlias)->(dbSkip())
@@ -221,6 +244,14 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 		//remove a último vírgula
 		cAprov := Left(cAprov, Len(cAprov) - 1)
 		cAprov += "]"
+
+		cUsrValid := Left(cUsrValid, Len(cUsrValid) - 1)
+		cUsrValid += "]"
+
+		//Se algum usuário não for encontrado, não continua
+		If ! fValidUsr(cUsrValid)
+			Return()
+		Endif
 
 		//atribua a string completo ao objeto aprovadores.
 		oJson["formFields"]["aprovacoes"] := cAprov
@@ -302,6 +333,7 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 			If ! oLog:AddItem(jAuxLog)
 				ConOut(oLog:GetError())
 			EndIf
+			FwAlertError('Erro ao enviar aprovação no Fluig.', 'Aprovação Fluig')
 		EndIf
 
 	CATCH oError
@@ -309,6 +341,16 @@ Static Function fEnviaFluig(cTabela, cTipo, cNum, cRevisao, cMed)
 		U_AdminMsg("["+FunName()+"] " + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 
 	ENDTRY
+
+	(cAlias)->(DbCloseArea())
+	(cAliasAux)->(DbCloseArea())
+
+	FwRestArea(aArea)
+	FwRestArea(aAreaSC1)
+	FwRestArea(aAreaSC7)
+	FwRestArea(aAreaSCR)
+	FwRestArea(aAreaCN9)
+	FwRestArea(aAreaCND)
 
 Return()
 
@@ -525,23 +567,25 @@ Static Function xTotal(cNum,cTipo)
 Return(nRet)
 
 /*/{Protheus.doc} ValidUsr
-Função para retornar o total da nota na TAG do XML
+Função para validar se o usuário existe no Fluig e está ativo
 @type function
 @version  
 @author Tiengo Junior
 @since 29/07/2025
-@return variant, return_description
+@return .T. = Usuário válido, .F. = Usuário inválido
 /*/
 
 Static Function fValidUsr(cUsrID)
 
 	Local lRet			:= .T.									as Logical
-	Local cQuery 		:= "showInactive=false"					as Character
+	Local oUser			:= JsonObject():New()                   as Object
+	Local oConstraint 	:= JsonObject():New()                   as Object
 	Local jSonRet		:= JsonObject():New()					as jSon
 	Local jAuxLog  		:= Nil                 		            as jSon
 	Local cLogErro		:= ""						            as Character
 	Local oLog          := Nil                 		            as Object
 	Local oError        := ErrorClass():New()     				as Object
+	Local nI			:= 0									as Numeric
 
 	TRY
 
@@ -552,39 +596,65 @@ Static Function fValidUsr(cUsrID)
 			U_AdminMsg("["+FunName()+"] " + DToC(dDataBase) + " - " + Time() + " -> " + oLog:GetError(), IsBlind())
 		EndIf
 
-		// Chama a função para obter o token e enviar o POST
-		jSonRet := u_RetFluigEnv('GET', "/admin/api/v1/users", '', cQuery + '&&' +'code=' + cUsrID)
+		oUser["name"] 							:= "DTS_GET_USERS"
+		oUser["fields"] 						:= {}
+		oUser["constraints"] 					:= {}
 
-		If ! jSonRet["items"][1]:HasProperty("teste")
+		oConstraint["_field"]        			:= "INPUT_JSON"
+		oConstraint["_initialValue"] 			:= cUsrID
+		oConstraint["_finalValue"]   			:= ""
+		oConstraint["_type"]         			:= 1
+		aAdd(oUser["constraints"], oConstraint)
 
-			lRet := .F.
-			cLogErro   := jSonRet['message']
+		oUser["order"] 							:= {}
 
-			FreeObj(jAuxLog)
-			jAuxLog             := JsonObject():New()
-			jAuxLog["status"]   := "1"
-			jAuxLog["idinteg"]  := ""
-			jAuxLog["nomapi"]   := "GET_UserFluig"
-			jAuxLog["rotina"]   := FunName()
-			jAuxLog["tabela"]   := 'SCR'
-			jAuxLog["recno"]    := SCR->(RecNo())
-			jAuxLog["data"]     := DToS(dDataBase)
-			jAuxLog["hora"]     := Time()
-			jAuxLog["msgresp"]  := "success"
-			jAuxLog["msgerr"]   := ""
-			jAuxLog["jsonbod"]  := jSonRet
-			jAuxLog["jsonret"]  := jSonRet
+		//exporto o objeto JSON para uma string em formato JSON
+		cBody := oUser:toJson()
 
-			If ! oLog:AddItem(jAuxLog)
-				ConOut(oLog:GetError())
-			EndIf
+		//Chamo a função RetFluigEng onde irá autenticar e enviar a requisição POST
+		jSonRet := u_RetFluigEnv('POST',"/api/public/ecm/dataset/datasets",cBody)
+
+		If jSonRet["content"]:HasProperty("values")
+
+			For nI := 1 To Len(jSonRet["content"]["values"])
+				If jSonRet["content"]["values"][nI]["exists"] == "false" .Or. jSonRet["content"]["values"][nI]["active"] == "false"
+					cLogErro += 'Usuário inexistente ou bloqueado no Fluig "email: ' + aValues[nI]["email"] + '"' + CRLF
+				EndIf
+			Next nI
+
+			If ! Empty(cLogErro)
+				lRet := .F.
+				Aviso("Int. Fluig", cLogErro, {"OK"}, 3, "Validação de Usuário no Fluig")
+
+				FreeObj(jAuxLog)
+				jAuxLog             := JsonObject():New()
+				jAuxLog["status"]   := "1"
+				jAuxLog["idinteg"]  := ""
+				jAuxLog["nomapi"]   := "POST_UserFluig"
+				jAuxLog["rotina"]   := FunName()
+				jAuxLog["tabela"]   := 'SCR'
+				jAuxLog["recno"]    := SCR->(RecNo())
+				jAuxLog["data"]     := DToS(dDataBase)
+				jAuxLog["hora"]     := Time()
+				jAuxLog["msgresp"]  := "error"
+				jAuxLog["msgerr"]   := cLogErro
+				jAuxLog["jsonbod"]  := jSonRet
+				jAuxLog["jsonret"]  := jSonRet
+
+				If ! oLog:AddItem(jAuxLog)
+					ConOut(oLog:GetError())
+				EndIf
+			Endif
 		Else
 
+			lRet 		:= .F.
+			cLogErro   	:= 'Erro na requisição ao Fluig validação de usuario'
+
 			FreeObj(jAuxLog)
 			jAuxLog             := JsonObject():New()
 			jAuxLog["status"]   := "1"
 			jAuxLog["idinteg"]  := ""
-			jAuxLog["nomapi"]   := "GET_UserFluig"
+			jAuxLog["nomapi"]   := "POST_UserFluig"
 			jAuxLog["rotina"]   := FunName()
 			jAuxLog["tabela"]   := 'SCR'
 			jAuxLog["recno"]    := SCR->(RecNo())

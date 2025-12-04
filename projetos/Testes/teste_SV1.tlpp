@@ -1,0 +1,53 @@
+#include "msobject.ch"
+#include "totvs.framework.treports.integratedprovider.th"
+
+namespace custom.materiais.produtos.integratedprovider
+
+@totvsFrameworkTReportsIntegratedProvider(active=.T., team="SIGACOM", tables="SB1", name="Materiais", country="ALL", initialRelease="12.1.2210")
+class SB1TReportsBusinessObject from totvs.framework.treports.integratedprovider.IntegratedProvider
+public method new() as object
+public method getData() as object
+public method getSchema() as object
+endclass
+
+method new() class SB1TReportsBusinessObject
+_Super:new()
+//Define a Área
+self:appendArea("Compras")
+
+//Define o nome do Objeto de Negócio
+self:setDisplayName("Produtos")
+
+//Define a descrição do Objeto de Negócio
+self:setDescription("Produtos do Protheus")
+
+return self
+
+method getData() as object class SB1TReportsBusinessObject
+local cQuery as character
+
+//Define a quantidade máxima por página (Default 100)
+self:setPageSize(200)
+
+//Define a query do Objeto de Negócio
+cQuery := "SELECT #QueryFields# FROM " + RetSQLName("SB1") + " WHERE #QueryWhere#"
+self:setQuery(cQuery)
+
+//Define o campo de ordenação da query
+self:setOrder("B1_COD")
+
+//Define o where da query
+self:setWhere("B1_FILIAL = '"+ FWxFilial('SB1') +"' AND D_E_L_E_T_ = ' '")
+
+return self:oData
+
+method getSchema() as object class SB1TReportsBusinessObject
+
+self:addProperty("Filial", "Filial", "string", "Filial", "B1_FILIAL")
+self:addProperty("Codigo", "Codigo", "string", "Código", "B1_COD")
+self:addProperty("Descricao", "Descricao", "string", "Descricao","B1_DESC")
+self:addProperty("Tipo", "Tipo", "string", "Tipo","B1_TIPO")
+self:addProperty("Unidade", "Unidade de medida", "string", "Unidade","B1_UM")
+self:addProperty("Revisao", "Revisao", "date", "Revisao","B1_UREV")
+
+return self:oSchema
