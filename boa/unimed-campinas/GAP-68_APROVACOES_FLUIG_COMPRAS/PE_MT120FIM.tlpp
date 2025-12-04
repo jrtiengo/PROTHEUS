@@ -23,9 +23,11 @@ description Ponto de entrada no final do pedido de compras
 /*/
 User Function MT120FIM()
 
-	Local aAreaSC1  := SC1->(FwGetArea())           as Array
-	Local aAreaSC7  := SC7->(FwGetArea())           as Array
-	Local aAreaSCR  := SCR->(FwGetArea())           as Array
+	Local aArea     := FwGetArea()
+	Local aAreaSC1  := SC1->(FwGetArea())
+	Local aAreaSC7  := SC7->(FwGetArea())
+	Local aAreaSCR  := SCR->(FwGetArea())
+	Local aAreaSZ0  := SZ0->(FwGetArea())
 	Local nOpcao    := PARAMIXB[01]                 as Numeric
 	Local cNumPC    := PARAMIXB[02]                 as Character
 	Local nOpcA     := PARAMIXB[03]                 as Numeric
@@ -40,106 +42,78 @@ User Function MT120FIM()
 				//U_INTPCMV()
 			Endif
 		Endif
-/*
-		If nOpcA == 1 .and. ! Empty(SC7->C7_NUMSC) .and. (nOpcao == 3 .or. nOpcao == 4 .or. nOpcao == 5)
-			SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
-			If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
-				If Alltrim(SC1->C1_XORINT) == 'MV'
-					//Envia PC ao MV
 
-					If ! U_INTPCMV(nOpcao, @cMsgErr)
-						While SC7->(!EOF()) .AND. SC7->C7_FILIAL == FWxFilial("SC7") .AND. Alltrim(SC7->C7_NUM) == Alltrim(cNumPC)
-							SC7->(RecLock('SC7',.F.))
-							SC7->C7_XSTREQ := '1'
-							SC7->C7_XTPREQ := '5'
-							SC7->(MsUnlock())
-							SC7->(dbSkip())
-						EndDo
-					Else
-						While SC7->(!EOF()) .AND. SC7->C7_FILIAL == FWxFilial("SC7") .AND. Alltrim(SC7->C7_NUM) == Alltrim(cNumPC)
-
-							SC7->(RecLock('SC7',.F.))
-							SC7->C7_XSTREQ := '0'
-							SC7->C7_XTPREQ := '5'
-							SC7->(MsUnlock())
-							SC7->(dbSkip())
-						Enddo
-					Endif
-				Endif
-			Endif
-		Endif
-*/
 		If nOpcA == 1
-			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
-				//Envia Cancelamento ao Fluig
-				If SC7->(MSSeek(FWxFilial("SC7") + cNumPC))
-					If ! Empty(SC7->C7_XIDFLU)
-						U_IntCancFluig('SC7', SC7->C7_XIDFLU, SC7->(RecNo()))
-					Endif
-					//Envia Documento ao Fluig
-					U_IntAprovFluig('SC7', SCR->CR_TIPO, cNumPC, '', '')
-				Endif
-			Elseif SCR->(MsSeek(FWxFilial("SCR")+'PC'+cNumPC))
-				//Envia Cancelamento ao Fluig
-				If SC7->(MSSeek(FWxFilial("SC7") + cNumPC))
-					If ! Empty(SC7->C7_XIDFLU)
-						U_IntCancFluig('SC7', SC7->C7_XIDFLU, SC7->(RecNo()))
-					Endif
-					//Envia Documento ao Fluig
-					U_IntAprovFluig('SC7', SCR->CR_TIPO, cNumPC, '', '')
-				Endif
-			Endif
-		Endif
 
-//GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
-		If nOpcA == 1 .and. (nOpcao == 3 .or. nOpcao == 9)
-			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
-				While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
-					Reclock("SCR",.F.)
-					SCR->CR_XIEMERG := SC7->C7_XIEMERG
-					SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
-					SCR->(MsUnlock())
-					SCR->(dbSkip())
-				EndDo
-
-			Elseif SCR->(MsSeek(FWxFilial("SCR")+'PC'+cNumPC))
-				While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
-					Reclock("SCR",.F.)
-					SCR->CR_XIEMERG := SC7->C7_XIEMERG
-					SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
-					SCR->(MsUnlock())
-					SCR->(dbSkip())
-				EndDo
-			Endif
-		Endif
-
-//GAP 201 - Estornar a tabela SZ0 quando a medição for estornada
-		If nOpcA == 1 .and. nOpcao == 5 .and. FWIsInCallStack("CN121Estorn")
-
-			If SC7->(MSSeek(FWxFilial("SC7") + cNumPC))
-				cChave := SC7->C7_FILIAL+SC7->C7_NUM+SC7->C7_FORNECE+SC7->C7_LOJA
+			//GAP 201 - Estornar a tabela SZ0 quando a medição for estornada
+			If nOpcao == 5 .and. FWIsInCallStack("CN121Estorn")
 
 				DBSelectArea("SZ0")
 				SZ0->(dbSetOrder(1)) //Z0_FILIAL+Z0_NUMPED+Z0_ITEM
 
-				If SZ0->(MSSeek(FWxFilial("SZ0")+SC7->C7_NUM))
-					While SZ0->(!EOF()) .AND. SZ0->(Z0_FILIAL+Z0_NUMPED+Z0_FORNECE+Z0_LOJA) == cChave
-						Reclock("SZ0",.F.)
+				If SZ0->(MSSeek(FWxFilial('SZ0')+cNumPC))
+					While SZ0->(!EOF()) .AND. SZ0->(Z0_FILIAL+Z0_NUMPED) == SC7->(C7_FILIAL+C7_NUM)
+						Reclock('SZ0',.F.)
 						SZ0->(dbdelete())
 						SZ0->(MsUnlock())
 						SZ0->(dbSkip())
 					EndDo
 				Endif
 			Endif
-		Endif
 
+			//Envia ao MV, para exclusao se for uma alteracao ou exclusao
+			If ! Empty(SC7->C7_NUMSC) .and. (nOpcao == 4 .or. nOpcao == 5)
+				SC1->(DbSetOrder(1)) //C1_FILIAL+C1_NUM+C1_ITEM+C1_ITEMGRD
+				If SC1->(MsSeek(FWxFilial('SC1') + SC7->C7_NUMSC))
+					If Alltrim(SC1->C1_XORINT) == 'MV'
+						U_INTPCMV(nOpcao, @cMsgErr)
+					Endif
+				Endif
+			Endif
+
+			//Envia ao Fluig
+			If ! Empty(SC7->C7_XIDFLU)
+				//U_IntCancFluig('SC7', SC7->C7_XIDFLU, SC7->(RecNo()))
+			Endif
+
+			If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
+				U_IntAprovFluig('SC7', 'IP', cNumPC, '', '')
+			Elseif SCR->(MsSeek(FWxFilial("SCR")+'PC'+cNumPC))
+				U_IntAprovFluig('SC7', 'PC', cNumPC, '', '')
+			Endif
+
+			//GAP 180 - Gravar o campo C7_XIEMERG e C7_XMOTIVO na tabela SCR
+			If (nOpcao == 3 .or. nOpcao == 9)
+				If SCR->(MsSeek(FWxFilial("SCR")+'IP'+cNumPC))
+					While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
+						Reclock("SCR",.F.)
+						SCR->CR_XIEMERG := SC7->C7_XIEMERG
+						SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+						SCR->(MsUnlock())
+						SCR->(dbSkip())
+					EndDo
+
+				Elseif SCR->(MsSeek(FWxFilial("SCR")+'PC'+cNumPC))
+					While SCR->(!EOF()) .AND. SCR->CR_FILIAL == FWxFilial("SCR") .AND. Alltrim(SCR->CR_NUM) == cNumPC
+						Reclock("SCR",.F.)
+						SCR->CR_XIEMERG := SC7->C7_XIEMERG
+						SCR->CR_XMOTIVO := Alltrim(SC7->C7_XMOTIVO)
+						SCR->(MsUnlock())
+						SCR->(dbSkip())
+					EndDo
+				Endif
+			Endif
+		Endif
+		
 	CATCH oError
 
-		U_AdminMsg("[MT094END] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
+		U_AdminMsg("[MT120FIM] " + DToC(Date()) + " - " + Time() + " -> " + oError:Description, IsBlind(), oError)
 	ENDTRY
 
-	FwRestArea(aAreaSC1)
-	FwRestArea(aAreaSC7)
+	FwRestArea(aAreaSZ0)
 	FwRestArea(aAreaSCR)
+	FwRestArea(aAreaSC7)
+	FwRestArea(aAreaSC1)
+	FwRestArea(aArea)
 
 Return

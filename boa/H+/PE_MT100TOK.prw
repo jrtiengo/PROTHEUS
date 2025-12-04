@@ -61,10 +61,16 @@ User Function MT100TOK()
 							cMsgErro += "- Item " + cItem + ": Campo B1_XNATUREZA vazio (TES gera Estoque)" + CRLF
 						Endif
 
-						//Busca o campo B1_XNATDES
+						//Busca o campo B1_XNATCUS ou B1_XNATDES
 					Elseif ! Empty(cCCusto)
 						If CTT->(MSSeek(FWxFilial("CTT") + cCCusto))
 							If CTT->CTT_XTIPOC == '1'
+								cNatureza := AllTrim(SB1->B1_XNATCUS)
+								If Empty(cNatureza)
+									lRet := .F.
+									cMsgErro += "- Item " + cItem + ": Campo B1_XNATCUS vazio (CC tipo despesa)" + CRLF
+								Endif
+							Elseif CTT->CTT_XTIPOC == '2'
 								cNatureza := AllTrim(SB1->B1_XNATDES)
 								If Empty(cNatureza)
 									lRet := .F.

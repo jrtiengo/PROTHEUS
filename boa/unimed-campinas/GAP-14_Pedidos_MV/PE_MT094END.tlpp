@@ -146,26 +146,12 @@ User Function MT094END()
 			If Alltrim(SC1->C1_XORINT) == 'MV'
 				//Envia PC ao MV
 				If SC7->(MsSeek(FWxFilial("SC7") + cDocto))
-
-					If ! U_INTPCMV(3, @cMsgErr)
-						While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-							SC7->(RecLock('SC7',.F.))
-							SC7->C7_XSTREQ := '1'
-							SC7->C7_XTPREQ := '3'
-							SC7->(MsUnlock())
-						EndDo
-					Else
-						While ! SC7->(EoF()) .and. FWxFilial("SC7") + cDocto == SC7->C7_FILIAL + SC7->C7_NUM
-							SC7->(RecLock('SC7',.F.))
-							SC7->C7_XSTREQ := '0'
-							SC7->C7_XTPREQ := '3'
-							SC7->(MsUnlock())
-						EndDo
-					Endif
+					U_INTPCMV(3, @cMsgErr)
 				Endif
 			Endif
 		Endif
 	Endif
+Endif
 
 Return
 
