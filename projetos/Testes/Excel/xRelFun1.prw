@@ -135,7 +135,7 @@ Static Function ImpRel(lSchedule)
 	cQuery += " WHERE SRA.D_E_L_E_T_ = ' ' "
 	cQuery += "   AND SRA.RA_FILIAL >= '" + MV_PAR01 + "' "
 	cQuery += "   AND SRA.RA_FILIAL <= '" + MV_PAR02 + "' "
-	cQuery += "   AND SRA.RA_SITFOLH <> 'D'				"
+	cQuery += "   AND SRA.RA_SITFOLH NOT IN ('D','T') "
 	cQuery += " ORDER BY SRA.RA_FILIAL, SRA.RA_MAT "
 
 	cQuery := ChangeQuery(cQuery)
@@ -163,8 +163,9 @@ Static Function ImpRel(lSchedule)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Razão Social", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Matrícula", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Nome", 1, 1)
-	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "C.Custo", 1, 1)
-	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. C.Custo", 1, 1)
+	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Filial", 1, 1)
+	//oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "C.Custo", 1, 1)
+	//oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. C.Custo", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Cód. Função", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. Função", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Dt. Admissão", 1, 1)
@@ -262,13 +263,16 @@ Static Function ImpRel(lSchedule)
 			IncProc("Processando registros " + cValToChar(nConta) + " de " + cValToChar(nTotal) + "...")
 		Endif
 
+/*
+			//AllTrim((cAlias)->RA_CC),;
+			//AllTrim(cDescrCC),;
+*/
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
 			FWFilialName(),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
-			AllTrim((cAlias)->RA_CC),;
-			AllTrim(cDescrCC),;
+			FWFilialName(),;
 			AllTrim((cAlias)->RA_CODFUNC),;
 			AllTrim(cDescrFu),;
 			DtoC(StoD((cAlias)->RA_ADMISSA)),;

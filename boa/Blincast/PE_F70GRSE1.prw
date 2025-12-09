@@ -13,28 +13,27 @@ O ponto de entrada F70GRSE1 é chamado após a baixa do título a receber. Neste mo
 /*/
 User Function F70GRSE1()
 
-    Local aArea 		:= FwGetArea()
-    Local aAreaCN9 	    := CN9->(FwGetArea())
+	Local aArea 		:= FwGetArea()
+	Local aAreaCN9 	    := CN9->(FwGetArea())
 	Local aAreaSE1      := SE1->(FwGetArea())
-	Local cNumRental 	:= ""
+	Local cNRental 	:= ""
 
 	If ! Empty(SE1->E1_XRENTA)
 
-		cNumRental := SE1->E1_XRENTA
+		cNRental := SE1->E1_XRENTA
 
-		CN9->(dbOrderNickName("NRENTAL")) //CN9_FILIAL+CN9_XRENTA
-
-		If CN9->(MSseek(FWxFilial("CN9") + cNumRental))
-			
-			CN9->(RecLock("CN9", .F.))
-			CN9->CN9_XSTSRE := '3' // Adimplente”
-			CN9->(MsUnlock())
+		//Posiciona na tabela de locacao x projetos
+		FP0->(DbSetOrder(1))	//FP0_FILIAL+FP0_PROJET
+		If FP0->(MSSeek(FWxFilial("FPA")+ cNRental))
+			FP0->(RecLock("FP0", .F.))
+			FP0->FP0_XPGINS := '1' // PAGO
+			FP0->(MsUnlock())
 		EndIf
 	Endif
 
 	FwRestArea(aAreaSE1)
-    FwRestArea(aAreaCN9)
-    FwRestArea(aArea)
+	FwRestArea(aAreaCN9)
+	FwRestArea(aArea)
 
 Return()
 

@@ -18,8 +18,9 @@ User Function LOCA021S()
 
 	Local _cQuery := ""
 	Local _nX
-	LOCAL LFATAND     := SUPERGETMV("MV_LOCX209" ,.F.,.T.)
-	LOCAL LFATLOC     := SUPERGETMV("MV_LOCX210" ,.F.,.F.)
+	Local LFATAND     	:= SUPERGETMV("MV_LOCX209" ,.F.,.T.)
+	Local LFATLOC     	:= SUPERGETMV("MV_LOCX210" ,.F.,.F.)
+	Local LFATREM		:= SUPERGETMV("MV_LOCX067", .F.,.F.)
 
 	_cQuery := " SELECT ZAG.R_E_C_N_O_ ZAGRECNO, FP1.R_E_C_N_O_ FP1RECNO, ZA0.R_E_C_N_O_ ZA0RECNO, SB1.R_E_C_N_O_ SB1RECNO, SA1.R_E_C_N_O_ SA1RECNO, ISNULL(ST9.R_E_C_N_O_,0) ST9RECNO, FPA_PROJET , FPA_CONPAG, FP1_OBRA "
 
@@ -55,20 +56,28 @@ User Function LOCA021S()
 	_cQuery += " WHERE FPA_FILIAL = '"+XFILIAL("FPA")+"' "
 	_cQuery += " AND FPA_DTFIM <> ' '"
 	_cQuery += " AND FPA_DTFIM BETWEEN '"+ DTOS(DPAR01)+"' AND '" + DTOS(DPAR02)+"'"
-	IF ! LFATAND
+
+	If ! LFATAND
 		_cQuery += " AND (FPA_DNFRET = ' ' OR FPA_DNFRET >= '"+ DTOS(DPAR01)+"')"
-	ENDIF
+	Endif
+
 	_cQuery     += " AND ((FPA_ULTFAT < '" + DTOS(DPAR02) + "' AND (FPA_ULTFAT <= FPA_DTSCRT OR FPA_DTSCRT = '')) OR FPA_ULTFAT = ' ')"
-	_cQuery += " AND FPA_NFREM <> ' '" // Tem que ter nota de Remessa
-	IF FPA->(FIELDPOS("FPA_PDESC")) > 0
-		_cQuery += " AND  FPA_PDESC < 100"
+
+	// --> MV_LOCX067 - OBRIGA OU NAO UMA NOTA FISCAL DE REMESSA PARA GERACAO DA NOTA DE FATURAMENTO AUTOMATICO.            PADRÃO: .T.
+	IF LFATREM
+		_cQuery += " AND ( FPA_NFREM <> '' OR FPA_TIPOSE <> 'L' ) "
 	ENDIF
+
+	If FPA->(FIELDPOS("FPA_PDESC")) > 0
+		_cQuery += " AND  FPA_PDESC < 100"
+	Endif
 	_cQuery += " AND (FPA_TIPOSE <> 'L' OR FPA_GRUA BETWEEN '" + CPAR07 + "' AND '" + CPAR08 +"') "
 	_cQuery += " AND FPA_PROJET BETWEEN '" +CPAR09 + "' AND '" + CPAR10 + "' "
 
 	If _lTem12 .and. _lTem13
 		_cQuery += " AND FPA_PRODUT BETWEEN '"+ CPAR12 + "' AND '" + CPAR13 +"' "
 	EndIF
+
 	_cQuery += " AND FPA_GRUA BETWEEN '" + CPAR07 + "' AND '" + CPAR08 + "' "
 
 	IF LFATLOC // Fatura somente Locação
@@ -77,8 +86,12 @@ User Function LOCA021S()
 		_cQuery += " AND FPA_TIPOSE IN ('L','M','Z','O') "
 	ENDIF
 
+	If FPZ->(FIELDPOS("FPZ_GERAEM")) > 0 .and. FPA->(FIELDPOS("FPA_GERAEM")) > 0
+		_cQuery += " AND FPA_GERAEM BETWEEN '"+ DTOS(CPAR18) + "' AND '" + DTOS(CPAR19) +"' "
+	Endif
+
 	//Projeto Blincast, para orcamentos que são de repasses e não estão aptos a faturar
-    _cQuery += " AND (FPA_XREPAS <> '1' OR FPA_XSTSRE = '1') "
+	_cQuery += " AND (FPA_XREPAS <> '1' OR FPA_XSTSRE = '1') "
 
 	IF LEN(APRJAS) > 0
 		FOR _NX := 1 TO LEN(APRJAS)
