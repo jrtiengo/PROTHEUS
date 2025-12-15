@@ -56,6 +56,10 @@ Static Function xStsProc(oSelf, lSchedule, nRecno)
 	Local cQuery    := ""
 	Local cAlias 	:= ""
 	Local nDiasTol  := SuperGetMV('MV_BLIINAD', .F., 5)
+	Local aContr	:= {}
+	Local cContr   	:= ""
+	Local cRevisa	:= ""
+	Local cNRental	:= ""
 
 	Default oSelf := Nil
 	Default lSchedule := FWGetRunSchedule()
@@ -91,12 +95,22 @@ Static Function xStsProc(oSelf, lSchedule, nRecno)
 
 	While ! (cAlias)->(Eof())
 
-		CN9->(dbOrderNickName("NRENTAL")) //CN9_FILIAL+CN9_XRENTA
+		cNRental := (cAlias)->E1_XRENTA
 
-		If CN9->(MSseek(FWxFilial("CN9") + (cAlias)->E1_XRENTA))
-			CN9->(RecLock("CN9", .F.))
-			CN9->CN9_XSTSRE := "4" //Inadimplente
-			CN9->(Msunlock())
+		aContr := u_Ultrevcn9(cNRental)
+
+		If Len(aContr) >  0
+
+			cContr		:= PadR(aContr[2], TamSX3("CN9_NUMERO")[1])
+			cRevisa 	:= PadR(aContr[2], TamSX3("CN9_REVISA")[1])
+
+			CN9->(dbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+
+			If CN9->(MsSeek(FWxFilial("CN9") + cContr + cRevisa))
+				CN9->(RecLock("CN9", .F.))
+				CN9->CN9_XSTSRE := '4' // Adimplente”
+				CN9->(MsUnlock())
+			EndIf
 		Endif
 
 		(cAlias)->(dbSkip())

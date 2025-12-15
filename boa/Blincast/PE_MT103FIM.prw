@@ -29,40 +29,31 @@ User Function MT103FIM()
 
 	If nConfirmado == 1 .and. (nOpc == 3 .or. nOpc == 4)
 
-		SD1->(DbSetOrder(1)) //D1_FILIAL+D1_DOC+D1_SERIE+D1_FORNECE+D1_LOJA+D1_COD+D1_ITEM
-		If SD1->(MSSeek(FWxFilial("SD1")+SF1->(F1_DOC+F1_SERIE+F1_FORNECE+F1_LOJA)))
-			If ! Empty(SD1->D1_PEDIDO)
-				SC7->(DbSetOrder(1)) //C7_FILIAL+C7_NUM+C7_ITEM+C7_SEQUEN
-				If SC7->(MSSeek(FWxFilial("SC7")+SD1->D1_PEDIDO))
+		If ! Empty(SC7->C7_MEDICAO)
 
-					If ! Empty(SC7->C7_MEDICAO)
+			CND->(DbSetOrder(4)) //CND_FILIAL+CND_NUMMED
 
-						CND->(DbSetOrder(4)) //CND_FILIAL+CND_NUMMED
+			If CND->(MSSeek(FWxFilial("CND")+SC7->C7_MEDICAO))
 
-						If CND->(MSSeek(FWxFilial("CND")+SC7->C7_MEDICAO))
+				cNRental := CND->CND_XRENTA
 
-							cNRental := CND->CND_XRENTA
+				SE2->(DBSetOrder(6)) //E2_FILIAL+E2_FORNECE+E2_LOJA+E2_PREFIXO+E2_NUM
+				If SE2->(MSSeek(FWxFilial("SE2") + SF1->(F1_FORNECE + F1_LOJA + F1_SERIE + F1_DOC)))
 
-							SE2->(DBSetOrder(6)) //E2_FILIAL+E2_FORNECE+E2_LOJA+E2_PREFIXO+E2_NUM
-							If SE2->(MSSeek(FWxFilial("SE2") + SF1->(F1_FORNECE + F1_LOJA + F1_SERIE + F1_DOC)))
+					While !SE2->(Eof()) .And. ;
+							FWxFilial("SE2") == SE2->E2_FILIAL .And. ;
+							SF1->F1_FORNECE == SE2->E2_FORNECE .And. ;
+							SF1->F1_LOJA == SE2->E2_LOJA .And. ;
+							SF1->F1_SERIE == SE2->E2_PREFIXO .And. ;
+							SF1->F1_DOC == SE2->E2_NUM
 
-								While !SE2->(Eof()) .And. ;
-										FWxFilial("SE2") == SE2->E2_FILIAL .And. ;
-										SF1->F1_FORNECE == SE2->E2_FORNECE .And. ;
-										SF1->F1_LOJA == SE2->E2_LOJA .And. ;
-										SF1->F1_SERIE == SE2->E2_PREFIXO .And. ;
-										SF1->F1_DOC == SE2->E2_NUM
+						Reclock("SE2", .F.)
+						SE2->E2_XRENTA := cNRental
+						SE2->(MsUnlock())
 
-									Reclock("SE2", .F.)
-									SE2->E2_XRENTA := cNRental
-									SE2->(MsUnlock())
-
-									SE2->(DbSkip())
-								EndDo
-							EndIf
-						Endif
-					Endif
-				Endif
+						SE2->(DbSkip())
+					EndDo
+				EndIf
 			Endif
 		Endif
 	Endif

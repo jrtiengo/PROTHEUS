@@ -30,38 +30,51 @@ User Function CNTA121()
 
 		nOpc		:= oModel:GetOperation()
 
-		If cIdPonto == 'MODELVLDACTIVE' .and. FwIsInCallStack("CN121MedEnc")
+		If cIdPonto == 'MODELVLDACTIVE'
 
-			//-> Realziar loop na Loop na FPA e posicionar no item que tem REPASSE = 1
-			//Posiciona na tabela de locacao x projetos
-			FPA->(DbSetOrder(1))// FPA_FILIAL+FPA_PROJET+FPA_OBRA+FPA_SEQGRU+FPA_CNJ
-			If FPA->(MSSeek(FWxFilial("FPA")+ CND->CND_XRENTA))
-				While ! FPA->(Eof()) .And. FWxFilial("FPA") == CND->CND_FILIAL .And. FPA->FPA_PROJET == CND->CND_XRENTA
-					If FPA->FPA_XREPAS == '1'
-						FPA->(RecLock("FPA", .F.))
-						FPA->FPA_XSTSRE := '1' // APTO FATURADO
-						FPA->(MsUnlock())
-					Endif
-					FPA->(DbSkip())
-				Enddo
+			If FwIsInCallStack("CN121MedEnc")
+
+				//Posiciona na tabela de locacao x projetos
+				FPA->(DbSetOrder(1))// FPA_FILIAL+FPA_PROJET+FPA_OBRA+FPA_SEQGRU+FPA_CNJ
+				If FPA->(MSSeek(FWxFilial("FPA")+ CND->CND_XRENTA))
+					While ! FPA->(Eof()) .And. FWxFilial("FPA") == CND->CND_FILIAL .And. FPA->FPA_PROJET == CND->CND_XRENTA
+						If FPA->FPA_XREPAS == '1'
+							FPA->(RecLock("FPA", .F.))
+							FPA->FPA_XSTSRE := '1' // APTO FATURADO
+							FPA->(MsUnlock())
+						Endif
+						FPA->(DbSkip())
+					Enddo
+				EndIf
+			Elseif FwIsInCallStack("CN121Estorn")
+
+				//Posiciona na tabela de locacao x projetos
+				FPA->(DbSetOrder(1))// FPA_FILIAL+FPA_PROJET+FPA_OBRA+FPA_SEQGRU+FPA_CNJ
+				If FPA->(MSSeek(FWxFilial("FPA")+ CND->CND_XRENTA))
+					While ! FPA->(Eof()) .And. FWxFilial("FPA") == CND->CND_FILIAL .And. FPA->FPA_PROJET == CND->CND_XRENTA
+						If FPA->FPA_XREPAS == '1'
+							FPA->(RecLock("FPA", .F.))
+							FPA->FPA_XSTSRE := '0' // NAO FATURADO
+							FPA->(MsUnlock())
+						Endif
+						FPA->(DbSkip())
+					Enddo
+				EndIf
 			EndIf
-		EndIf
+		Elseif cIdPonto == 'MODELCOMMITNTTS' .and. FwIsInCallStack("CN121MedEnc") //Após a gravação total do modelo e fora da transação.
 
-		If cIdPonto == 'MODELVLDACTIVE' .And. FwIsInCallStack("CN121Estorn")
-
-			//Posiciona na tabela de locacao x projetos
-			FPA->(DbSetOrder(1))// FPA_FILIAL+FPA_PROJET+FPA_OBRA+FPA_SEQGRU+FPA_CNJ
-			If FPA->(MSSeek(FWxFilial("FPA")+ CND->CND_XRENTA))
-				While ! FPA->(Eof()) .And. FWxFilial("FPA") == CND->CND_FILIAL .And. FPA->FPA_PROJET == CND->CND_XRENTA
-					If FPA->FPA_XREPAS == '1'
-						FPA->(RecLock("FPA", .F.))
-						FPA->FPA_XSTSRE := '0' // NAO FATURADO
-						FPA->(MsUnlock())
+			CN9->(DbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+			If CN9->(MSSeek(FWxFilial("CN9")+ CND->CND_CONTRA + CND_REVISA))
+				If CN9->CN9_ESPCTR == '2' //venda
+					If ! Empty(CND->CND_XRENTA)
+						SC5->(RecLock("SC5", .F.))
+						SC5->C5_XRENTA := CND->CND_XRENTA
+						SC5->(MsUnlock())
 					Endif
-					FPA->(DbSkip())
-				Enddo
-			EndIf
+				Endif
+			Endif
 		Endif
+
 	Endif
 
 Return(xRet)

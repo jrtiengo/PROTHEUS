@@ -16,24 +16,34 @@ User Function FA070CAN()
 	Local aArea 		:= FwGetArea()
 	Local aAreaCN9 	    := CN9->(FwGetArea())
 	Local aAreaSE1      := SE1->(FwGetArea())
-	Local cNumRental 	:= ""
+	Local cNRental    	:= ""
+	Local aContr		:= {}
+	Local cContr   		:= ""
+	Local cRevisa		:= ""
 
 	If ! Empty(SE1->E1_XRENTA)
 
-		cNumRental := SE1->E1_XRENTA
+		cNRental := SE1->E1_XRENTA
 
-		CN9->(dbOrderNickName("NRENTAL")) //CN9_FILIAL+CN9_XRENTA
+		aContr := u_Ultrevcn9(cNRental)
 
-		If CN9->(MSseek(FWxFilial("CN9") + cNumRental))
-			
-			CN9->(RecLock("CN9", .F.))
-			CN9->CN9_XSTSRE := '2' // faturado
-			CN9->(MsUnlock())
-		EndIf
+		If Len(aContr) >  0
+
+			cContr		:= PadR(aContr[2], TamSX3("CN9_NUMERO")[1])
+			cRevisa 	:= PadR(aContr[2], TamSX3("CN9_REVISA")[1])
+
+			CN9->(dbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+
+			If CN9->(MsSeek(FWxFilial("CN9") + cContr + cRevisa))
+				CN9->(RecLock("CN9", .F.))
+				CN9->CN9_XSTSRE := '2' // faturado
+				CN9->(MsUnlock())
+			EndIf
+		Endif
 	Endif
 
 	FwRestArea(aAreaSE1)
-    FwRestArea(aAreaCN9)
-    FwRestArea(aArea)
+	FwRestArea(aAreaCN9)
+	FwRestArea(aArea)
 
 Return()

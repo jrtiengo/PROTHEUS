@@ -22,7 +22,7 @@ User Function xFatRent()
 	Local	oProcess	:= Nil
 	Local	cHInicio	:= Time()
 
-	Private CTITAPP  	:= "xFatRental - Atualização Status Rental"
+	Private CTITAPP  	:= "xFatRental - Atualizacao Status Rental"
 
 	If !lSchedule
 		cObs := "Essa rotina tem a finalidade de realizar o faturamento de pedidos de repasse"

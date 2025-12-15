@@ -17,7 +17,10 @@ User Function F80GRVFK()
 	Local aAreaCN9 	    := CN9->(FwGetArea())
 	Local oObj          := ParamIxb[1]
 	Local nOpc          := ParamIxb[2]
-	Local cNRental    := ''
+	Local cNRental    	:= ""
+	Local aContr		:= {}
+	Local cContr   		:= ""
+	Local cRevisa		:= ""
 
 	If nOpc == 1 //Baixa
 
@@ -25,13 +28,21 @@ User Function F80GRVFK()
 
 			cNRental := SE2->E2_XRENTA
 
-			CN9->(dbOrderNickName("NRENTAL")) //CN9_FILIAL+CN9_XRENTA
+			aContr := u_Ultrevcn9(cNRental)
 
-			If CN9->(MSseek(FWxFilial("CN9") + cNRental))
-				CN9->(RecLock("CN9", .F.))
-				CN9->CN9_XSTSRE := '3' // Adimplente”
-				CN9->(MsUnlock())
-			EndIf
+			If Len(aContr) >  0
+
+				cContr		:= PadR(aContr[2], TamSX3("CN9_NUMERO")[1])
+				cRevisa 	:= PadR(aContr[2], TamSX3("CN9_REVISA")[1])
+
+				CN9->(dbSetOrder(1)) //CN9_FILIAL+CN9_NUMERO+CN9_REVISA
+
+				If CN9->(MsSeek(FWxFilial("CN9") + cContr + cRevisa))
+					CN9->(RecLock("CN9", .F.))
+					CN9->CN9_XSTSRE := '3' // Adimplente”
+					CN9->(MsUnlock())
+				EndIf
+			Endif
 		Endif
 	Endif
 
