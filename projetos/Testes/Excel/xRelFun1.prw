@@ -269,10 +269,10 @@ Static Function ImpRel(lSchedule)
 */
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
-			FWFilialName(),;
+			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
-			FWFilialName(),;
+			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
 			AllTrim((cAlias)->RA_CODFUNC),;
 			AllTrim(cDescrFu),;
 			DtoC(StoD((cAlias)->RA_ADMISSA)),;

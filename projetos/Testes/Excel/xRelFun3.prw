@@ -154,7 +154,7 @@ Static Function ImpRel(lSchedule)
 		// AddRow com 38 valores (matching das 38 colunas)
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
-			FWFilialName(),;
+			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
 			AllTrim((cAlias)->RA_CC),;
