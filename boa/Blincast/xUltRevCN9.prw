@@ -17,10 +17,11 @@ User Function Ultrevcn9(cNRental)
 	Local cAlias		:= ""
 	Local aRet          := {}
 
-	cQuery := " SELECT CN9_NUMERO, NVL(MAX(CN9_REVISA),'   ') REVISA	"
+	cQuery := " SELECT CN9_NUMERO, NVL(MAX(CN9_REVISA),'   ') REVISA 	"
 	cQuery += " FROM "+ RetSqlName("CN9") + " CN9 						"
-	cQuery += " WHERE  AND D_E_L_E_T_ = ''  							"
+	cQuery += " WHERE D_E_L_E_T_ = '' 									"
 	cQuery += " AND CN9_XRENTA = '"+cNRental+"' 						"
+	cQuery += " GROUP BY CN9_NUMERO 									"
 
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)

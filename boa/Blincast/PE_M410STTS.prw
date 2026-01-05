@@ -18,7 +18,7 @@ User Function M410STTS()
 	Local aAreaCN9 		:= CN9->(FwGetArea())
 	Local aAreaCN5 		:= CN5->(FwGetArea())
 	Local _nOper 		:= PARAMIXB[1]
-	Local cNumRental 	:= ""
+	Local cNRental 		:= ""
 	Local aContr		:= {}
 	Local cContr   		:= ""
 	Local cRevisa		:= ""
@@ -26,10 +26,10 @@ User Function M410STTS()
 	//Se chamado do Rental, gravo o numero do Rental na SC5 e CN9
 	If FWIsInCallStack("LOCA021")
 
-		cNumRental := FPA->FPA_PROJET
+		cNRental := FPA->FPA_PROJET
 
 		SC5->(RecLock("SC5", .F.))
-		SC5->C5_XRENTA := cNumRental
+		SC5->C5_XRENTA := cNRental
 		SC5->(MsUnlock())
 
 		aContr := u_Ultrevcn9(cNRental)
@@ -55,7 +55,7 @@ User Function M410STTS()
 	// Exclusão de pedido
 	If _nOper == 5 .And. ! Empty(SC5->C5_XRENTA)
 
-		cNumRental := SC5->C5_XRENTA
+		cNRental := SC5->C5_XRENTA
 
 		aContr := u_Ultrevcn9(cNRental)
 

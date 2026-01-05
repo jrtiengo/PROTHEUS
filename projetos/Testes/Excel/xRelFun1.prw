@@ -67,7 +67,7 @@ Static Function ImpRel(lSchedule)
 	Local cSindicato		:= ""
 	Local cSitFol			:= ""
 	Local cTpAfasta			:= ""
-	Local cDirServer    	:= "/relatorios/" 
+	Local cDirServer    	:= "/relatorios/"
 
 	Private oFWMsExcel		:= Nil
 
@@ -164,8 +164,8 @@ Static Function ImpRel(lSchedule)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Matrícula", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Nome", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Filial", 1, 1)
-	//oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "C.Custo", 1, 1)
-	//oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. C.Custo", 1, 1)
+	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "C.Custo", 1, 1)
+	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. C.Custo", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Cód. Função", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Desc. Função", 1, 1)
 	oFWMsExcel:AddColumn("Funcionários", "Dados Funcionários", "Dt. Admissão", 1, 1)
@@ -263,16 +263,14 @@ Static Function ImpRel(lSchedule)
 			IncProc("Processando registros " + cValToChar(nConta) + " de " + cValToChar(nTotal) + "...")
 		Endif
 
-/*
-			//AllTrim((cAlias)->RA_CC),;
-			//AllTrim(cDescrCC),;
-*/
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
 			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
 			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
+			AllTrim((cAlias)->RA_CC),;
+			AllTrim(cDescrCC),;
 			AllTrim((cAlias)->RA_CODFUNC),;
 			AllTrim(cDescrFu),;
 			DtoC(StoD((cAlias)->RA_ADMISSA)),;
