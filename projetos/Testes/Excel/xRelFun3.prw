@@ -98,7 +98,6 @@ Static Function ImpRel(lSchedule)
 	cQuery += "   AND SRA.RA_DEMISSA <> '' "
 	cQuery += " ORDER BY SRA.RA_FILIAL, SRA.RA_MAT "
 
-
 	cQuery := ChangeQuery(cQuery)
 	cAlias := MPSysOpenQuery(cQuery)
 
@@ -154,7 +153,7 @@ Static Function ImpRel(lSchedule)
 		// AddRow com 38 valores (matching das 38 colunas)
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
-			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
+			FWSM0Util():getSM0FullName(cEmpAnt, (cAlias)->RA_FILIAL),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
 			AllTrim((cAlias)->RA_CC),;

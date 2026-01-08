@@ -87,7 +87,7 @@ Static Function ImpRel(lSchedule)
 	cQuery += "     SRA.RA_MAT, "
 	cQuery += "     SRA.RA_NOME, "
 	cQuery += "     SRA.RA_CC, "
-	cQuery += "		SRA.RA_CODFUNC, "
+	cQuery += "     SRA.RA_CODFUNC, "
 	cQuery += "     SRA.RA_ADMISSA, "
 	cQuery += "     SRA.RA_DEMISSA, "
 	cQuery += "     SRA.RA_SITFOLH, "
@@ -118,7 +118,7 @@ Static Function ImpRel(lSchedule)
 	cQuery += "     SRA.RA_BCDEPSA, "
 	cQuery += "     SRA.RA_CTDEPSA, "
 	cQuery += "     SRA.RA_MAE, "
-	cQuery += "     SRA.RA_RG , "
+	cQuery += "     SRA.RA_RG, "
 	cQuery += "     SRA.RA_DTRGEXP, "
 	cQuery += "     SRA.RA_RGUF, "
 	cQuery += "     SRA.RA_RGORG, "
@@ -132,6 +132,13 @@ Static Function ImpRel(lSchedule)
 	cQuery += "   ON SR8.R8_FILIAL = SRA.RA_FILIAL "
 	cQuery += "  AND SR8.R8_MAT = SRA.RA_MAT "
 	cQuery += "  AND SR8.D_E_L_E_T_ = ' ' "
+	cQuery += "  AND SR8.R_E_C_N_O_ = ( "
+	cQuery += "      SELECT MAX(SR8B.R_E_C_N_O_) "
+	cQuery += "        FROM " + RetSqlName("SR8") + " SR8B "
+	cQuery += "       WHERE SR8B.R8_FILIAL = SRA.RA_FILIAL "
+	cQuery += "         AND SR8B.R8_MAT = SRA.RA_MAT "
+	cQuery += "         AND SR8B.D_E_L_E_T_ = ' ' "
+	cQuery += "  ) "
 	cQuery += " WHERE SRA.D_E_L_E_T_ = ' ' "
 	cQuery += "   AND SRA.RA_FILIAL >= '" + MV_PAR01 + "' "
 	cQuery += "   AND SRA.RA_FILIAL <= '" + MV_PAR02 + "' "
@@ -265,7 +272,7 @@ Static Function ImpRel(lSchedule)
 
 		oFWMsExcel:AddRow("Funcionários", "Dados Funcionários", {;
 			AllTrim((cAlias)->RA_FILIAL),;
-			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
+			FWSM0Util():getSM0FullName(cEmpAnt, (cAlias)->RA_FILIAL),;
 			AllTrim((cAlias)->RA_MAT),;
 			AllTrim((cAlias)->RA_NOME),;
 			FWFilialName(cEmpAnt, (cAlias)->RA_FILIAL,1),;
