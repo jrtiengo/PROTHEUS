@@ -1,0 +1,885 @@
+#Include "TOTVS.ch"
+#Include "FWBrowse.ch"
+#Include "FWMVCDEF.ch"
+
+/*/{Protheus.doc} User Function xConfigTributosNCM
+Consulta as tabelas SYD x F2E para criar as amarrações de NCMs x Tributos na CIS, CIT e CIU. O processo é dividido em 3 etapas:
+1. Consulta os NCMs na tabela SYD e permite a seleção de um ou mais NCMs para processamento;
+2. Consulta os Tributos na tabela F2E e permite a seleção de um ou mais Tributos para processamento;
+3. Processamento dos NCMs x Tributos selecionados, criando as registros na tabela CIS, CIT e CIU.
+@type Function
+@author Tiengo
+@since 16/04/2025
+@example 
+/*/
+User Function xConfigTributosNCM()
+
+	Local aArea        := FWGetArea()	As Array
+	Local aNCMsAux     := {}			As Array
+	Local aTributosAux := {}			As Array
+	Local nNCM         := 0				As Numeric
+	Local nTrib        := 0				As Numeric
+	Local cNCM         := ""			As Character
+	Local cTrib        := ""			As Character
+	Local oModel       := Nil			As Object
+	Local oNCMMod      := Nil			As Object
+	Local oTribMod     := Nil			As Object
+	Local nOper        := 0				As Numeric
+	Local nT           := 0				As Numeric
+	Local nLn          := 0				As Numeric
+	Local aLOG         := {}			As Array
+	Local aMsgErro     := {}			As Array
+	Local cMSG         := ""			As Character
+
+	Private aDados 		:= {}			As Array
+	Private aTributos 	:= {}			As Array
+	Private lok    		:= .F.			As Logical
+	Private cTipo 		:= ''			As Character
+
+	cTipo := 'SYD'
+	Processa({|| fBusca()}, "Buscando NCM's...", , , , )
+
+	aNCMsAux := aDados
+
+	If Len(aNCMsAux) == 0 .or. ! lok
+		Return()
+	Endif
+
+	cTipo := 'F2E'
+	Processa({|| fBusca()}, "Buscando Tributos...", , , , )
+
+	aTributosAux := aDados
+
+	If  Len(aTributosAux) == 0 .or. ! lok
+		Return()
+	Endif
+
+	// Gravação CIS + CIT + CIU
+	// Para cada NCM selecionado
+	For nNCM := 1 To Len(aNCMsAux)
+
+		cNCM := AllTrim(aNCMsAux[nNCM][1])
+
+		// Verifica se NCM já existe na CIS
+		CIS->(DBSetOrder(1))
+		If CIS->(MsSeek(FWxFilial("CIS") + PadR(cNCM, TamSX3("CIS_CODNCM")[1])))
+			nOper := 4  // alteração
+		Else
+			nOper := 3  // inclusão
+		EndIf
+
+		oModel := FWLoadModel("FISA160B")
+		oModel:SetOperation(nOper)
+		oModel:Activate()
+
+		oNCMMod := oModel:GetModel("FISA160B")
+		oNCMMod:SetValue("CIS_CODNCM", cNCM)
+
+		// Para cada Tributo selecionado
+		For nTrib := 1 To Len(aTributosAux)
+
+			cTrib := AllTrim(aTributosAux[nTrib][2])
+
+			oTribMod := oModel:GetModel("FISA160BTRIB")
+
+			If nOper == 3  // inclusão
+				If oTribMod:Length() == 0
+					oTribMod:AddLine()
+				Else
+					oTribMod:GoLine(1)
+					If Empty(oTribMod:GetValue("CIT_TRIB"))
+						oTribMod:GoLine(oTribMod:Length())
+					Else
+						oTribMod:AddLine()
+						oTribMod:GoLine(oTribMod:Length())
+					EndIf
+				EndIf
+				oTribMod:SetValue("CIT_TRIB", cTrib)
+
+			Else  // alteração — localiza tributo ou adiciona se não existe
+				nLn := 0
+				For nT := 1 To oTribMod:Length()
+					oTribMod:GoLine(nT)
+					If AllTrim(oTribMod:GetValue("CIT_TRIB")) == cTrib
+						nLn := nT
+						Exit
+					EndIf
+				Next
+				If nLn == 0  // tributo novo
+					oTribMod:AddLine()
+					oTribMod:GoLine(oTribMod:Length())
+					oTribMod:SetValue("CIT_TRIB", cTrib)
+				Else
+					oTribMod:GoLine(nLn)  // já existe, só posiciona
+				EndIf
+			EndIf
+
+		Next nTrib
+
+		// Valida e grava
+		If oModel:VldData()
+			oModel:CommitData()
+		Else
+			If oModel:HasErrorMessage()
+				aMsgErro := oModel:GetErrorMessage()
+				cMSG     := aMsgErro[6]
+			EndIf
+			aadd(aLOG, { FWxFilial("CIS"), cNCM, "", "", "", "", "", "", "", cMSG, Strzero(nNCM,4) })
+		EndIf
+
+		oModel:DeActivate()
+
+	Next nNCM
+
+	If Len(aLOG) > 0
+		FWAlertWarning("Processamento finalizado com " + cValToChar(Len(aLOG)) + " erro(s). Verifique o relatorio.", "Atencao")
+		NCMReport(aLOG)
+	Else
+		FWAlertWarning("Processamento finalizado com sucesso!", "Atencao")
+	EndIf
+	FWRestArea(aArea)
+
+Return()
+
+Static Function fBusca()
+
+	Local aArea      		:= FWGetArea()
+	Local cTitulo 			:= If(cTipo == 'SYD', 'Seleção de NCMs', 'Seleção de Tributos')
+	Local aFields           := {}
+	Local aColunas          := {}
+	Local lRetQry   		:= .T.
+
+	Private oMarkBrowse
+	Private oTempTable
+	Private aRotina   		:= MenuDef()
+	Private cAliasTmp       := GetNextAlias()
+
+	//Adiciona no array das colunas as que serão incluidas (Nome do Campo, Tipo do Campo, Tamanho, Decimais)
+	aFields := fFields()
+
+	oTempTable:= FWTemporaryTable():New(cAliasTmp)
+	oTempTable:SetFields(aFields)
+	oTempTable:Create()
+
+	//Monta o cabecalho
+	aColunas := fMontaHead()
+
+	//carrengan dados da tabela origem
+	FWMsgRun(, {|oSay| fMontaDados(oSay, @lRetQry)  }, "Processando", "Carregando " + cTipo + "...")
+
+	If lRetQry == .F.
+		Return()
+	Endif
+
+	oMarkBrowse := FWMarkBrowse():New()
+	oMarkBrowse:SetAlias(cAliasTmp)
+	oMarkBrowse:SetDescription(cTitulo)
+	oMarkBrowse:SetFieldMark('OK')
+	oMarkBrowse:SetTemporary(.T.)
+	oMarkBrowse:SetColumns(aColunas)
+	oMarkBrowse:SetUseFilter() // Habilita a utilizaóóo do Filtro de registros
+	oMarkBrowse:SetLocate() // Habilita a Localizaóóo de registros
+	oMarkBrowse:SetSeek() // Habilita a Pesquisa de registros
+	oMarkBrowse:SetDBFFilter()
+
+	oMarkBrowse:Activate()
+
+	//Deleta a temporária e desativa a tela de marcação
+	oTempTable:Delete()
+	oMarkBrowse:DeActivate()
+
+	FwRestArea(aArea)
+
+Return()
+
+Static Function fMontaHead()
+
+	Local oColumn 	:= Nil 	As Object
+	Local nAtual 	:= 0   	As Numeric
+	Local aHeadAux  := {} 	As Array
+	Local aColunas 	:= {} 	As Array
+
+	If cTipo == 'SYD'
+		aAdd(aHeadAux, { 'YD_TEC',    'Técnica',    'C', TamSX3('YD_TEC')[1],    0, '', .F. })
+		aAdd(aHeadAux, { 'YD_DESC_P', 'Descrição',  'C', TamSX3('YD_DESC_P')[1], 0, '', .F. })
+	Else
+		aAdd(aHeadAux, { 'F2E_ID',     'ID',          'C', TamSX3('F2E_ID')[1],     0, '', .F. })
+		aAdd(aHeadAux, { 'F2E_TRIB',   'Tributo',     'C', TamSX3('F2E_TRIB')[1],   0, '', .F. })
+		aAdd(aHeadAux, { 'F2E_DESC',   'Descrição',   'C', TamSX3('F2E_DESC')[1],   0, '', .F. })
+		aAdd(aHeadAux, { 'F2E_ESFERA', 'Esfera',      'C', TamSX3('F2E_ESFERA')[1], 0, '', .F. })
+		aAdd(aHeadAux, { 'F2E_ESPECI', 'Espécie',     'C', TamSX3('F2E_ESPECI')[1], 0, '', .F. })
+		aAdd(aHeadAux, { 'F2E_IDTRIB', 'ID Tributo',  'C', TamSX3('F2E_IDTRIB')[1], 0, '', .F. })
+	Endif
+
+	For nAtual := 1 To Len(aHeadAux)
+		oColumn := FWBrwColumn():New()
+		oColumn:SetData(&("{|| " + cAliasTmp  + "->" + aHeadAux[nAtual][1] + "}"))
+		oColumn:SetTitle(aHeadAux[nAtual][2])
+		oColumn:SetType(aHeadAux[nAtual][3])
+		oColumn:SetSize(aHeadAux[nAtual][4])
+		oColumn:SetDecimal(aHeadAux[nAtual][5])
+		oColumn:SetPicture(aHeadAux[nAtual][6])
+		aAdd(aColunas, oColumn)
+	Next
+
+Return(aColunas)
+
+// Carregando dados da tabela origem
+Static Function fMontaDados(oSay, lRetQry)
+
+	Local cQuery   := '' As Character
+	Local cAlias   := '' As Character
+
+	If cTipo == 'SYD'
+		cQuery += "SELECT YD_TEC, YD_DESC_P "   					+ CRLF
+		cQuery += "FROM " + RetSqlName("SYD") + " SYD " 			+ CRLF
+		cQuery += "WHERE YD_FILIAL = '" + FWFilial("SYD") + "' " 	+ CRLF
+		cQuery += "  AND SYD.D_E_L_E_T_ = ' ' " 					+ CRLF
+		cQuery += "ORDER BY YD_TEC"              					+ CRLF
+
+	Else
+		cQuery += "SELECT F2E_ID, F2E_TRIB, F2E_DESC," 				+ CRLF
+		cQuery += "F2E_ESFERA, F2E_ESPECI, F2E_IDTRIB " 			+ CRLF
+		cQuery += "FROM " + RetSqlName("F2E") + " F2E " 			+ CRLF
+		cQuery += "WHERE F2E_FILIAL = '" + FWFilial("F2E") + "' " 	+ CRLF
+		cQuery += "  AND F2E.D_E_L_E_T_ = ' ' " 					+ CRLF
+		cQuery += "ORDER BY F2E_ID"              					+ CRLF
+	Endif
+
+	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
+
+	If (cAlias)->(EoF())
+		If ! IsBlind()
+			FWAlertWarning("Nenhum dados encontrados para tabela " + cTipo + "!", "Atenção")
+		Endif
+		lRetQry := .F.
+		Return()
+	Endif
+
+	While ! (cAlias)->(EoF())
+
+		RecLock(cAliasTMP, .T.)
+
+		If cTipo == 'SYD'
+			(cAliasTMP)->YD_TEC    	:= (cAlias)->YD_TEC
+			(cAliasTMP)->YD_DESC_P 	:= (cAlias)->YD_DESC_P
+		Else
+			(cAliasTMP)->F2E_ID     := (cAlias)->F2E_ID
+			(cAliasTMP)->F2E_TRIB   := (cAlias)->F2E_TRIB
+			(cAliasTMP)->F2E_DESC   := (cAlias)->F2E_DESC
+			(cAliasTMP)->F2E_ESFERA := (cAlias)->F2E_ESFERA
+			(cAliasTMP)->F2E_ESPECI := (cAlias)->F2E_ESPECI
+			(cAliasTMP)->F2E_IDTRIB := (cAlias)->F2E_IDTRIB
+		Endif
+
+		(cAliasTMP)->(MsUnlock())
+
+		(cAlias)->(DbSkip())
+	EndDo
+
+	(cAlias)->(DbCloseArea())
+
+Return()
+
+Static Function fFields()
+
+	Local aFields := {} As Array
+
+	If cTipo == 'SYD'
+		aAdd(aFields, { 'OK', 'C', 1, 0})
+		aAdd(aFields, { 'YD_TEC',    'C', TamSX3('YD_TEC')[1],    0 })
+		aAdd(aFields, { 'YD_DESC_P', 'C', TamSX3('YD_DESC_P')[1], 0 })
+
+	Else
+		aAdd(aFields, { 'OK', 'C', 1, 0})
+		aAdd(aFields, { 'F2E_ID',     'C', TamSX3('F2E_ID')[1],     0 })
+		aAdd(aFields, { 'F2E_TRIB',   'C', TamSX3('F2E_TRIB')[1],   0 })
+		aAdd(aFields, { 'F2E_DESC',   'C', TamSX3('F2E_DESC')[1],   0 })
+		aAdd(aFields, { 'F2E_ESFERA', 'C', TamSX3('F2E_ESFERA')[1], 0 })
+		aAdd(aFields, { 'F2E_ESPECI', 'C', TamSX3('F2E_ESPECI')[1], 0 })
+		aAdd(aFields, { 'F2E_IDTRIB', 'C', TamSX3('F2E_IDTRIB')[1], 0 })
+	Endif
+
+Return(aFields)
+
+Static Function MenuDef()
+
+	Local aRotina := {}
+
+	ADD OPTION aRotina TITLE 'Processar' ACTION 'u_fProcRecno()' OPERATION 2 ACCESS 0
+	ADD OPTION aRotina TITLE 'Importação CSV' ACTION 'u_fImpNCM()' OPERATION 2 ACCESS 0
+
+Return(aRotina)
+
+User Function fProcRecno()
+
+	Local aArea  	:= FWGetArea()
+	Local cMarca 	:= oMarkBrowse:Mark()
+
+	aDados 		:= {}
+
+	(cAliasTmp)->( dbGoTop() )
+
+	While ! (cAliasTmp)->( EOF() )
+		If oMarkBrowse:IsMark(cMarca)
+			If cTipo == 'SYD'
+				AAdd(aDados, { (cAliasTmp)->YD_TEC, (cAliasTmp)->YD_DESC_P })
+			Else
+				AAdd(aDados, { (cAliasTmp)->F2E_ID, (cAliasTmp)->F2E_TRIB, (cAliasTmp)->F2E_DESC, (cAliasTmp)->F2E_ESFERA, (cAliasTmp)->F2E_ESPECI, (cAliasTmp)->F2E_IDTRIB })
+			Endif
+		EndIf
+		(cAliasTmp)->( dbSkip() )
+	Enddo
+
+	lok := .T.
+
+	FWRestArea(aArea)
+	CloseBrowse()
+
+Return()
+
+/*/{Protheus.doc} xImpNCM
+Processamento de importação de NCM a partir de um arquivo CSV 
+@type function
+@version
+@since 30/06/2025
+@return variant, return null
+/*/
+User Function fImpNCM()
+
+	Local aArea   := FwGetArea()
+	Local aPergs  := {}
+	Local aResps  := {}
+
+	aAdd( aPergs ,{6,"Selecione planilha"	, Space(80)			  , ""  , ""	, "",090,.T.,"arquivos csv (*.*) |*.csv*"}) //MV_PAR01
+
+	if ParamBox(aPergs, "Informe os parametros", @aResps , , , , , , , /*RetCodUsr()*/ , .T., .T.)
+		if ! Empty(MV_PAR01)
+			Processa({|| fProcNCM(MV_PAR01) },"Aguarde... Processando...")
+		endif
+	endif
+
+	FwRestArea(aArea)
+
+Return()
+
+Static Function fProcNCM(cArquivo)
+
+	Local nLinhas    := 0
+	Local nCont      := 0
+	Local aLinha     := {}
+	Local oFile
+	Local cCabLin    := "CodNCM;Tributo;Origem;UFORigem;UFDestino;DTINI;DTFIM;CEST;MARGEM;IMARGEM;UNID;VLPAUTA;MAJORA;IMAJORA;ALIQUOTA;UFItem;UFTipo"
+	Local cLinha     := ""
+	Local nHandle    := -1
+
+	nHandle := FT_FUse(cArquivo)
+
+	If nHandle == -1
+		MsgStop("Erro ao abrir arquivo: " + cArquivo, "Erro")
+		Return()
+	EndIf
+
+	nLinhas  := FT_FLastRec() // Verifica quantas linhas deve ler no arquivo.
+	aTitulos := {}
+
+	FT_FUse() // Fecha o Arquivo
+
+	//-- Definindo o arquivo a ser lido
+	oFile := FWFileReader():New(cArquivo)
+
+	If (oFile:Open())
+		oFile:setBufferSize(5000)
+		While nCont < nLinhas
+			If nCont = 0
+
+				cLinha := oFile:GetLine()
+				cLinha := FwNoAccent(cLinha)
+
+				If cLinha <> cCabLin
+					MsgStop('Arquivo de Importacao invalido. Verifique o cabecalho!', 'Erro')
+					oFile:Close()  // CORREÇÃO: Fechar arquivo antes de sair
+					Return(Nil)
+				EndIf
+			Else
+				cLinhaAtual := oFile:GetLine()
+
+				aCampos := Separa(cLinhaAtual,";")
+
+				if len(aCampos)>1
+					aAdd(aLinha, aCampos)
+				Endif
+			EndIf
+			nCont ++
+		EndDo
+
+		oFile:Close()
+
+		lOk := fGravaNCM(aLinha)
+
+	Else
+		MsgStop("Erro ao abrir arquivo para leitura: " + cArquivo, "Erro")
+		Return(Nil)
+	endif
+
+Return(lOk)
+
+// GRAVANCM
+Static Function fGravaNCM(aCSVLIDO)
+
+	Local oModel        := Nil			As Object
+	Local oNCMMod       := Nil			As Object
+	Local oTribMod      := Nil			As Object
+	Local oMVAMod       := Nil			As Object
+	Local oPautaMod     := Nil			As Object
+	Local oMajorMod     := Nil			As Object
+	Local oAliqMod      := Nil			As Object
+	Local aLOG          := {}			As Array
+	Local cMSG          := "" 			As Character
+	Local nX            := 0			As Numeric
+	Local cNCMAtual     := ""			As Character
+	Local cTRIBAtual    := ""			As Character
+	Local aLinha        := {}			As Array
+	Local cCodNCM       := ""			As Character
+	Local cCodTRIB      := ""			As Character
+	Local cORIGEM       := ""			As Character
+	Local cUFOri        := ""			As Character
+	Local cUFDes        := ""			As Character
+	Local cDTINI        := ""			As Character
+	Local cDTFIM        := ""			As Character
+	Local cCest         := ""			As Character
+	Local cMargem       := ""			As Character
+	Local cIMargem      := ""			As Character
+	Local cUM           := ""			As Character
+	Local cVLPAUT       := ""			As Character
+	Local cMajora       := ""			As Character
+	Local cIMajora      := ""			As Character
+	Local cAliq         := ""			As Character
+	Local cTipo         := ""			As Character			
+	Local lTemAliq      := .F.			As Logical
+	Local lTransOk      := .T.			As Logical
+	Local aMsgErro      := {}			As Array
+	Local lPrimLinha    := .T.			As Logical
+	Local nOper         := 0			As Numeric
+	Local nT  			:= 0			As Numeric
+	Local nLn 			:= 0			As Numeric
+
+	lTemAliq := CIU->(FieldPos("CIU_ALIQTR")) > 0
+
+	// Ordena a lista de linhas por NCM e Tributo
+	ASort(aCSVLIDO,,, {|x, y| x[1] + x[2] < y[1] + y[2]})
+
+	nX := 1
+
+	While nX <= Len(aCSVLIDO)
+
+		aLinha   	:= aCSVLIDO[nX]
+		cCodNCM  	:= AllTrim(aLinha[1])
+		cCodTRIB 	:= AllTrim(aLinha[2])
+
+		// Valida linha
+		fValidCSV(aLinha, @cMSG, @aLOG, nX)
+		If !Empty(cMSG)
+			nX++
+			Loop
+		EndIf
+
+		// NCM já processada neste lote? pula
+		If cCodNCM == cNCMAtual
+			nX++
+			Loop
+		EndIf
+
+		cNCMAtual := cCodNCM
+
+		CIS->(DBSetOrder(1))
+		If CIS->(MsSeek(FWxFilial("CIS") + PadR(cCodNCM, TamSX3("CIS_CODNCM")[1])))
+			nOper := 4  // alteração
+		Else
+			nOper := 3  // inclusão
+		EndIf
+
+		// Carrega o modelo FISA160B
+		oModel   := FWLoadModel("FISA160B")
+		oModel:SetOperation(nOper)  // inclusão ou alteração
+		oModel:Activate()
+
+		If nOper == 3
+			oNCMMod  := oModel:GetModel("FISA160B")
+			oNCMMod:SetValue("CIS_CODNCM", cCodNCM)
+		Endif
+
+		// Loop tributos — enquanto NCM for a mesma
+		While nX <= Len(aCSVLIDO) .AND. AllTrim(aCSVLIDO[nX][1]) == cNCMAtual
+
+			aLinha   := aCSVLIDO[nX]
+			cCodTRIB := AllTrim(aLinha[2])
+			cTRIBAtual := cCodTRIB
+			lPrimLinha := .T.
+
+			// Loop CIU — enquanto NCM e Tributo forem os mesmos
+			While nX <= Len(aCSVLIDO) .AND. ;
+					AllTrim(aCSVLIDO[nX][1]) == cNCMAtual .AND. ;
+					AllTrim(aCSVLIDO[nX][2]) == cTRIBAtual
+
+				aLinha := aCSVLIDO[nX]
+
+				// Adiciona linha CIT apenas na primeira vez deste tributo
+				If lPrimLinha
+					oTribMod := oModel:GetModel("FISA160BTRIB")
+
+					If nOper == 3  // inclusão
+						If oTribMod:Length() == 0
+							oTribMod:AddLine()
+						Else
+							oTribMod:GoLine(1)
+							If Empty(oTribMod:GetValue("CIT_TRIB"))
+								oTribMod:GoLine(oTribMod:Length())
+							Else
+								oTribMod:AddLine()
+								oTribMod:GoLine(oTribMod:Length())
+							EndIf
+						EndIf
+						oTribMod:SetValue("CIT_TRIB", cCodTRIB)
+
+					Else
+						// Verifica se já existe um tributo
+						For nT := 1 To oTribMod:Length()
+							oTribMod:GoLine(nT)
+							If AllTrim(oTribMod:GetValue("CIT_TRIB")) == AllTrim(cCodTRIB)
+								nLn := nT
+								Exit
+							EndIf
+						Next
+						If nLn == 0  // tributo novo dentro de NCM existente
+							oTribMod:AddLine()
+							oTribMod:GoLine(oTribMod:Length())
+							oTribMod:SetValue("CIT_TRIB", cCodTRIB)
+						Else
+							oTribMod:GoLine(nLn)  // já existe, só posiciona e segue para o case
+						EndIf
+					EndIf
+
+					lPrimLinha := .F.
+				EndIf
+
+				aLinha   := aCSVLIDO[nX]
+				cORIGEM  := AllTrim(aLinha[3])
+				cUFOri   := AllTrim(aLinha[4])
+				cUFDes   := AllTrim(aLinha[5])
+				cDTINI   := AllTrim(aLinha[6])
+				cDTFIM   := AllTrim(aLinha[7])
+				cCest    := AllTrim(aLinha[8])
+				cMargem  := AllTrim(aLinha[9])
+				cIMargem := AllTrim(aLinha[10])
+				cUM      := AllTrim(aLinha[11])
+				cVLPAUT  := AllTrim(aLinha[12])
+				cMajora  := AllTrim(aLinha[13])
+				cIMajora := AllTrim(aLinha[14])
+				cAliq    := AllTrim(aLinha[15])
+				cTipo    := AllTrim(aLinha[17])
+
+				// Grava na aba correta conforme o tipo
+				Do Case
+				Case cTipo == '1'
+					oMVAMod := oModel:GetModel("FISA160BCFGMVA")
+					If oMVAMod:Length() == 0
+						oMVAMod:AddLine()
+					Else
+						oMVAMod:GoLine(1)
+						If Empty(oMVAMod:GetValue("CIU_UFORI")) .AND. Empty(oMVAMod:GetValue("CIU_VIGINI"))
+							oMVAMod:GoLine(oMVAMod:Length())
+						Else
+							oMVAMod:AddLine()
+							oMVAMod:GoLine(oMVAMod:Length())
+						EndIf
+					EndIf
+					oMVAMod:SetValue("CIU_ITEM" , StrZero(oMVAMod:Length(), 4))
+					oMVAMod:SetValue("CIU_UFORI" , cUFOri)
+					oMVAMod:SetValue("CIU_UFDEST", cUFDes)
+					oMVAMod:SetValue("CIU_ORIGEM", cORIGEM)
+					oMVAMod:SetValue("CIU_VIGINI", STOD(cDTINI))
+					oMVAMod:SetValue("CIU_VIGFIM", STOD(cDTFIM))
+					oMVAMod:SetValue("CIU_CEST"  , cCest)
+					oMVAMod:SetValue("CIU_MARGEM", Val(StrTran(cMargem,  ",", ".")))
+					oMVAMod:SetValue("CIU_MVAAUX", Val(StrTran(cIMargem, ",", ".")))
+
+				Case cTipo == '2'
+					oPautaMod := oModel:GetModel("FISA160BCFGPAUTA")
+					If oPautaMod:Length() == 0
+						oPautaMod:AddLine()
+					Else
+						oPautaMod:GoLine(1)
+						If Empty(oPautaMod:GetValue("CIU_UFORI")) .AND. Empty(oPautaMod:GetValue("CIU_VIGINI"))
+							oPautaMod:GoLine(oPautaMod:Length())
+						Else
+							oPautaMod:AddLine()
+							oPautaMod:GoLine(oPautaMod:Length())
+						EndIf
+					EndIf
+					oPautaMod:SetValue("CIU_ITEM", StrZero(oPautaMod:Length(), 4))
+					oPautaMod:SetValue("CIU_UFORI" , cUFOri)
+					oPautaMod:SetValue("CIU_UFDEST", cUFDes)
+					oPautaMod:SetValue("CIU_ORIGEM", cORIGEM)
+					oPautaMod:SetValue("CIU_VIGINI", STOD(cDTINI))
+					oPautaMod:SetValue("CIU_VIGFIM", STOD(cDTFIM))
+					oPautaMod:SetValue("CIU_CEST"  , cCest)
+					oPautaMod:SetValue("CIU_UM"    , cUM)
+					oPautaMod:SetValue("CIU_VLPAUT", Val(StrTran(cVLPAUT, ",", ".")))
+
+				Case cTipo == '3'
+					oMajorMod := oModel:GetModel("FISA160BCFGMAJOR")
+					If oMajorMod:Length() == 0
+						oMajorMod:AddLine()
+					Else
+						oMajorMod:GoLine(1)
+						If Empty(oMajorMod:GetValue("CIU_UFORI")) .AND. Empty(oMajorMod:GetValue("CIU_VIGINI"))
+							oMajorMod:GoLine(oMajorMod:Length())
+						Else
+							oMajorMod:AddLine()
+							oMajorMod:GoLine(oMajorMod:Length())
+						EndIf
+					EndIf
+					oMajorMod:SetValue("CIU_ITEM", StrZero(oMajorMod:Length(), 4))
+					oMajorMod:SetValue("CIU_UFORI" , cUFOri)
+					oMajorMod:SetValue("CIU_UFDEST", cUFDes)
+					oMajorMod:SetValue("CIU_ORIGEM", cORIGEM)
+					oMajorMod:SetValue("CIU_VIGINI", STOD(cDTINI))
+					oMajorMod:SetValue("CIU_VIGFIM", STOD(cDTFIM))
+					oMajorMod:SetValue("CIU_CEST"  , cCest)
+					oMajorMod:SetValue("CIU_MAJORA", Val(StrTran(cMajora,  ",", ".")))
+					oMajorMod:SetValue("CIU_MJAUX" , Val(StrTran(cIMajora, ",", ".")))
+
+				Case cTipo == '4' .AND. lTemAliq
+					oAliqMod := oModel:GetModel("FISA160BCFGALIQ")
+					If oAliqMod:Length() == 0
+						oAliqMod:AddLine()
+					Else
+						oAliqMod:GoLine(1)
+						If Empty(oAliqMod:GetValue("CIU_UFORI")) .AND. Empty(oAliqMod:GetValue("CIU_VIGINI"))
+							oAliqMod:GoLine(oAliqMod:Length())
+						Else
+							oAliqMod:AddLine()
+							oAliqMod:GoLine(oAliqMod:Length())
+						EndIf
+					EndIf
+					oAliqMod:SetValue("CIU_ITEM", StrZero(oAliqMod:Length(), 4))
+					oAliqMod:SetValue("CIU_UFORI" , cUFOri)
+					oAliqMod:SetValue("CIU_UFDEST", cUFDes)
+					oAliqMod:SetValue("CIU_ORIGEM", cORIGEM)
+					oAliqMod:SetValue("CIU_VIGINI", STOD(cDTINI))
+					oAliqMod:SetValue("CIU_VIGFIM", STOD(cDTFIM))
+					oAliqMod:SetValue("CIU_CEST"  , cCest)
+					oAliqMod:SetValue("CIU_ALIQTR", Val(StrTran(cAliq, ",", ".")))
+
+				Otherwise
+					cMSG := "Tipo invalido: " + cTipo
+					aadd(aLOG, {cFIlAnt, cCodNCM, cCodTRIB, cORIGEM, cUFOri, cUFDes, cDTINI, cDTFIM, cCest, cMSG, Strzero(nX,4)})
+				EndCase
+
+				nX++
+			EndDo  // fim loop CIU
+
+		EndDo  // fim loop Tributo
+
+		// Valida e commita o modelo completo (CIS+CIT+CIU)
+		If oModel:VldData()
+			oModel:CommitData()
+		Else
+			lTransOk := .F.
+			If oModel:HasErrorMessage()
+				aMsgErro := oModel:GetErrorMessage()
+				cMSG     := aMsgErro[6]
+				aadd(aLOG, {cFIlAnt, cCodNCM, "", "", "", "", "", "", "", cMSG, Strzero(nX,4)})
+			EndIf
+		EndIf
+
+		oModel:DeActivate()
+
+	EndDo  // fim loop NCM
+
+	If Len(aLOG) > 0
+		lTransOk := .F.
+		FWAlertInfo("Importacao finalizada com " + cValToChar(Len(aLOG)) + " erro(s). Verifique o relatorio.", "Atencao")
+		NCMReport(aLOG)
+	Else
+		FWAlertInfo("Importacao concluida com sucesso! " + cValToChar(Len(aCSVLIDO)) + " linha(s) processada(s).", "Sucesso")
+	EndIf
+
+Return(lTransOk)
+
+/*/{Protheus.doc} ValidaDuplicidade
+Valida se ja existe registro CIU com a mesma combinacao de chaves
+@type function
+@since 17/11/2025
+@version 2.1 - CORRIGIDO (incluido CEST na validação)
+@param cNCM - Codigo NCM
+@param cTRIB - Codigo Tributo
+@param cTIPO - Tipo (1,2,3,4)
+@param cORIG - Origem
+@param cUFO - UF Origem
+@param cUFD - UF Destino
+@param dDtIni - Data Inicio Vigencia
+@param dDtFim - Data Fim Vigencia
+@param cCEST - Codigo CEST
+@return lRet - .T. ja existe, .F. nao existe
+/*/
+Static Function fValidCIU(cNCM, cTRIB, cTIPO, cORIG, cUFO, cUFD, dDtIni, dDtFim, cCEST)
+
+	Local lRet 		:= .F.
+	Local cQuery  	:= ""
+	Local cAlias  	:= ""
+	Local nTamCest	:= TamSX3("CIU_CEST")[1]
+
+	cQuery := "SELECT COUNT(*) AS QTD " 									+ CRLF
+	cQuery += "FROM " + RetSqlName("CIU") + " CIU " 						+ CRLF
+	cQuery += "WHERE CIU.D_E_L_E_T_ = ' ' " 								+ CRLF
+	cQuery += "  AND CIU_FILIAL = '" + FWxFilial("CIU") + "' " 				+ CRLF
+	cQuery += "  AND CIU_NCM = '" + AllTrim(cNCM) + "' " 					+ CRLF
+	cQuery += "  AND CIU_TRIB = '" + AllTrim(cTRIB) + "' " 					+ CRLF
+	cQuery += "  AND CIU_TIPO = '" + cTIPO + "' " 							+ CRLF
+	cQuery += "  AND CIU_ORIGEM = '" + AllTrim(cORIG) + "' " 				+ CRLF
+	cQuery += "  AND CIU_UFORI = '" + AllTrim(cUFO) + "' " 					+ CRLF
+	cQuery += "  AND CIU_UFDEST = '" + AllTrim(cUFD) + "' " 				+ CRLF
+	cQuery += "  AND CIU_VIGINI = '" + DTOS(dDtIni) + "' " 					+ CRLF
+	cQuery += "  AND CIU_VIGFIM = '" + DTOS(dDtFim) + "' " 					+ CRLF
+	cQuery += "  AND CIU_CEST = '" + PadR(AllTrim(cCEST), nTamCest) + "' " 	+ CRLF
+
+	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
+
+	If (cAlias)->QTD > 0
+		lRet := .T.
+	Endif
+
+	(cAlias)->(dbCloseArea())
+
+Return(lRet)
+
+/*/{Protheus.doc} NCMReport
+Relatorio de inconsistencias
+@type function
+@since 30/06/2025
+/*/
+Static function NCMReport(aLOG)
+
+	Local oReport
+
+	If Len(aLOG) == 0
+		MsgInfo("Nao ha inconsistencias para exibir!", "Relatorio")
+		Return
+	EndIf
+
+	oReport:= ReportDef(aLOG)
+	oReport:PrintDialog()
+
+Return()
+
+
+Static Function ReportDef(aLOG)
+	Local oReport
+	Local oSection
+
+	oReport:=TReport():New("NCMReport","Log - Inconsistencias de dados - interface NCM",,{|oReport| PrintReport(oReport,aLOG)},"Este relatorio ira imprimir inconsistencia de dados na interface NCM")
+	oReport:SetLandscape()
+	oReport:HideParamPage()
+
+	oSection:= TRSection():New(oReport,"LOG",{},{})
+	TRCell():New(oSection,"LINHA" 	,,"Linha"	,"@!",06,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"FILIAL" 	,,"Filial"	,"@!",05,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"NCM" 	,,"NCM"	    ,"@!",10,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"TRIBUTO" ,,"Tributo" ,"@!",07,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"ORIGEM"  ,,"Origem"  ,"@!",04,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"UF-ORIG" ,,"UF1"     ,"@!",06,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"UF-DEST" ,,"UF2"     ,"@!",06,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"DT-INI"  ,,"Dt-ini"  ,"@!",10,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"DT-FIM"  ,,"Dt-fim"  ,"@!",10,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"CEST"    ,,"CEST"    ,"@!",10,/*lPixel*/,/*{|| code-block de impressao }*/)
+	TRCell():New(oSection,"MENSAGEM",,"Mensagem","@!",70,/*lPixel*/,/*{|| code-block de impressao }*/)
+
+	oSection:SetLineStyle()
+Return oReport
+
+
+Static Function PrintReport(oReport,aLOG)
+
+	Local oSection := oReport:Section(1)
+	Local i:=1
+
+	oSection:SetTotalInLine(.F.)
+	oReport:SetMeter(Len(aLOG))
+
+	oReport:IncMeter()
+	oSection:Init()
+	For i:= 1 to len(aLOG)
+		If oReport:Cancel()
+			Exit
+		EndIf
+
+		oReport:IncMeter()
+		oSection:Cell("LINHA")   :SetValue(aLOG[i,11])
+		oSection:Cell("FILIAL")  :SetValue(aLOG[i,1])
+		oSection:Cell("NCM")     :SetValue(aLOG[i,2])
+		oSection:Cell("TRIBUTO") :SetValue(aLOG[i,3])
+		oSection:Cell("ORIGEM")  :SetValue(aLOG[i,4])
+		oSection:Cell("UF-ORIG") :SetValue(aLOG[i,5])
+		oSection:Cell("UF-DEST") :SetValue(aLOG[i,6])
+		oSection:Cell("DT-INI")  :SetValue(aLOG[i,7])
+		oSection:Cell("DT-FIM")  :SetValue(aLOG[i,8])
+		oSection:Cell("CEST")    :SetValue(aLOG[i,9])
+		oSection:Cell("MENSAGEM"):SetValue(aLOG[i,10])
+		oSection:PrintLine()
+	Next
+
+	oReport:ThinLine()
+	oSection:Finish()
+
+Return()
+
+Static Function fValidCSV(aLinha, cMSG, aLOG, nX)
+
+	Local aUFsValidas := {"AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG",;
+		"PA","PB","PR","PE","PI","RJ","RN","RO","RR","RS","SC","SE","SP","TO","EX"}
+	Local cCodNCM  := AllTrim(aLinha[1])   // CIS_CODNCM
+	Local cCodTRIB := AllTrim(aLinha[2])   // CIT_TRIB
+	Local cORIGEM  := AllTrim(aLinha[3])   // CIU_ORIGEM
+	Local cUFOri   := AllTrim(aLinha[4])   // CIU_UFORI
+	Local cUFDes   := AllTrim(aLinha[5])   // CIU_UFDEST
+	Local cDTINI   := AllTrim(aLinha[6])   // CIU_VIGINI
+	Local cDTFIM   := AllTrim(aLinha[7])   // CIU_VIGFIM
+	Local cCest    := AllTrim(aLinha[8])   // CIU_CEST
+	//Local cMargem  := AllTrim(aLinha[9])   // CIU_MARGEM
+	//Local cIMargem := AllTrim(aLinha[10])  // CIU_MVAAUX
+	//Local cUM      := AllTrim(aLinha[11])  // CIU_UM
+	//Local cVLPAUT  := AllTrim(aLinha[12])  // CIU_VLPAUT
+	//Local cMajora  := AllTrim(aLinha[13])  // CIU_MAJORA
+	//Local cIMajora := AllTrim(aLinha[14])  // CIU_MJAUX
+	//Local cAliq    := AllTrim(aLinha[15])  // CIU_ALIQTR
+	//Local cItem    := AllTrim(aLinha[16])  // CIU_ITEM
+	//Local cTipo    := AllTrim(aLinha[17])  // CIU_TIPO
+
+	cMSG := ""
+
+	// VALIDAR QUANTIDADE DE CAMPOS
+	If Len(aLinha) < 17
+		cMSG := "ERRO: Linha com apenas " + cValToChar(Len(aLinha)) + " campos. Esperado: 17"
+		aadd(aLOG, { cFIlAnt, cCodNCM, cCodTRIB, cORIGEM, cUFOri, cUFDes, cDTINI, cDTFIM, cCest, cMSG, Strzero(nX,4) })
+		Return
+	EndIf
+
+	// VALIDAR UF Origem
+	If !Empty(cUFOri) .AND. aScan(aUFsValidas, {|x| x == Upper(cUFOri)}) == 0
+		cMSG := "ERRO: UF Origem invalida: " + cUFOri
+		aadd(aLOG, {cFIlAnt, cCodNCM, cCodTRIB, cORIGEM, cUFOri, cUFDes, cDTINI, cDTFIM, cCest, cMSG, Strzero(nX,4) })
+		Return
+	EndIf
+
+	// VALIDAR UF Destino
+	If !Empty(cUFDes) .AND. aScan(aUFsValidas, {|x| x == Upper(cUFDes)}) == 0
+		cMSG := "ERRO: UF Destino invalida: " + cUFDes
+		aadd(aLOG, { cFIlAnt, cCodNCM, cCodTRIB, cORIGEM, cUFOri, cUFDes, cDTINI, cDTFIM, cCest, cMSG, Strzero(nX,4) })
+		Return
+	EndIf
+
+Return
