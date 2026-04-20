@@ -9,356 +9,75 @@ Consulta as tabelas SYD x F2E para criar as amarrações de NCMs x Tributos na CIS
 3. Processamento dos NCMs x Tributos selecionados, criando as registros na tabela CIS, CIT e CIU.
 @type Function
 @author Tiengo
-@since 16/04/2025
+@since 16/04/2026
 @example 
 /*/
 User Function xConfigTributosNCM()
 
-	Local aArea        := FWGetArea()	As Array
-	Local aNCMsAux     := {}			As Array
-	Local aTributosAux := {}			As Array
-	Local nNCM         := 0				As Numeric
-	Local nTrib        := 0				As Numeric
-	Local cNCM         := ""			As Character
-	Local cTrib        := ""			As Character
-	Local oModel       := Nil			As Object
-	Local oNCMMod      := Nil			As Object
-	Local oTribMod     := Nil			As Object
-	Local nOper        := 0				As Numeric
-	Local nT           := 0				As Numeric
-	Local nLn          := 0				As Numeric
-	Local aLOG         := {}			As Array
-	Local aMsgErro     := {}			As Array
-	Local cMSG         := ""			As Character
+	Local aArea        := FWGetArea()   As Array
+	Local oRadMenu1    := Nil           As Object
+	Local oSay1        := Nil           As Object
+	Local aOpcoes      := {}            As Array
+	Local oDlg1        := Nil           As Object
+	Local nRadMenu1    := 1             As Numeric
+	Local lProcessar   := .F.           As Logical
 
-	Private aDados 		:= {}			As Array
-	Private aTributos 	:= {}			As Array
-	Private lok    		:= .F.			As Logical
-	Private cTipo 		:= ''			As Character
+	AAdd(aOpcoes, "Atualiza NCM")                             // 01
+	AAdd(aOpcoes, "Importação Configurador de Tributos NCM")  // 02
+	AAdd(aOpcoes, "Atualiza Perfil de Produtos")              // 03
 
-	cTipo := 'SYD'
-	Processa({|| fBusca()}, "Buscando NCM's...", , , , )
+	DEFINE MSDIALOG oDlg1 TITLE "Escolha uma opção" FROM 000, 000 TO 220, 400 COLORS 0, 16777215 PIXEL
 
-	aNCMsAux := aDados
+	@ 006, 006 SAY oSay1 PROMPT "Selecione abaixo:" SIZE 091, 007 OF oDlg1 COLORS 0, 16777215 PIXEL
 
-	If Len(aNCMsAux) == 0 .or. ! lok
-		Return()
-	Endif
+	oRadMenu1 := tRadMenu():New(20, 06, aOpcoes, {|u| If(PCount() > 0, nRadMenu1 := u, nRadMenu1)}, oDlg1,,,,,,,,159, 130,,,, .T.)
 
-	cTipo := 'F2E'
-	Processa({|| fBusca()}, "Buscando Tributos...", , , , )
+	// Processar seta lProcessar = .T. e fecha
+	@ 090,  90 BUTTON "Processar" SIZE 050, 012 PIXEL OF oDlg1 ACTION (lProcessar := .T., oDlg1:End())
+	// Cancelar apenas fecha, lProcessar permanece .F.
+	@ 090, 150 BUTTON "Cancelar"  SIZE 050, 012 PIXEL OF oDlg1 ACTION oDlg1:End()
 
-	aTributosAux := aDados
+	ACTIVATE MSDIALOG oDlg1 CENTERED
 
-	If  Len(aTributosAux) == 0 .or. ! lok
-		Return()
-	Endif
-
-	// Gravação CIS + CIT + CIU
-	// Para cada NCM selecionado
-	For nNCM := 1 To Len(aNCMsAux)
-
-		cNCM := AllTrim(aNCMsAux[nNCM][1])
-
-		// Verifica se NCM já existe na CIS
-		CIS->(DBSetOrder(1))
-		If CIS->(MsSeek(FWxFilial("CIS") + PadR(cNCM, TamSX3("CIS_CODNCM")[1])))
-			nOper := 4  // alteração
-		Else
-			nOper := 3  // inclusão
-		EndIf
-
-		oModel := FWLoadModel("FISA160B")
-		oModel:SetOperation(nOper)
-		oModel:Activate()
-
-		oNCMMod := oModel:GetModel("FISA160B")
-		oNCMMod:SetValue("CIS_CODNCM", cNCM)
-
-		// Para cada Tributo selecionado
-		For nTrib := 1 To Len(aTributosAux)
-
-			cTrib := AllTrim(aTributosAux[nTrib][2])
-
-			oTribMod := oModel:GetModel("FISA160BTRIB")
-
-			If nOper == 3  // inclusão
-				If oTribMod:Length() == 0
-					oTribMod:AddLine()
-				Else
-					oTribMod:GoLine(1)
-					If Empty(oTribMod:GetValue("CIT_TRIB"))
-						oTribMod:GoLine(oTribMod:Length())
-					Else
-						oTribMod:AddLine()
-						oTribMod:GoLine(oTribMod:Length())
-					EndIf
-				EndIf
-				oTribMod:SetValue("CIT_TRIB", cTrib)
-
-			Else  // alteração — localiza tributo ou adiciona se não existe
-				nLn := 0
-				For nT := 1 To oTribMod:Length()
-					oTribMod:GoLine(nT)
-					If AllTrim(oTribMod:GetValue("CIT_TRIB")) == cTrib
-						nLn := nT
-						Exit
-					EndIf
-				Next
-				If nLn == 0  // tributo novo
-					oTribMod:AddLine()
-					oTribMod:GoLine(oTribMod:Length())
-					oTribMod:SetValue("CIT_TRIB", cTrib)
-				Else
-					oTribMod:GoLine(nLn)  // já existe, só posiciona
-				EndIf
-			EndIf
-
-		Next nTrib
-
-		// Valida e grava
-		If oModel:VldData()
-			oModel:CommitData()
-		Else
-			If oModel:HasErrorMessage()
-				aMsgErro := oModel:GetErrorMessage()
-				cMSG     := aMsgErro[6]
-			EndIf
-			aadd(aLOG, { FWxFilial("CIS"), cNCM, "", "", "", "", "", "", "", cMSG, Strzero(nNCM,4) })
-		EndIf
-
-		oModel:DeActivate()
-
-	Next nNCM
-
-	If Len(aLOG) > 0
-		FWAlertWarning("Processamento finalizado com " + cValToChar(Len(aLOG)) + " erro(s). Verifique o relatorio.", "Atencao")
-		NCMReport(aLOG)
-	Else
-		FWAlertWarning("Processamento finalizado com sucesso!", "Atencao")
+	// Só executa se clicou em Processar
+	If lProcessar
+		Do Case
+		Case nRadMenu1 == 1
+			Processa({|| fAtualizaNCM()}, "Atualizando NCMs...")
+		Case nRadMenu1 == 2
+			fImpNCM()
+		Case nRadMenu1 == 3
+			Processa({|| fProcPerfilProduto()}, "Atualizando Perfil de Produtos...")
+		EndCase
 	EndIf
 	FWRestArea(aArea)
 
 Return()
 
-Static Function fBusca()
-
-	Local aArea      		:= FWGetArea()
-	Local cTitulo 			:= If(cTipo == 'SYD', 'Seleção de NCMs', 'Seleção de Tributos')
-	Local aFields           := {}
-	Local aColunas          := {}
-	Local lRetQry   		:= .T.
-
-	Private oMarkBrowse
-	Private oTempTable
-	Private aRotina   		:= MenuDef()
-	Private cAliasTmp       := GetNextAlias()
-
-	//Adiciona no array das colunas as que serão incluidas (Nome do Campo, Tipo do Campo, Tamanho, Decimais)
-	aFields := fFields()
-
-	oTempTable:= FWTemporaryTable():New(cAliasTmp)
-	oTempTable:SetFields(aFields)
-	oTempTable:Create()
-
-	//Monta o cabecalho
-	aColunas := fMontaHead()
-
-	//carrengan dados da tabela origem
-	FWMsgRun(, {|oSay| fMontaDados(oSay, @lRetQry)  }, "Processando", "Carregando " + cTipo + "...")
-
-	If lRetQry == .F.
-		Return()
-	Endif
-
-	oMarkBrowse := FWMarkBrowse():New()
-	oMarkBrowse:SetAlias(cAliasTmp)
-	oMarkBrowse:SetDescription(cTitulo)
-	oMarkBrowse:SetFieldMark('OK')
-	oMarkBrowse:SetTemporary(.T.)
-	oMarkBrowse:SetColumns(aColunas)
-	oMarkBrowse:SetUseFilter() // Habilita a utilizaóóo do Filtro de registros
-	oMarkBrowse:SetLocate() // Habilita a Localizaóóo de registros
-	oMarkBrowse:SetSeek() // Habilita a Pesquisa de registros
-	oMarkBrowse:SetDBFFilter()
-
-	oMarkBrowse:Activate()
-
-	//Deleta a temporária e desativa a tela de marcação
-	oTempTable:Delete()
-	oMarkBrowse:DeActivate()
-
-	FwRestArea(aArea)
-
-Return()
-
-Static Function fMontaHead()
-
-	Local oColumn 	:= Nil 	As Object
-	Local nAtual 	:= 0   	As Numeric
-	Local aHeadAux  := {} 	As Array
-	Local aColunas 	:= {} 	As Array
-
-	If cTipo == 'SYD'
-		aAdd(aHeadAux, { 'YD_TEC',    'Técnica',    'C', TamSX3('YD_TEC')[1],    0, '', .F. })
-		aAdd(aHeadAux, { 'YD_DESC_P', 'Descrição',  'C', TamSX3('YD_DESC_P')[1], 0, '', .F. })
-	Else
-		aAdd(aHeadAux, { 'F2E_ID',     'ID',          'C', TamSX3('F2E_ID')[1],     0, '', .F. })
-		aAdd(aHeadAux, { 'F2E_TRIB',   'Tributo',     'C', TamSX3('F2E_TRIB')[1],   0, '', .F. })
-		aAdd(aHeadAux, { 'F2E_DESC',   'Descrição',   'C', TamSX3('F2E_DESC')[1],   0, '', .F. })
-		aAdd(aHeadAux, { 'F2E_ESFERA', 'Esfera',      'C', TamSX3('F2E_ESFERA')[1], 0, '', .F. })
-		aAdd(aHeadAux, { 'F2E_ESPECI', 'Espécie',     'C', TamSX3('F2E_ESPECI')[1], 0, '', .F. })
-		aAdd(aHeadAux, { 'F2E_IDTRIB', 'ID Tributo',  'C', TamSX3('F2E_IDTRIB')[1], 0, '', .F. })
-	Endif
-
-	For nAtual := 1 To Len(aHeadAux)
-		oColumn := FWBrwColumn():New()
-		oColumn:SetData(&("{|| " + cAliasTmp  + "->" + aHeadAux[nAtual][1] + "}"))
-		oColumn:SetTitle(aHeadAux[nAtual][2])
-		oColumn:SetType(aHeadAux[nAtual][3])
-		oColumn:SetSize(aHeadAux[nAtual][4])
-		oColumn:SetDecimal(aHeadAux[nAtual][5])
-		oColumn:SetPicture(aHeadAux[nAtual][6])
-		aAdd(aColunas, oColumn)
-	Next
-
-Return(aColunas)
-
-// Carregando dados da tabela origem
-Static Function fMontaDados(oSay, lRetQry)
-
-	Local cQuery   := '' As Character
-	Local cAlias   := '' As Character
-
-	If cTipo == 'SYD'
-		cQuery += "SELECT YD_TEC, YD_DESC_P "   					+ CRLF
-		cQuery += "FROM " + RetSqlName("SYD") + " SYD " 			+ CRLF
-		cQuery += "WHERE YD_FILIAL = '" + FWFilial("SYD") + "' " 	+ CRLF
-		cQuery += "  AND SYD.D_E_L_E_T_ = ' ' " 					+ CRLF
-		cQuery += "ORDER BY YD_TEC"              					+ CRLF
-
-	Else
-		cQuery += "SELECT F2E_ID, F2E_TRIB, F2E_DESC," 				+ CRLF
-		cQuery += "F2E_ESFERA, F2E_ESPECI, F2E_IDTRIB " 			+ CRLF
-		cQuery += "FROM " + RetSqlName("F2E") + " F2E " 			+ CRLF
-		cQuery += "WHERE F2E_FILIAL = '" + FWFilial("F2E") + "' " 	+ CRLF
-		cQuery += "  AND F2E.D_E_L_E_T_ = ' ' " 					+ CRLF
-		cQuery += "ORDER BY F2E_ID"              					+ CRLF
-	Endif
-
-	cQuery := ChangeQuery(cQuery)
-	cAlias := MPSysOpenQuery(cQuery)
-
-	If (cAlias)->(EoF())
-		If ! IsBlind()
-			FWAlertWarning("Nenhum dados encontrados para tabela " + cTipo + "!", "Atenção")
-		Endif
-		lRetQry := .F.
-		Return()
-	Endif
-
-	While ! (cAlias)->(EoF())
-
-		RecLock(cAliasTMP, .T.)
-
-		If cTipo == 'SYD'
-			(cAliasTMP)->YD_TEC    	:= (cAlias)->YD_TEC
-			(cAliasTMP)->YD_DESC_P 	:= (cAlias)->YD_DESC_P
-		Else
-			(cAliasTMP)->F2E_ID     := (cAlias)->F2E_ID
-			(cAliasTMP)->F2E_TRIB   := (cAlias)->F2E_TRIB
-			(cAliasTMP)->F2E_DESC   := (cAlias)->F2E_DESC
-			(cAliasTMP)->F2E_ESFERA := (cAlias)->F2E_ESFERA
-			(cAliasTMP)->F2E_ESPECI := (cAlias)->F2E_ESPECI
-			(cAliasTMP)->F2E_IDTRIB := (cAlias)->F2E_IDTRIB
-		Endif
-
-		(cAliasTMP)->(MsUnlock())
-
-		(cAlias)->(DbSkip())
-	EndDo
-
-	(cAlias)->(DbCloseArea())
-
-Return()
-
-Static Function fFields()
-
-	Local aFields := {} As Array
-
-	If cTipo == 'SYD'
-		aAdd(aFields, { 'OK', 'C', 1, 0})
-		aAdd(aFields, { 'YD_TEC',    'C', TamSX3('YD_TEC')[1],    0 })
-		aAdd(aFields, { 'YD_DESC_P', 'C', TamSX3('YD_DESC_P')[1], 0 })
-
-	Else
-		aAdd(aFields, { 'OK', 'C', 1, 0})
-		aAdd(aFields, { 'F2E_ID',     'C', TamSX3('F2E_ID')[1],     0 })
-		aAdd(aFields, { 'F2E_TRIB',   'C', TamSX3('F2E_TRIB')[1],   0 })
-		aAdd(aFields, { 'F2E_DESC',   'C', TamSX3('F2E_DESC')[1],   0 })
-		aAdd(aFields, { 'F2E_ESFERA', 'C', TamSX3('F2E_ESFERA')[1], 0 })
-		aAdd(aFields, { 'F2E_ESPECI', 'C', TamSX3('F2E_ESPECI')[1], 0 })
-		aAdd(aFields, { 'F2E_IDTRIB', 'C', TamSX3('F2E_IDTRIB')[1], 0 })
-	Endif
-
-Return(aFields)
-
-Static Function MenuDef()
-
-	Local aRotina := {}
-
-	ADD OPTION aRotina TITLE 'Processar' ACTION 'u_fProcRecno()' OPERATION 2 ACCESS 0
-	ADD OPTION aRotina TITLE 'Importação CSV' ACTION 'u_fImpNCM()' OPERATION 2 ACCESS 0
-
-Return(aRotina)
-
-User Function fProcRecno()
-
-	Local aArea  	:= FWGetArea()
-	Local cMarca 	:= oMarkBrowse:Mark()
-
-	aDados 		:= {}
-
-	(cAliasTmp)->( dbGoTop() )
-
-	While ! (cAliasTmp)->( EOF() )
-		If oMarkBrowse:IsMark(cMarca)
-			If cTipo == 'SYD'
-				AAdd(aDados, { (cAliasTmp)->YD_TEC, (cAliasTmp)->YD_DESC_P })
-			Else
-				AAdd(aDados, { (cAliasTmp)->F2E_ID, (cAliasTmp)->F2E_TRIB, (cAliasTmp)->F2E_DESC, (cAliasTmp)->F2E_ESFERA, (cAliasTmp)->F2E_ESPECI, (cAliasTmp)->F2E_IDTRIB })
-			Endif
-		EndIf
-		(cAliasTmp)->( dbSkip() )
-	Enddo
-
-	lok := .T.
-
-	FWRestArea(aArea)
-	CloseBrowse()
-
-Return()
-
-/*/{Protheus.doc} xImpNCM
+/*/{Protheus.doc} fImpNCM
 Processamento de importação de NCM a partir de um arquivo CSV 
 @type function
 @version
 @since 30/06/2025
 @return variant, return null
 /*/
-User Function fImpNCM()
+Static Function fImpNCM()
 
-	Local aArea   := FwGetArea()
-	Local aPergs  := {}
-	Local aResps  := {}
+	Local aArea   		:= FwGetArea()
+	Local cArquivo		:= ""
+	Local aWebAgent 	:= GetWebAgentInfo()
 
-	aAdd( aPergs ,{6,"Selecione planilha"	, Space(80)			  , ""  , ""	, "",090,.T.,"arquivos csv (*.*) |*.csv*"}) //MV_PAR01
+	If Empty(aWebAgent[1])
+		FWAlertWarning("É necessário a utilização do webagent para importação do arquivo.","Atenção")
+		Return()
+	Endif
 
-	if ParamBox(aPergs, "Informe os parametros", @aResps , , , , , , , /*RetCodUsr()*/ , .T., .T.)
-		if ! Empty(MV_PAR01)
-			Processa({|| fProcNCM(MV_PAR01) },"Aguarde... Processando...")
-		endif
-	endif
+	cArquivo := TFileDialog("CSV files (*.csv)|*.csv",'Seleção de Arquivos',0,GetTempPath(),.F.)
+
+	// Verifica se o arquivo existe
+	If File(cArquivo)
+		Processa({|| fProcNCM(cArquivo)}, "Aguarde... Processando Arquivo...")
+	EndIf
 
 	FwRestArea(aArea)
 
@@ -370,7 +89,7 @@ Static Function fProcNCM(cArquivo)
 	Local nCont      := 0
 	Local aLinha     := {}
 	Local oFile
-	Local cCabLin    := "CodNCM;Tributo;Origem;UFORigem;UFDestino;DTINI;DTFIM;CEST;MARGEM;IMARGEM;UNID;VLPAUTA;MAJORA;IMAJORA;ALIQUOTA;UFItem;UFTipo"
+	Local cCabLin    := "CodNCM;Tributo;Origem;UFORigem;UFDestino;DTINI;DTFIM;CEST;MARGEM;IMARGEM;UNID;VLPAUTA;MAJORA;IMAJORA;ALIQUOTA;Tipo"
 	Local cLinha     := ""
 	Local nHandle    := -1
 
@@ -399,7 +118,7 @@ Static Function fProcNCM(cArquivo)
 
 				If cLinha <> cCabLin
 					MsgStop('Arquivo de Importacao invalido. Verifique o cabecalho!', 'Erro')
-					oFile:Close()  // CORREÇÃO: Fechar arquivo antes de sair
+					oFile:Close()
 					Return(Nil)
 				EndIf
 			Else
@@ -456,7 +175,7 @@ Static Function fGravaNCM(aCSVLIDO)
 	Local cMajora       := ""			As Character
 	Local cIMajora      := ""			As Character
 	Local cAliq         := ""			As Character
-	Local cTipo         := ""			As Character			
+	Local cTipo         := ""			As Character
 	Local lTemAliq      := .F.			As Logical
 	Local lTransOk      := .T.			As Logical
 	Local aMsgErro      := {}			As Array
@@ -578,7 +297,7 @@ Static Function fGravaNCM(aCSVLIDO)
 				cMajora  := AllTrim(aLinha[13])
 				cIMajora := AllTrim(aLinha[14])
 				cAliq    := AllTrim(aLinha[15])
-				cTipo    := AllTrim(aLinha[17])
+				cTipo    := AllTrim(aLinha[16])
 
 				// Grava na aba correta conforme o tipo
 				Do Case
@@ -686,6 +405,15 @@ Static Function fGravaNCM(aCSVLIDO)
 		// Valida e commita o modelo completo (CIS+CIT+CIU)
 		If oModel:VldData()
 			oModel:CommitData()
+
+			If FWAlertYesNo("Registro de NCM " + cCodNCM + " gravado com sucesso!" + CRLF + CRLF + ;
+					"Deseja configurar o perfil de produto para este NCM?", "Perfil de Produto")
+				fAtuPerfilProduto(cCodNCM, @cMSG, 'fimpcsv')
+
+				If ! Empty(cMSG)
+					aadd(aLOG, { cFIlAnt, cCodNCM, "", "", "", "", "", "", "", cMSG, Strzero(nX,4) })
+				Endif
+			EndIf
 		Else
 			lTransOk := .F.
 			If oModel:HasErrorMessage()
@@ -708,54 +436,6 @@ Static Function fGravaNCM(aCSVLIDO)
 	EndIf
 
 Return(lTransOk)
-
-/*/{Protheus.doc} ValidaDuplicidade
-Valida se ja existe registro CIU com a mesma combinacao de chaves
-@type function
-@since 17/11/2025
-@version 2.1 - CORRIGIDO (incluido CEST na validação)
-@param cNCM - Codigo NCM
-@param cTRIB - Codigo Tributo
-@param cTIPO - Tipo (1,2,3,4)
-@param cORIG - Origem
-@param cUFO - UF Origem
-@param cUFD - UF Destino
-@param dDtIni - Data Inicio Vigencia
-@param dDtFim - Data Fim Vigencia
-@param cCEST - Codigo CEST
-@return lRet - .T. ja existe, .F. nao existe
-/*/
-Static Function fValidCIU(cNCM, cTRIB, cTIPO, cORIG, cUFO, cUFD, dDtIni, dDtFim, cCEST)
-
-	Local lRet 		:= .F.
-	Local cQuery  	:= ""
-	Local cAlias  	:= ""
-	Local nTamCest	:= TamSX3("CIU_CEST")[1]
-
-	cQuery := "SELECT COUNT(*) AS QTD " 									+ CRLF
-	cQuery += "FROM " + RetSqlName("CIU") + " CIU " 						+ CRLF
-	cQuery += "WHERE CIU.D_E_L_E_T_ = ' ' " 								+ CRLF
-	cQuery += "  AND CIU_FILIAL = '" + FWxFilial("CIU") + "' " 				+ CRLF
-	cQuery += "  AND CIU_NCM = '" + AllTrim(cNCM) + "' " 					+ CRLF
-	cQuery += "  AND CIU_TRIB = '" + AllTrim(cTRIB) + "' " 					+ CRLF
-	cQuery += "  AND CIU_TIPO = '" + cTIPO + "' " 							+ CRLF
-	cQuery += "  AND CIU_ORIGEM = '" + AllTrim(cORIG) + "' " 				+ CRLF
-	cQuery += "  AND CIU_UFORI = '" + AllTrim(cUFO) + "' " 					+ CRLF
-	cQuery += "  AND CIU_UFDEST = '" + AllTrim(cUFD) + "' " 				+ CRLF
-	cQuery += "  AND CIU_VIGINI = '" + DTOS(dDtIni) + "' " 					+ CRLF
-	cQuery += "  AND CIU_VIGFIM = '" + DTOS(dDtFim) + "' " 					+ CRLF
-	cQuery += "  AND CIU_CEST = '" + PadR(AllTrim(cCEST), nTamCest) + "' " 	+ CRLF
-
-	cQuery := ChangeQuery(cQuery)
-	cAlias := MPSysOpenQuery(cQuery)
-
-	If (cAlias)->QTD > 0
-		lRet := .T.
-	Endif
-
-	(cAlias)->(dbCloseArea())
-
-Return(lRet)
 
 /*/{Protheus.doc} NCMReport
 Relatorio de inconsistencias
@@ -849,20 +529,11 @@ Static Function fValidCSV(aLinha, cMSG, aLOG, nX)
 	Local cDTINI   := AllTrim(aLinha[6])   // CIU_VIGINI
 	Local cDTFIM   := AllTrim(aLinha[7])   // CIU_VIGFIM
 	Local cCest    := AllTrim(aLinha[8])   // CIU_CEST
-	//Local cMargem  := AllTrim(aLinha[9])   // CIU_MARGEM
-	//Local cIMargem := AllTrim(aLinha[10])  // CIU_MVAAUX
-	//Local cUM      := AllTrim(aLinha[11])  // CIU_UM
-	//Local cVLPAUT  := AllTrim(aLinha[12])  // CIU_VLPAUT
-	//Local cMajora  := AllTrim(aLinha[13])  // CIU_MAJORA
-	//Local cIMajora := AllTrim(aLinha[14])  // CIU_MJAUX
-	//Local cAliq    := AllTrim(aLinha[15])  // CIU_ALIQTR
-	//Local cItem    := AllTrim(aLinha[16])  // CIU_ITEM
-	//Local cTipo    := AllTrim(aLinha[17])  // CIU_TIPO
 
 	cMSG := ""
 
 	// VALIDAR QUANTIDADE DE CAMPOS
-	If Len(aLinha) < 17
+	If Len(aLinha) < 16
 		cMSG := "ERRO: Linha com apenas " + cValToChar(Len(aLinha)) + " campos. Esperado: 17"
 		aadd(aLOG, { cFIlAnt, cCodNCM, cCodTRIB, cORIGEM, cUFOri, cUFDes, cDTINI, cDTFIM, cCest, cMSG, Strzero(nX,4) })
 		Return
@@ -882,4 +553,378 @@ Static Function fValidCSV(aLinha, cMSG, aLOG, nX)
 		Return
 	EndIf
 
-Return
+Return()
+
+Static Function fAtuPerfilProduto(cNCM, cMSG, cTipo)
+
+	Local oModel     := Nil  As Object
+	Local oProdMod   := Nil  As Object
+	Local nOper      := 0    As Numeric
+	Local aMsgErro   := {}   As Array
+	Local cAlias     := ''   As Character
+	Local cQuery     := ''   As Character
+	Local cCodProd   := ''   As Character
+	Local nLn        := 0    As Numeric
+	Local nT         := 0    As Numeric
+
+	// Busca produtos na SB1 com a mesma NCM
+	cQuery := "SELECT B1_COD, B1_DESC "                        			+ CRLF
+	cQuery += "FROM " + RetSqlName("SB1") + " SB1 "            			+ CRLF
+	cQuery += "WHERE B1_FILIAL = '" + FWFilial("SB1") + "' "   			+ CRLF
+	cQuery += "  AND B1_POSIPI = '" + AllTrim(cNCM) + "' "     			+ CRLF
+	cQuery += "  AND B1_MSBLQL <> '1' "                        			+ CRLF
+	cQuery += "  AND SB1.D_E_L_E_T_ = ' ' "                    			+ CRLF
+	cQuery += "ORDER BY B1_COD"                                			+ CRLF
+
+	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
+
+	If (cAlias)->(EoF())
+		cMSG     := "Nenhum produto encontrado na SB1 para NCM: " + cNCM
+		Return()
+	EndIf
+
+	// Verifica se o perfil já existe na F20
+	F20->(dbOrderNickname("XCODNCM"))  // F20_FILIAL + F20_XNCM
+
+	If F20->(MsSeek(FWxFilial("F20") + PadR(cNCM, TamSX3("F20_XNCM")[1])))
+		nOper := MODEL_OPERATION_UPDATE
+	Else
+		nOper := MODEL_OPERATION_INSERT
+	EndIf
+
+	oModel := FWLoadModel("FISA166")
+	oModel:SetOperation(nOper)
+	oModel:Activate()
+
+	// Preenche cabeçalho F20 somente na inclusão
+	If nOper == MODEL_OPERATION_INSERT
+		oModel:SetValue("FISA166", "F20_CODIGO",  GetSX8Num("F20", "F20_CODIGO") )
+		oModel:SetValue("FISA166", "F20_DESC"  , 'NCM ' + cNCM)
+		oModel:SetValue("FISA166", "F20_XNCM", cNCM)
+	EndIf
+
+	oProdMod := oModel:GetModel("FISA166PRODUTO")
+
+	While !(cAlias)->(EoF())
+
+		cCodProd := AllTrim((cAlias)->B1_COD)
+
+		// Verifica se o produto já existe no grid
+		nLn := 0
+		For nT := 1 To oProdMod:Length()
+			oProdMod:GoLine(nT)
+			If AllTrim(oProdMod:GetValue("F24_CDPROD")) == cCodProd
+				nLn := nT
+				Exit
+			EndIf
+		Next
+
+		If nLn > 0
+			// Produto já existe no perfil — pula
+			(cAlias)->(DbSkip())
+			Loop
+		EndIf
+
+		// Adiciona nova linha para o produto
+		If oProdMod:Length() == 0
+			oProdMod:AddLine()
+		Else
+			oProdMod:GoLine(1)
+			If Empty(oProdMod:GetValue("F24_CDPROD"))
+				oProdMod:GoLine(oProdMod:Length())
+			Else
+				oProdMod:AddLine()
+				oProdMod:GoLine(oProdMod:Length())
+			EndIf
+		EndIf
+
+		oProdMod:SetValue("F24_CDPROD", cCodProd)
+
+		(cAlias)->(DbSkip())
+
+	EndDo
+
+	(cAlias)->(DbCloseArea())
+
+	// Valida e grava
+	If oModel:VldData()
+		oModel:CommitData()
+		If nOper == MODEL_OPERATION_INSERT
+			ConfirmSX8()
+		EndIf
+	Else
+		If oModel:HasErrorMessage()
+			aMsgErro := oModel:GetErrorMessage()
+			cMSG     := aMsgErro[6]
+		EndIf
+
+		If nOper == MODEL_OPERATION_INSERT
+			RollBackSX8()
+		EndIf
+	EndIf
+
+	oModel:DeActivate()
+
+Return()
+
+/*/{Protheus.doc} User Function fAtualizaNCM
+Gravação dos NCMs utilizando o JSON disponibilizado no Portal Único Siscomex, utilizando o recurso de ExecAuto para inclusão dos registros e geração de log em caso de falha.
+@type Function
+@author Tiengo
+@since 16/04/2026
+@example 
+/*/
+Static Function fAtualizaNCM()
+
+	Local cLinkDown  := "https://portalunico.siscomex.gov.br/classif/api/publico/nomenclatura/download/json?perfil=PUBLICO;charset=iso-8859-1" 	As Character
+	Local cTxtJson   := ""																													   	As Character
+	Local cError     := ""																														As Character
+	Local jImport	 := Nil																														As jSon
+	Local jNomenclat := Nil																														As jSon
+	Local nTotal     := 0																														As Numeric
+	Local jNCMAtu	 := Nil																														As jSon
+	Local nNCMAtu    := 0																														As Numeric
+	Local cCodigo    := ""																														As Character
+	Local cDescric   := ""																														As Character
+	Local aDados     := {}																														As Array
+	Local cLog       := ""																														As Character
+	Local nLinhaErro := 0																														As Numeric
+	Local nTamDescri := TamSX3("YD_DESC_P")[01]																									As Numeric
+
+	//Variáveis para log do ExecAuto
+	Private lMSHelpAuto    := .T.
+	Private lAutoErrNoFile := .T.
+	Private lMsErroAuto    := .F.
+
+	//Baixa o JSON disponível
+	cTxtJson := HttpGet(cLinkDown)
+	//cTxtJson := FWNoAccent(cTxtJson) //Dica do João, será tratado direto na variável cDescric
+
+	//Se houver conteúdo
+	If ! Empty(cTxtJson)
+		jImport := JsonObject():New()
+		cError  := jImport:FromJson(cTxtJson)
+
+		DbSelectArea("SYD")
+		SYD->(DbSetOrder(1)) // YD_FILIAL + YD_TEC + YD_EX_NCM + YD_EX_NBM + YD_DESTAQU
+
+		//Se não tiver erro no parse
+		If Empty(cError)
+			jNomenclat := jImport:GetJsonObject('Nomenclaturas')
+
+			//Percorre os NCM
+			nTotal := Len(jNomenclat)
+			ProcRegua(nTotal)
+			For nNCMAtu := 1 To nTotal
+				IncProc("Processando registro " + cValToChar(nNCMAtu) + " de " + cValToChar(nTotal) + "...")
+
+				//Pegando o NCM atual, o código e a descrição
+				jNCMAtu  := jNomenclat[nNCMAtu]
+				cCodigo  := jNCMAtu:GetJsonObject("Codigo")
+				cDescric := jNCMAtu:GetJsonObject("Descricao")
+
+				//Remove caracteres especiais da descrição
+				cDescric := FWNoAccent(DecodeUTF8(cDescric, "cp1252")) //Dica do João para tratar a acentuação
+				cDescric := StrTran(cDescric, "-", "")
+				cDescric := StrTran(cDescric, "<i>", "")
+				cDescric := StrTran(cDescric, "</i>", "")
+				cDescric := Alltrim(cDescric)
+				cDescric := Upper(cDescric) //Dica do João, para gravar tudo em caixa alta padronizado
+				cDescric := Left(cDescric, nTamDescri) //Dica do Renato, para gravar somente conforme o tamanho do campo no Dicionário
+
+				//Removendo os pontos do código
+				cCodigo := Alltrim(cCodigo)
+				cCodigo := StrTran(cCodigo, ".", "")
+				cCodigo := StrTran(cCodigo, "-", "")
+
+				//Se o código tiver 8 caracteres e não conseguir posicionar no registro
+				If Len(cCodigo) == 8 .And. ! SYD->(MsSeek(FWxFilial("SYD") + cCodigo))
+					aDados := {}
+					aAdd(aDados, {"YD_TEC",    cCodigo,  Nil})
+					aAdd(aDados, {"YD_DESC_P", cDescric, Nil})
+					aAdd(aDados, {"YD_UNID",   "UN",     Nil})
+
+					//Aciona a inclusão do registro
+					lMsErroAuto := .F.
+					MSExecAuto({|x, y| MVC_EICA130(x, y)}, aDados, 3)
+
+					//Se houve erro, gera o log
+					If lMsErroAuto
+						cPastaErro := '\x_logs\'
+						cNomeErro  := 'erro_syd_cod_' + cCodigo + "_" + dToS(Date()) + '_' + StrTran(Time(), ':', '-') + '.txt'
+
+						//Se a pasta de erro não existir, cria ela
+						If ! ExistDir(cPastaErro)
+							MakeDir(cPastaErro)
+						EndIf
+
+						//Pegando log do ExecAuto, percorrendo e incrementando o texto
+						cTextoErro := ""
+						cTextoErro += "Codigo:    " + cCodigo + CRLF
+						cTextoErro += "Descricao: " + cDescric + CRLF
+						cTextoErro += "--" + CRLF + CRLF
+						aLogErro := GetAutoGRLog()
+						For nLinhaErro := 1 To Len(aLogErro)
+							cTextoErro += aLogErro[nLinhaErro] + CRLF
+						Next
+
+						//Criando o arquivo txt e incrementa o log
+						MemoWrite(cPastaErro + cNomeErro, cTextoErro)
+						cLog += '- Falha ao incluir registro, codigo [' + cCodigo + '], veja o arquivo de log em ' + cPastaErro + cNomeErro + CRLF
+					Else
+						cLog += '+ Sucesso no Execauto no codigo ' + cCodigo + ';' + CRLF
+					EndIf
+				EndIf
+			Next
+
+			//Se tiver log, mostra ele
+			If ! Empty(cLog)
+				cDirTmp := GetTempPath()
+				cArqLog := 'importacao_' + dToS(Date()) + '_' + StrTran(Time(), ':', '-') + '.log'
+				MemoWrite(cDirTmp + cArqLog, cLog)
+				ShellExecute('OPEN', cArqLog, '', cDirTmp, 1)
+			EndIf
+
+		Else
+			FWAlertError("Houve uma falha na conversão do JSON: " + CRLF + cError, "Erro no Parse")
+		EndIf
+	EndIf
+
+Return()
+
+
+Static Function fProcPerfilProduto()
+
+	Local aArea    := FWGetArea()   As Array
+	Local cAlias   := ''            As Character
+	Local cQuery   := ''            As Character
+	Local cNCM     := ''            As Character
+	Local cCodProd := ''            As Character  // declarada
+	Local cMSG     := ''            As Character
+	Local aLOG     := {}            As Array
+	Local aMsgErro := {}            As Array      // declarada
+	Local nLn      := 0             As Numeric
+	Local nT       := 0             As Numeric
+	Local nOper    := 0             As Numeric    // declarada
+	Local oModel   := Nil           As Object
+	Local oProdMod := Nil           As Object
+
+	cQuery := "SELECT SB1.B1_COD, SB1.B1_POSIPI "                              + CRLF
+	cQuery += "FROM " + RetSqlName("SB1") + " SB1 "                            + CRLF
+	cQuery += "LEFT JOIN " + RetSqlName("F24") + " F24 "                       + CRLF
+	cQuery += "  ON F24.F24_CDPROD = SB1.B1_COD "                              + CRLF
+	cQuery += "  AND F24.F24_FILIAL = '" + FWFilial("F24") + "' "              + CRLF
+	cQuery += "  AND F24.D_E_L_E_T_ = ' ' "                                    + CRLF
+	cQuery += "WHERE SB1.B1_FILIAL = '" + FWFilial("SB1") + "' "               + CRLF
+	cQuery += "  AND SB1.D_E_L_E_T_ = ' ' "                                    + CRLF
+	cQuery += "  AND SB1.B1_POSIPI <> '' "                                     + CRLF
+	cQuery += "  AND SB1.B1_MSBLQL <> '1' "                                    + CRLF
+	cQuery += "  AND F24.F24_CDPROD IS NULL "                                  + CRLF
+	cQuery += "ORDER BY SB1.B1_POSIPI, SB1.B1_COD "                            + CRLF
+
+	cQuery := ChangeQuery(cQuery)
+	cAlias := MPSysOpenQuery(cQuery)
+
+	If (cAlias)->(EoF())
+		(cAlias)->(DbCloseArea())
+		If !IsBlind()
+			FWAlertInfo("Todos os produtos já possuem Perfil de Produto cadastrado.", "Atenção")
+		Else
+			ConOut("Todos os produtos já possuem Perfil de Produto cadastrado.")
+		EndIf
+		FWRestArea(aArea)
+		Return()
+	EndIf
+
+	// Loop externo — muda a cada NCM
+	While !(cAlias)->(EoF())
+
+		cNCM := AllTrim((cAlias)->B1_POSIPI)
+
+		// Verifica se o perfil já existe na F20
+		F20->(DbOrderNickname("XCODNCM"))
+
+		If F20->(MsSeek(FWxFilial("F20") + PadR(cNCM, TamSX3("F20_XNCM")[1])))
+			nOper := MODEL_OPERATION_UPDATE
+		Else
+			nOper := MODEL_OPERATION_INSERT
+		EndIf
+
+		oModel := FWLoadModel("FISA166")
+		oModel:SetOperation(nOper)
+		oModel:Activate()
+
+		If nOper == MODEL_OPERATION_INSERT
+			oModel:SetValue("FISA166", "F20_CODIGO", GetSX8Num("F20", "F20_CODIGO"))
+			oModel:SetValue("FISA166", "F20_DESC"  , "NCM " + cNCM)
+			oModel:SetValue("FISA166", "F20_XNCM"  , cNCM)
+		EndIf
+
+		oProdMod := oModel:GetModel("FISA166PRODUTO")
+
+		cCodProd := AllTrim((cAlias)->B1_COD)
+
+		// Verifica se o produto já existe no grid
+		nLn := 0
+		For nT := 1 To oProdMod:Length()
+			oProdMod:GoLine(nT)
+			If AllTrim(oProdMod:GetValue("F24_CDPROD")) == cCodProd
+				nLn := nT
+				Exit
+			EndIf
+		Next
+
+		If nLn == 0
+			// Adiciona nova linha para o produto
+			If oProdMod:Length() == 0
+				oProdMod:AddLine()
+			Else
+				oProdMod:GoLine(1)
+				If Empty(oProdMod:GetValue("F24_CDPROD"))
+					oProdMod:GoLine(oProdMod:Length())
+				Else
+					oProdMod:AddLine()
+					oProdMod:GoLine(oProdMod:Length())
+				EndIf
+			EndIf
+			oProdMod:SetValue("F24_CDPROD", cCodProd)
+		EndIf
+
+		If oModel:VldData()
+			oModel:CommitData()
+			If nOper == MODEL_OPERATION_INSERT
+				ConfirmSX8()
+			EndIf
+		Else
+			If oModel:HasErrorMessage()
+				aMsgErro := oModel:GetErrorMessage()
+				cMSG     += aMsgErro[6] + CRLF
+				aadd(aLOG, { cFIlAnt, cNCM, "", "", "", "", "", "", "", cMSG, "0000" })
+			EndIf
+
+			If nOper == MODEL_OPERATION_INSERT
+				RollBackSX8()
+			EndIf
+		EndIf
+
+		oModel:DeActivate()
+
+		(cAlias)->(DbSkip())
+
+	EndDo
+
+	(cAlias)->(DbCloseArea())
+
+	If Len(aLOG) > 0
+		FWAlertWarning(cValToChar(Len(aLOG)) + " erro(s) encontrado(s). Verifique o relatório.", "Atenção")
+		NCMReport(aLOG)
+	Else
+		If !IsBlind()
+			FWAlertInfo("Perfil de Produtos atualizado com sucesso!", "Atenção")
+		EndIf
+	EndIf
+
+	FWRestArea(aArea)
+
+Return()
